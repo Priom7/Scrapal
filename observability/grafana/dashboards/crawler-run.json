@@ -1,0 +1,11 @@
+{
+  "uid": "scrapal-run",
+  "title": "Crawler run investigation",
+  "schemaVersion": 41,
+  "refresh": "10s",
+  "templating":{"list":[{"name":"run_id","type":"textbox","label":"Run ID","current":{"text":"","value":""}}]},
+  "panels": [
+    {"type":"logs","title":"Correlated application logs","gridPos":{"x":0,"y":0,"w":24,"h":10},"datasource":{"uid":"loki","type":"loki"},"targets":[{"expr":"{service_name=~\"scrapal-.*\"} | json | run_id=\"$run_id\"","refId":"A"}]},
+    {"type":"timeseries","title":"Crawler stage duration","gridPos":{"x":0,"y":10,"w":24,"h":8},"targets":[{"expr":"histogram_quantile(0.95, sum by (le,stage) (rate(scrapal_crawl_stage_duration_seconds_bucket[5m])))","legendFormat":"{{stage}}","refId":"A"}]}
+  ]
+}

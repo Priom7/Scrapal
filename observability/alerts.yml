@@ -1,0 +1,38 @@
+groups:
+  - name: scrapal-crawler
+    rules:
+      - alert: ScrapalApiUnavailable
+        expr: up{job="scrapal-api"} == 0
+        for: 1m
+        labels: {severity: critical}
+        annotations:
+          summary: Scrapal API is unavailable
+          remediation: Inspect the API container and PostgreSQL connectivity.
+      - alert: ScrapalWorkerUnavailable
+        expr: up{job="flower"} == 0
+        for: 1m
+        labels: {severity: critical}
+        annotations:
+          summary: Crawler worker monitoring is unavailable
+          remediation: Inspect Celery workers, Flower, and RabbitMQ.
+      - alert: ScrapalPageFailureRateHigh
+        expr: sum(rate(scrapal_crawl_pages_total{outcome="failed"}[10m])) / clamp_min(sum(rate(scrapal_crawl_pages_total{stage="page"}[10m])), 0.001) > 0.10
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: More than 10% of crawler pages are failing
+          remediation: Open the affected run timeline and inspect fetch or extraction stages.
+      - alert: ScrapalFetchP95Slow
+        expr: histogram_quantile(0.95, sum by (le) (rate(scrapal_crawl_stage_duration_seconds_bucket{stage="fetch"}[10m]))) > 5
+        for: 10m
+        labels: {severity: warning}
+        annotations:
+          summary: Crawler fetch p95 is above five seconds
+          remediation: Inspect target throttling, network timeouts, and retry pressure.
+      - alert: ScrapalTelemetryPipelineUnavailable
+        expr: up{job="otel-collector"} == 0
+        for: 2m
+        labels: {severity: warning}
+        annotations:
+          summary: OpenTelemetry Collector is unavailable
+          remediation: Restore the collector; crawler events continue in PostgreSQL.
