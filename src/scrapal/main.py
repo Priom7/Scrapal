@@ -7,6 +7,7 @@ from sqlalchemy import select
 
 from scrapal.api import router
 from scrapal.config import get_settings
+from scrapal.course_intelligence_api import router as course_intelligence_router
 from scrapal.db import SessionLocal, init_db
 from scrapal.models import Collection
 from scrapal.observability_api import router as observability_router
@@ -58,6 +59,7 @@ app.add_middleware(
 app.include_router(router)
 app.include_router(observability_router)
 app.include_router(retrieval_router)
+app.include_router(course_intelligence_router)
 setup_observability("scrapal-api", app=app)
 
 

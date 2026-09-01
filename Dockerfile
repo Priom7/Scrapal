@@ -8,9 +8,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl gcc libxml
     && rm -rf /var/lib/apt/lists/*
 COPY pyproject.toml README.md ./
 COPY src ./src
+RUN --mount=type=cache,target=/root/.cache/pip pip install .
+
 COPY alembic.ini ./
 COPY migrations ./migrations
-RUN --mount=type=cache,target=/root/.cache/pip pip install .
 
 RUN useradd --create-home --uid 10001 scrapal && mkdir -p /data/artifacts && chown -R scrapal:scrapal /data
 USER scrapal

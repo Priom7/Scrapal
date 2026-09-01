@@ -8,6 +8,7 @@ from scrapal.models import (
     GenerationStatus,
     IndexStatus,
     ProposalStatus,
+    RecordStatus,
     RunStatus,
     SourceKind,
 )
@@ -316,7 +317,13 @@ class StructuredRecordOut(ORMModel):
     evidence: dict[str, Any]
     confidence: float
     published: bool
+    status: RecordStatus
+    validation_json: dict[str, Any]
+    extractor_version: str
     revision: int
+    reviewed_at: datetime | None
+    reviewed_by: str | None
+    published_at: datetime | None
     updated_at: datetime
 
 

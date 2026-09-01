@@ -84,6 +84,12 @@ class EvaluationStatus(str, enum.Enum):
     failed = "failed"
 
 
+class RecordStatus(str, enum.Enum):
+    review = "review"
+    published = "published"
+    rejected = "rejected"
+
+
 class Organization(Base):
     __tablename__ = "organizations"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
@@ -332,9 +338,36 @@ class StructuredRecord(Base):
     evidence: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     confidence: Mapped[float] = mapped_column(Float, default=1.0)
     published: Mapped[bool] = mapped_column(Boolean, default=True)
+    status: Mapped[RecordStatus] = mapped_column(
+        Enum(RecordStatus), default=RecordStatus.published, index=True
+    )
+    validation_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    extractor_version: Mapped[str] = mapped_column(String(120), default="unknown")
     revision: Mapped[int] = mapped_column(Integer, default=1)
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    reviewed_by: Mapped[str | None] = mapped_column(String(180), nullable=True)
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, onupdate=now)
+
+
+class StructuredRecordRevision(Base):
+    __tablename__ = "structured_record_revisions"
+    __table_args__ = (
+        Index("ix_record_revisions_record_revision", "record_id", "revision", unique=True),
+    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    record_id: Mapped[str] = mapped_column(
+        ForeignKey("structured_records.id", ondelete="CASCADE"), index=True
+    )
+    revision: Mapped[int] = mapped_column(Integer)
+    data: Mapped[dict[str, Any]] = mapped_column(JSON)
+    evidence: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    validation_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    confidence: Mapped[float] = mapped_column(Float, default=1.0)
+    status: Mapped[RecordStatus] = mapped_column(Enum(RecordStatus))
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
 
 
 class Conversation(Base):

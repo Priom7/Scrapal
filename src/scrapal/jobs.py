@@ -5,6 +5,7 @@ from celery import Celery
 from scrapal.config import get_settings
 from scrapal.db import engine
 from scrapal.services.generation import generate_answer
+from scrapal.services.indexing import reindex_document_version
 from scrapal.services.ingestion import ingest_run
 from scrapal.telemetry import setup_observability
 
@@ -15,6 +16,7 @@ celery_app.conf.update(
     task_routes={
         "scrapal.ingest": {"queue": "ingest"},
         "scrapal.generate": {"queue": "ai"},
+        "scrapal.reindex": {"queue": "ai"},
     },
     task_acks_late=True,
     task_reject_on_worker_lost=True,
@@ -43,6 +45,13 @@ def generate_task(generation_id: str) -> None:
     asyncio.run(_isolated_generation(generation_id))
 
 
+@celery_app.task(
+    name="scrapal.reindex", autoretry_for=(ConnectionError,), retry_backoff=True, max_retries=3
+)
+def reindex_task(document_id: str, version_id: str) -> None:
+    asyncio.run(_isolated_reindex(document_id, version_id))
+
+
 async def _isolated_ingest(run_id: str) -> None:
     # Celery executes multiple tasks in a long-lived forked process. AsyncPG
     # connections belong to the event loop that created them, while
@@ -59,5 +68,13 @@ async def _isolated_generation(generation_id: str) -> None:
     await engine.dispose()
     try:
         await generate_answer(generation_id)
+    finally:
+        await engine.dispose()
+
+
+async def _isolated_reindex(document_id: str, version_id: str) -> None:
+    await engine.dispose()
+    try:
+        await reindex_document_version(document_id, version_id)
     finally:
         await engine.dispose()

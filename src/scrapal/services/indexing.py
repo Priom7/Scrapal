@@ -4,6 +4,7 @@ from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from scrapal.config import get_settings
+from scrapal.db import SessionLocal
 from scrapal.models import (
     Chunk,
     ChunkEmbedding,
@@ -19,6 +20,16 @@ from scrapal.services.ollama import OllamaService, OllamaUnavailable
 from scrapal.telemetry import RAG_INDEX_FAILURES, tracer
 
 CHUNKER_VERSION = "structure-v1"
+
+
+async def reindex_document_version(document_id: str, version_id: str) -> None:
+    async with SessionLocal() as session:
+        document = await session.get(Document, document_id)
+        version = await session.get(DocumentVersion, version_id)
+        if not document or not version or version.document_id != document.id:
+            return
+        await index_document_version(session, document, version)
+        await session.commit()
 
 
 async def ensure_default_profile(session: AsyncSession) -> EmbeddingProfile:

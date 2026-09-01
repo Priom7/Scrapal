@@ -165,6 +165,41 @@ export type ObservabilityRun = {
   finished_at: string | null
   created_at: string
 }
+export type CourseRecord = {
+  id: string
+  schema_name: string
+  external_id: string
+  data: Record<string, unknown>
+  evidence: {
+    source_url?: string
+    method?: string
+    fields?: Record<string, { source_url: string; field: string; method: string; excerpt: string; section?: string; selector?: string; confidence: number }[]>
+  }
+  confidence: number
+  published: boolean
+  status: 'review' | 'published' | 'rejected'
+  validation_json: {
+    coverage?: number
+    required_fields?: number
+    missing_fields?: string[]
+    contradictions?: string[]
+    review_reasons?: string[]
+  }
+  extractor_version: string
+  revision: number
+  reviewed_at: string | null
+  reviewed_by: string | null
+  published_at: string | null
+  updated_at: string
+}
+export type CourseIntelligenceOverview = {
+  total: number
+  published: number
+  review: number
+  rejected: number
+  average_coverage: number
+  missing_fields: { field: string; count: number }[]
+}
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`${baseUrl}${path}`, {
@@ -177,7 +212,8 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   })
   if (!response.ok) {
     const body = await response.json().catch(() => ({ detail: response.statusText }))
-    throw new Error(body.detail ?? 'Request failed')
+    const detail = body.detail
+    throw new Error(typeof detail === 'string' ? detail : detail?.message ?? 'Request failed')
   }
   return response.json()
 }
@@ -227,6 +263,22 @@ export const api = {
     request<RetrievalRun>('/v1/admin/retrieval-lab/runs', {
       method: 'POST',
       body: JSON.stringify(data),
+    }),
+  courseIntelligenceOverview: (collectionId?: string) =>
+    request<CourseIntelligenceOverview>(`/v1/admin/course-intelligence/overview${collectionId ? `?collection_id=${collectionId}` : ''}`),
+  courseRecords: (collectionId?: string, status?: CourseRecord['status']) => {
+    const params = new URLSearchParams()
+    if (collectionId) params.set('collection_id', collectionId)
+    if (status) params.set('status', status)
+    return request<CourseRecord[]>(`/v1/admin/course-intelligence/records?${params}`)
+  },
+  publishCourseRecord: (id: string, note: string) =>
+    request<CourseRecord>(`/v1/admin/course-intelligence/records/${id}/publish`, {
+      method: 'POST', body: JSON.stringify({ note }),
+    }),
+  rejectCourseRecord: (id: string, note: string) =>
+    request<CourseRecord>(`/v1/admin/course-intelligence/records/${id}/reject`, {
+      method: 'POST', body: JSON.stringify({ note }),
     }),
   approveProposal: (id: string) =>
     request<Proposal>(`/v1/action-proposals/${id}/approve`, { method: 'POST' }),

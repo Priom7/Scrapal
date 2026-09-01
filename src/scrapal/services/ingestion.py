@@ -25,12 +25,14 @@ from scrapal.models import (
     Collection,
     Document,
     DocumentVersion,
+    RecordStatus,
     Run,
     RunIssue,
     RunStatus,
     Source,
     SourceKind,
     StructuredRecord,
+    StructuredRecordRevision,
     now,
 )
 from scrapal.services.artifacts import store_artifact
@@ -493,6 +495,7 @@ async def persist_extraction(
         )
     )
     if existing:
+        await persist_structured_records(session, source, document, extracted)
         return False
     version = DocumentVersion(
         document_id=document.id,
@@ -507,28 +510,80 @@ async def persist_extraction(
     document.title = extracted.get("title") or document.title
     with tracer.start_as_current_span("content.chunk"):
         await index_document_version(session, document, version)
-    for item in extracted.get("structured_records", []):
+    await persist_structured_records(session, source, document, extracted)
+    return created
+
+
+async def persist_structured_records(
+    session: AsyncSession,
+    source: Source,
+    document: Document,
+    extracted: dict,
+) -> None:
+    for extracted_item in extracted.get("structured_records", []):
+        item = dict(extracted_item)
+        status = RecordStatus(item.pop("status", "published"))
+        validation = item.pop("validation", {})
+        extractor_version = item.pop("extractor_version", "unknown")
         record = await session.scalar(
             select(StructuredRecord).where(
+                StructuredRecord.collection_id == source.collection_id,
                 StructuredRecord.schema_name == item["schema_name"],
                 StructuredRecord.external_id == item["external_id"],
             )
         )
         if record:
-            if record.data != item["data"]:
+            changed = (
+                record.data != item["data"]
+                or record.evidence != item.get("evidence", {})
+                or record.validation_json != validation
+            )
+            if changed:
                 record.data = item["data"]
                 record.evidence = item.get("evidence", {})
                 record.confidence = item.get("confidence", 1.0)
+                record.status = status
+                record.published = status == RecordStatus.published
+                record.validation_json = validation
+                record.extractor_version = extractor_version
                 record.revision += 1
+                session.add(
+                    StructuredRecordRevision(
+                        record_id=record.id,
+                        revision=record.revision,
+                        data=record.data,
+                        evidence=record.evidence,
+                        validation_json=record.validation_json,
+                        confidence=record.confidence,
+                        status=record.status,
+                        note="Captured by crawler extraction",
+                    )
+                )
         else:
+            record = StructuredRecord(
+                collection_id=source.collection_id,
+                document_id=document.id,
+                status=status,
+                published=status == RecordStatus.published,
+                validation_json=validation,
+                extractor_version=extractor_version,
+                published_at=now() if status == RecordStatus.published else None,
+                **item,
+            )
+            session.add(record)
+            await session.flush()
             session.add(
-                StructuredRecord(
-                    collection_id=source.collection_id,
-                    document_id=document.id,
-                    **item,
+                StructuredRecordRevision(
+                    record_id=record.id,
+                    revision=1,
+                    data=record.data,
+                    evidence=record.evidence,
+                    validation_json=record.validation_json,
+                    confidence=record.confidence,
+                    status=record.status,
+                    note="Initial crawler extraction",
                 )
             )
-    return created
 
 
 async def ingest_upload(

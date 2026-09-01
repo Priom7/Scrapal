@@ -14,6 +14,7 @@ import {
   ExternalLink,
   FileSearch,
   Globe2,
+  GraduationCap,
   Menu,
   Network,
   MessageSquareText,
@@ -35,15 +36,16 @@ import {
 } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { api, CrawlEvent, Incident, ObservabilityRun, RetrievalRun, Run, RunDetail, SearchHit, Source } from './api'
+import { api, CourseRecord, CrawlEvent, Incident, ObservabilityRun, RetrievalRun, Run, RunDetail, SearchHit, Source } from './api'
 
-type View = 'overview' | 'sources' | 'knowledge' | 'retrieval-lab' | 'observability' | 'reviews' | 'settings'
+type View = 'overview' | 'sources' | 'knowledge' | 'course-intelligence' | 'retrieval-lab' | 'observability' | 'reviews' | 'settings'
 type AgentMessage = { id: string; role: string; content: string; citations?: { number: number; title: string; url?: string }[] }
 
 const nav: { id: View; label: string; icon: typeof Activity }[] = [
   { id: 'overview', label: 'Overview', icon: Activity },
   { id: 'sources', label: 'Sources', icon: Globe2 },
   { id: 'knowledge', label: 'Knowledge', icon: BookOpen },
+  { id: 'course-intelligence', label: 'Course intelligence', icon: GraduationCap },
   { id: 'retrieval-lab', label: 'Retrieval Lab', icon: Microscope },
   { id: 'observability', label: 'Observability', icon: Network },
   { id: 'reviews', label: 'Reviews', icon: ShieldCheck },
@@ -145,7 +147,7 @@ function App() {
         <p className="workspace-label">Workspace</p>
         <nav>
           {nav.map(({ id, label, icon: Icon }) => (
-            <button key={id} className={view === id ? 'active' : ''} onClick={() => { setView(id); setNavOpen(false); if (id === 'retrieval-lab') setAgentOpen(false) }} aria-label={label} title={sidebarCollapsed ? label : undefined}>
+            <button key={id} className={view === id ? 'active' : ''} onClick={() => { setView(id); setNavOpen(false); if (id === 'retrieval-lab' || id === 'course-intelligence') setAgentOpen(false) }} aria-label={label} title={sidebarCollapsed ? label : undefined}>
               <Icon size={19} aria-hidden="true" /><span className="nav-label">{label}</span>
               {id === 'reviews' && (proposals.data?.filter((p) => p.status === 'pending').length ?? 0) > 0 && (
                 <b>{proposals.data?.filter((p) => p.status === 'pending').length}</b>
@@ -183,6 +185,7 @@ function App() {
             {view === 'overview' && <Overview activeRun={activeRun} sources={sources.data ?? []} runs={runs.data ?? []} documents={documents.data ?? []} sourceMap={sourceMap} onInspect={setSelectedRunId} />}
             {view === 'sources' && <Sources sources={sources.data ?? []} runs={runs.data ?? []} onRun={(run) => { refresh(); setSelectedRunId(run.id) }} onInspect={setSelectedRunId} onAdd={() => setNewSource(true)} />}
             {view === 'knowledge' && <Knowledge collectionId={collections.data?.[0]?.id} documents={documents.data ?? []} />}
+            {view === 'course-intelligence' && <CourseIntelligence />}
             {view === 'retrieval-lab' && <RetrievalLab collectionId={collections.data?.[0]?.id} />}
             {view === 'observability' && <Observability onInspect={setSelectedRunId} />}
             {view === 'reviews' && <Reviews proposals={proposals.data ?? []} onChanged={refresh} />}
@@ -250,6 +253,110 @@ function Knowledge({ collectionId, documents }: { collectionId?: string; documen
     {search.data?.hits.map((hit: SearchHit) => <article className="result" key={hit.chunk_id}><div><p className="eyebrow">{hit.heading || 'Source passage'}</p><h3>{hit.title}</h3></div><p>{hit.excerpt}</p><a href={hit.url} target="_blank" rel="noreferrer">Open source <ArrowRight size={14} /></a></article>)}
     {!submitted && <section className="panel"><div className="section-heading"><div><p className="eyebrow">Indexed material</p><h2>Latest documents</h2></div></div>{documents.slice(0, 8).map((doc) => <div className="document-row" key={doc.id}><Database /><div><strong>{doc.title}</strong><small>{doc.media_type} · {relativeDate(doc.updated_at)}</small></div><a href={doc.canonical_url} target="_blank" rel="noreferrer" aria-label={`Open ${doc.title}`}><ChevronRight /></a></div>)}</section>}
   </div>
+}
+
+const courseFields = [
+  'title',
+  'award',
+  'level',
+  'campuses',
+  'study_modes',
+  'durations',
+  'intake_months',
+  'fees',
+  'entry_requirements',
+  'english_requirements',
+  'application_documents',
+  'application_routes',
+  'deadlines',
+] as const
+
+function CourseIntelligence({ collectionId }: { collectionId?: string }) {
+  const queryClient = useQueryClient()
+  const [filter, setFilter] = useState<'all' | CourseRecord['status']>('all')
+  const [selectedId, setSelectedId] = useState<string>()
+  const [note, setNote] = useState('Reviewed against the captured source evidence.')
+  const overview = useQuery({
+    queryKey: ['course-intelligence', 'overview', collectionId],
+    queryFn: () => api.courseIntelligenceOverview(collectionId),
+  })
+  const records = useQuery({
+    queryKey: ['course-intelligence', 'records', collectionId, filter],
+    queryFn: () => api.courseRecords(collectionId, filter === 'all' ? undefined : filter),
+  })
+  const selected = records.data?.find((record) => record.id === selectedId) ?? records.data?.[0]
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ['course-intelligence'] })
+  const publish = useMutation({ mutationFn: (id: string) => api.publishCourseRecord(id, note), onSuccess: refresh })
+  const reject = useMutation({ mutationFn: (id: string) => api.rejectCourseRecord(id, note), onSuccess: refresh })
+  const summary = overview.data
+
+  return <div className="course-intelligence">
+    <section className="course-command">
+      <div><p className="eyebrow">University domain pack · evidence control</p><h2>Know what is complete before students rely on it.</h2><p>Scrapal turns each course page into typed facts, then keeps every value attached to the exact excerpt that supports it.</p></div>
+      <div className="coverage-orbit" aria-label={`${Math.round((summary?.average_coverage ?? 0) * 100)} percent average required-field coverage`}>
+        <svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="48" /><circle className="coverage-live" cx="60" cy="60" r="48" pathLength="100" strokeDasharray={`${(summary?.average_coverage ?? 0) * 100} 100`} /></svg>
+        <span><strong>{Math.round((summary?.average_coverage ?? 0) * 100)}%</strong><small>field coverage</small></span>
+      </div>
+    </section>
+    <section className="course-tally" aria-label="Course intelligence status">
+      <button className={filter === 'all' ? 'active' : ''} onClick={() => setFilter('all')}><strong>{summary?.total ?? 0}</strong><span>All courses</span></button>
+      <button className={filter === 'published' ? 'active' : ''} onClick={() => setFilter('published')}><strong>{summary?.published ?? 0}</strong><span>Published</span></button>
+      <button className={filter === 'review' ? 'active' : ''} onClick={() => setFilter('review')}><strong>{summary?.review ?? 0}</strong><span>Need review</span></button>
+      <button className={filter === 'rejected' ? 'active' : ''} onClick={() => setFilter('rejected')}><strong>{summary?.rejected ?? 0}</strong><span>Rejected</span></button>
+    </section>
+    {!records.isLoading && !records.data?.length && <Empty icon={GraduationCap} title="No course intelligence yet" text="Run a Greenwich source to extract typed courses, offerings, fees, requirements, and field-level evidence." />}
+    {records.isLoading && <div className="loading-line"><Radio /> Loading course evidence…</div>}
+    {records.data?.length ? <div className="course-workbench">
+      <section className="course-index" aria-label="Extracted courses">
+        <header><div><p className="eyebrow">Coverage spine</p><h2>{records.data.length} course{records.data.length === 1 ? '' : 's'}</h2></div><small>Select a course to inspect its evidence</small></header>
+        <div>{records.data.map((record) => {
+          const coverage = Math.round((record.validation_json.coverage ?? 0) * 100)
+          return <button className={selected?.id === record.id ? 'selected' : ''} key={record.id} onClick={() => setSelectedId(record.id)}>
+            <span className={`course-state ${record.status}`}><GraduationCap /></span>
+            <span><strong>{String(record.data.title ?? 'Untitled course')}</strong><small>{String(record.data.level ?? 'Unknown level')} · revision {record.revision}</small></span>
+            <span className="coverage-meter"><i style={{ width: `${coverage}%` }} /><small>{coverage}%</small></span>
+            <ChevronRight />
+          </button>
+        })}</div>
+      </section>
+      {selected && <CourseEvidenceLedger record={selected} note={note} setNote={setNote} publish={() => publish.mutate(selected.id)} reject={() => reject.mutate(selected.id)} busy={publish.isPending || reject.isPending} error={publish.error?.message ?? reject.error?.message} />}
+    </div> : null}
+  </div>
+}
+
+function CourseEvidenceLedger({ record, note, setNote, publish, reject, busy, error }: { record: CourseRecord; note: string; setNote: (value: string) => void; publish: () => void; reject: () => void; busy: boolean; error?: string }) {
+  const evidence = record.evidence.fields ?? {}
+  const missing = new Set(record.validation_json.missing_fields ?? [])
+  const requiredEvidenceMissing = ['title', 'award', 'level', 'campuses', 'durations', 'intake_months', 'fees', 'entry_requirements'].some((field) => !(evidence[field]?.length))
+  return <section className="course-ledger" aria-labelledby="course-ledger-title">
+    <header>
+      <div><p className="eyebrow">Evidence ledger · {record.extractor_version}</p><h2 id="course-ledger-title">{String(record.data.title ?? 'Course record')}</h2><a href={record.external_id} target="_blank" rel="noreferrer">Open captured source <ExternalLink size={14} /></a></div>
+      <Status status={record.status} />
+    </header>
+    {(record.validation_json.review_reasons?.length ?? 0) > 0 && <div className="review-callout"><AlertTriangle /><div><strong>Review before publication</strong><p>{record.validation_json.review_reasons?.join(' · ')}</p></div></div>}
+    <ol className="field-ledger">{courseFields.map((field) => {
+      const refs = evidence[field] ?? []
+      const value = field === 'campuses' ? record.data[field] ?? record.data.locations : record.data[field]
+      return <li className={missing.has(field) || !valuePresent(value) ? 'missing' : 'supported'} key={field}>
+        <span className="field-pin">{missing.has(field) || !valuePresent(value) ? <CircleAlert /> : <Check />}</span>
+        <div className="field-value"><small>{field.replaceAll('_', ' ')}</small><strong>{formatCourseValue(field, value)}</strong></div>
+        <div className="field-proof">{refs.length ? <><p>{refs[0].excerpt}</p><small>{refs[0].method}{refs[0].section ? ` · ${refs[0].section}` : ''} · {Math.round(refs[0].confidence * 100)}% confidence</small></> : <><p>No supporting excerpt captured.</p><small>Required operator review</small></>}</div>
+      </li>
+    })}</ol>
+    <div className="ledger-actions">
+      <label>Review note<textarea rows={2} value={note} onChange={(event) => setNote(event.target.value)} /></label>
+      {error && <p className="inline-error">{error}</p>}
+      <div><button className="button secondary" disabled={busy || note.trim().length < 3} onClick={reject}>Reject record</button><button className="button primary" disabled={busy || note.trim().length < 3 || missing.size > 0 || requiredEvidenceMissing || record.validation_json.coverage !== 1 || (record.validation_json.contradictions?.length ?? 0) > 0} onClick={publish}><Check size={16} /> Publish evidence</button></div>
+    </div>
+  </section>
+}
+
+function valuePresent(value: unknown) { return Array.isArray(value) ? value.length > 0 : value !== null && value !== undefined && value !== '' }
+function formatCourseValue(field: string, value: unknown) {
+  if (!valuePresent(value)) return 'Not captured'
+  if (field === 'fees' && Array.isArray(value)) return value.map((fee) => { const item = fee as Record<string, unknown>; const label = String(item.label ?? item.residency ?? 'Fee'); const raw = (item.raw_values ?? item.values) as string[] | undefined; return `${label}: ${item.currency === 'GBP' && item.amount ? `£${Number(item.amount).toLocaleString()}` : raw?.join(' / ') ?? 'Amount not captured'}` }).join(' · ')
+  if (Array.isArray(value)) return value.map((item) => typeof item === 'string' ? item : JSON.stringify(item)).join(' · ')
+  return String(value)
 }
 
 function RetrievalLab({ collectionId }: { collectionId?: string }) {
@@ -561,7 +668,7 @@ function describeEvent(event: CrawlEvent) { if (event.stage === 'run') return `R
 function RunTable({ runs, sourceMap, onSelect }: { runs: Run[]; sourceMap: Map<string, Source>; onSelect: (id: string) => void }) { if (!runs.length) return <p className="empty-row">Runs will appear here after you start a source.</p>; return <div className="table-wrap"><table><thead><tr><th>Source</th><th>Status</th><th>Progress</th><th>Documents</th><th>Exceptions</th><th>Started</th></tr></thead><tbody>{runs.map((run) => <tr className="clickable-row" key={run.id} onClick={() => onSelect(run.id)}><td><button className="row-link">{sourceMap.get(run.source_id)?.name ?? 'Source'}</button></td><td><Status status={run.status === 'queued' && !isLiveRun(run) ? 'worker_timeout' : run.status} warnings={run.issues_count} /></td><td><progress max={Math.max(run.pages_discovered, 1)} value={run.pages_processed}>{run.pages_processed} of {run.pages_discovered}</progress><small>{run.pages_processed} / {run.pages_discovered} checked</small></td><td>{run.documents_created}</td><td>{run.issues_count ? `${run.issues_count} error${run.issues_count === 1 ? '' : 's'}` : run.policy_skips_count ? `${run.policy_skips_count} skipped` : '—'}</td><td>{relativeDate(run.created_at)}</td></tr>)}</tbody></table></div> }
 function Status({ status, warnings = 0 }: { status: string; warnings?: number }) { const label = status === 'completed' && warnings ? `completed · ${warnings} warning${warnings === 1 ? '' : 's'}` : status.replaceAll('_', ' '); return <span className={`status ${status} ${warnings ? 'warning' : ''}`}><i />{label}</span> }
 function Empty({ icon: Icon, title, text, action, onAction }: { icon: typeof Globe2; title: string; text: string; action?: string; onAction?: () => void }) { return <section className="empty"><Icon /><h2>{title}</h2><p>{text}</p>{action && <button className="button primary" onClick={onAction}><Plus size={16} />{action}</button>}</section> }
-function titleFor(view: View) { return { overview: 'Follow the knowledge thread', sources: 'Connected sources', knowledge: 'Search the evidence', 'retrieval-lab': 'Trace an answer back to evidence', observability: 'See where every crawl spends its time', reviews: 'Decisions waiting for you', settings: 'Workspace settings' }[view] }
+function titleFor(view: View) { return { overview: 'Follow the knowledge thread', sources: 'Connected sources', knowledge: 'Search the evidence', 'course-intelligence': 'Turn course pages into trusted facts', 'retrieval-lab': 'Trace an answer back to evidence', observability: 'See where every crawl spends its time', reviews: 'Decisions waiting for you', settings: 'Workspace settings' }[view] }
 function formatDuration(milliseconds: number) { if (milliseconds < 1000) return `${Math.round(milliseconds)}ms`; if (milliseconds < 60_000) return `${(milliseconds / 1000).toFixed(1)}s`; return `${Math.floor(milliseconds / 60_000)}m ${Math.round(milliseconds % 60_000 / 1000)}s` }
 function relativeDate(value: string) { const difference = Date.now() - new Date(value).getTime(); const minutes = Math.floor(difference / 60_000); if (minutes < 1) return 'just now'; if (minutes < 60) return `${minutes}m ago`; const hours = Math.floor(minutes / 60); if (hours < 24) return `${hours}h ago`; return `${Math.floor(hours / 24)}d ago` }
 function isLiveRun(run: Run) { return run.status === 'running' || (run.status === 'queued' && Date.now() - new Date(run.created_at).getTime() < 120_000) }
