@@ -1,7 +1,9 @@
 import pytest
+from fastapi import HTTPException
 
 from scrapal.connectors.website import validate_public_url
-from scrapal.security import hash_key, sign_webhook
+from scrapal.models import Role
+from scrapal.security import Principal, hash_key, require_super_admin, sign_webhook
 
 
 @pytest.mark.asyncio
@@ -22,3 +24,12 @@ def test_api_key_hash_and_webhook_signature_are_stable() -> None:
     assert hash_key("secret") == hash_key("secret")
     assert sign_webhook("secret", b"payload") == sign_webhook("secret", b"payload")
     assert sign_webhook("other", b"payload") != sign_webhook("secret", b"payload")
+
+
+def test_organization_admin_cannot_access_platform_observability_or_retrieval_lab() -> None:
+    principal = Principal("organization-1", Role.admin, ["*"])
+
+    with pytest.raises(HTTPException) as denied:
+        require_super_admin(principal)
+
+    assert denied.value.status_code == 403

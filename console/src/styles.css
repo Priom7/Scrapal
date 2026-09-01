@@ -295,6 +295,89 @@ progress::-webkit-progress-value { background: var(--cobalt); border-radius: 99p
 .empty p { max-width: 480px; color: var(--ink-soft); }
 .empty-row { padding: 2rem; color: var(--ink-soft); text-align: center; }
 
+/* Retrieval Lab: a quiet evidence workbench built around a three-lane braid. */
+.retrieval-lab { display: grid; gap: 1rem; }
+.lab-command { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 340px); gap: 2rem; align-items: center; padding: 1.6rem 1.8rem; border: 1px solid var(--line); border-radius: 22px; background: var(--surface); }
+.lab-command h2 { margin: .15rem 0 .45rem; font-size: clamp(1.7rem, 3vw, 2.8rem); letter-spacing: -.05em; }
+.lab-command > div:first-child > p:last-child { max-width: 720px; margin: 0; color: var(--ink-soft); line-height: 1.5; }
+.profile-stamp { display: grid; grid-template-columns: auto 1fr; gap: .15rem .6rem; padding: 1rem; border: 1px solid var(--line); border-radius: 14px; background: var(--surface-2); }
+.profile-stamp > span { grid-row: 1 / 4; align-self: center; width: 9px; height: 9px; border-radius: 50%; background: currentColor; }
+.profile-stamp > span.healthy { color: var(--mint); box-shadow: 0 0 0 5px color-mix(in srgb, var(--mint) 15%, transparent); }
+.profile-stamp > span.degraded { color: var(--amber); }
+.profile-stamp small { color: var(--ink-soft); font: .63rem 'IBM Plex Mono', monospace; text-transform: uppercase; letter-spacing: .08em; }
+.profile-stamp strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.profile-stamp code { color: var(--ink-soft); font-size: .68rem; }
+.lab-query { display: grid; gap: .9rem; padding: 1.15rem; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); }
+.lab-query > label { display: grid; gap: .4rem; font-weight: 700; }
+.lab-query textarea, .lab-query select { width: 100%; border: 1px solid var(--line); border-radius: 10px; color: var(--ink); background: var(--paper); font: inherit; }
+.lab-query textarea { min-height: 76px; padding: .75rem; resize: vertical; }
+.lab-query select { min-height: 40px; padding: .45rem 2rem .45rem .6rem; }
+.lab-controls { display: flex; align-items: end; gap: .75rem; }
+.lab-controls > label:first-child { display: grid; gap: .25rem; min-width: 160px; color: var(--ink-soft); font-size: .76rem; }
+.lab-check { min-height: 40px; display: inline-flex; align-items: center; gap: .45rem; padding: 0 .7rem; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; }
+.lab-check input { width: 16px; height: 16px; accent-color: var(--cobalt); }
+.lab-controls .button { margin-left: auto; }
+.lab-empty, .lab-loading { min-height: 180px; display: flex; align-items: center; justify-content: center; gap: 1rem; border: 1px dashed var(--line); border-radius: 18px; color: var(--cobalt); }
+.lab-empty > svg { width: 36px; height: 36px; }
+.lab-empty p, .lab-loading p { margin: .25rem 0 0; color: var(--ink-soft); }
+.lab-loading > span { width: 14px; height: 14px; border: 3px solid var(--line); border-top-color: var(--cobalt); border-radius: 50%; animation: spin .8s linear infinite; }
+.retrieval-trace { display: grid; gap: 1rem; }
+.plan-strip { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(340px, .9fr); gap: 1rem; padding: 1rem 1.15rem; border: 1px solid var(--line); border-radius: 15px; background: var(--surface); }
+.plan-strip > div:first-child { min-width: 0; display: grid; gap: .35rem; }
+.plan-strip small { color: var(--ink-soft); font: .63rem 'IBM Plex Mono', monospace; text-transform: uppercase; }
+.plan-strip code { overflow: hidden; color: var(--ink); font-size: .72rem; text-overflow: ellipsis; white-space: pre-wrap; }
+.plan-strip dl { display: flex; align-items: center; justify-content: flex-end; gap: .6rem; margin: 0; }
+.plan-strip dl > div { min-width: 70px; padding-left: .65rem; border-left: 1px solid var(--line); }
+.plan-strip dt { color: var(--ink-soft); font-size: .65rem; text-transform: capitalize; }
+.plan-strip dd { margin: .15rem 0 0; font: 600 .8rem 'IBM Plex Mono', monospace; }
+.evidence-braid { overflow: hidden; padding: 1.25rem; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); }
+.braid-lanes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .8rem; }
+.braid-lane { min-width: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 14px; background: var(--paper); }
+.braid-lane > header { display: flex; align-items: center; gap: .65rem; padding: .8rem; border-bottom: 1px solid var(--line); }
+.braid-lane > header > span { display: grid; width: 32px; height: 32px; place-items: center; border-radius: 9px; font: 700 .74rem 'IBM Plex Mono', monospace; }
+.braid-lane.mint > header > span { color: #087255; background: color-mix(in srgb, var(--mint) 17%, var(--surface)); }
+.braid-lane.cobalt > header > span { color: var(--cobalt); background: color-mix(in srgb, var(--cobalt) 12%, var(--surface)); }
+.braid-lane.amber > header > span { color: #956100; background: color-mix(in srgb, var(--amber) 16%, var(--surface)); }
+.braid-lane header div { display: grid; }
+.braid-lane header small { color: var(--ink-soft); }
+.braid-lane ol { margin: 0; padding: 0 .8rem; list-style: none; }
+.braid-lane li { min-width: 0; display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; gap: .45rem; align-items: center; padding: .65rem 0; border-top: 1px solid var(--line); }
+.braid-lane li:first-child { border-top: 0; }
+.braid-lane li > b { color: var(--ink-soft); font: .65rem 'IBM Plex Mono', monospace; }
+.braid-lane li > span { min-width: 0; display: grid; }
+.braid-lane li strong, .braid-lane li small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.braid-lane li strong { font-size: .77rem; }
+.braid-lane li small { color: var(--ink-soft); font-size: .67rem; }
+.braid-lane li code { color: var(--ink-soft); font-size: .65rem; }
+.braid-lane > p { padding: 1rem; color: var(--ink-soft); font-size: .78rem; }
+.braid-convergence { position: relative; height: 74px; display: grid; place-items: end center; }
+.braid-convergence i { position: absolute; top: 0; width: 31%; height: 48px; border-bottom: 2px solid var(--cobalt); }
+.braid-convergence i:nth-child(1) { left: 1%; border-radius: 0 0 90% 0; transform: skewY(5deg); }
+.braid-convergence i:nth-child(2) { left: 34.5%; width: 31%; border-right: 2px solid var(--mint); border-left: 2px solid var(--mint); }
+.braid-convergence i:nth-child(3) { right: 1%; border-radius: 0 0 0 90%; transform: skewY(-5deg); border-color: var(--amber); }
+.braid-convergence span { z-index: 1; padding: .3rem .55rem; border: 1px solid var(--line); border-radius: 99px; background: var(--surface); font: .62rem 'IBM Plex Mono', monospace; }
+.fused-context { margin: .8rem 0 0; padding: 0; border: 1px solid var(--line); border-radius: 13px; list-style: none; }
+.fused-context li { display: grid; grid-template-columns: 32px minmax(0, 1fr) 28px; gap: .65rem; align-items: center; padding: .75rem; border-top: 1px solid var(--line); }
+.fused-context li:first-child { border-top: 0; }
+.fused-context > li > b { display: grid; width: 28px; height: 28px; place-items: center; border-radius: 50%; color: white; background: var(--cobalt); font: .7rem 'IBM Plex Mono', monospace; }
+.fused-context li div { min-width: 0; display: grid; gap: .12rem; }
+.fused-context li span, .fused-context li small { overflow: hidden; color: var(--ink-soft); text-overflow: ellipsis; white-space: nowrap; }
+.fused-context li span { font-size: .77rem; }
+.fused-context li small { font: .64rem 'IBM Plex Mono', monospace; }
+.fused-context a { color: var(--cobalt); }
+.fused-context svg { width: 15px; }
+.validation-ledger { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, .9fr); gap: 1.25rem; padding: 1.25rem; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); }
+.validation-ledger > div > p:not(.eyebrow) { line-height: 1.6; }
+.validation-ledger > div > small { color: var(--ink-soft); font: .68rem 'IBM Plex Mono', monospace; }
+.validation-ledger .lab-abstention { padding: .75rem; border-left: 3px solid var(--amber); background: color-mix(in srgb, var(--amber) 8%, var(--surface)); }
+.validation-ledger ol { margin: 0; padding: 0; list-style: none; }
+.validation-ledger li { display: grid; grid-template-columns: 24px 1fr; gap: .55rem; padding: .6rem 0; border-top: 1px solid var(--line); }
+.validation-ledger li:first-child { border-top: 0; }
+.validation-ledger li > svg { width: 17px; color: var(--mint); }
+.validation-ledger li.withheld > svg { color: var(--coral); }
+.validation-ledger li p { margin: .15rem 0; color: var(--ink-soft); font-size: .78rem; }
+.validation-ledger li small { color: var(--ink-soft); font: .63rem 'IBM Plex Mono', monospace; text-transform: capitalize; }
+
 /* Observability control room: the Threadline becomes a diagnostic pulse. */
 .observability-view { display: grid; gap: 1.25rem; }
 .ops-command { position: relative; min-height: 190px; overflow: hidden; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 2rem; padding: 2rem; border: 1px solid var(--line); border-radius: 22px; background: var(--surface); }
@@ -363,6 +446,7 @@ progress::-webkit-progress-value { background: var(--cobalt); border-radius: 99p
 @keyframes pulse { 50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--cobalt) 16%, transparent); } }
 @keyframes bounce { 50% { transform: translateY(-4px); } }
 @keyframes pulse-icon { 50% { opacity: .35; } }
+@keyframes spin { to { transform: rotate(360deg); } }
 
 @media (max-width: 1180px) {
   .app-shell, .app-shell.agent-open { grid-template-columns: var(--nav-width) minmax(0, 1fr); }
@@ -411,6 +495,12 @@ progress::-webkit-progress-value { background: var(--cobalt); border-radius: 99p
   .ops-run-row .mini-rail { display: none; }
   .incident-row { grid-template-columns: 24px minmax(0, 1fr); }
   .incident-actions { grid-column: 2; flex-wrap: wrap; }
+  .lab-command, .plan-strip, .validation-ledger { grid-template-columns: 1fr; }
+  .lab-controls { align-items: stretch; flex-direction: column; }
+  .lab-controls .button { margin-left: 0; justify-content: center; }
+  .braid-lanes { grid-template-columns: 1fr; }
+  .braid-convergence { display: none; }
+  .plan-strip dl { justify-content: flex-start; flex-wrap: wrap; }
 }
 
 @media (prefers-reduced-motion: reduce) {

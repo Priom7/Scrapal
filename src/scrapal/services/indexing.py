@@ -64,7 +64,12 @@ async def index_document_version(
             DocumentIndex.embedding_profile_id == profile.id,
         )
     )
-    if state and state.status == IndexStatus.ready and state.content_hash == version.content_hash:
+    if (
+        state
+        and state.status == IndexStatus.ready
+        and state.content_hash == version.content_hash
+        and state.chunker_version == CHUNKER_VERSION
+    ):
         document.current_version_id = version.id
         return state
     if not state:

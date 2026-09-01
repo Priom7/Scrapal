@@ -41,3 +41,9 @@ async def init_db() -> None:
                     "ON chunks USING gin (to_tsvector('english', content))"
                 )
             )
+            await connection.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS ix_chunk_embeddings_hnsw "
+                    "ON chunk_embeddings USING hnsw (embedding vector_cosine_ops)"
+                )
+            )

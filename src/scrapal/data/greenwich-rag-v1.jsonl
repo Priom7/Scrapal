@@ -1,0 +1,50 @@
+{"id":"course-01","category":"courses","question":"Which computer science master's courses are available?","answerable":true,"expected_terms":["computer","science"]}
+{"id":"course-02","category":"courses","question":"What architecture degrees can I study?","answerable":true,"expected_terms":["architecture"]}
+{"id":"course-03","category":"courses","question":"Show accounting and finance courses.","answerable":true,"expected_terms":["accounting","finance"]}
+{"id":"course-04","category":"courses","question":"Are there undergraduate engineering degrees?","answerable":true,"expected_terms":["engineering"]}
+{"id":"course-05","category":"courses","question":"List postgraduate business programmes.","answerable":true,"expected_terms":["business"]}
+{"id":"fee-01","category":"fees","question":"What is the international tuition fee for computer science?","answerable":true,"expected_terms":["fee"]}
+{"id":"fee-02","category":"fees","question":"What are the home student fees?","answerable":true,"expected_terms":["fee"]}
+{"id":"fee-03","category":"fees","question":"Are placement year fees different?","answerable":true,"expected_terms":["placement","fee"]}
+{"id":"fee-04","category":"fees","question":"When are tuition fees due?","answerable":true,"expected_terms":["tuition"]}
+{"id":"fee-05","category":"fees","question":"Is a deposit required for international applicants?","answerable":true,"expected_terms":["deposit"]}
+{"id":"entry-01","category":"entry_requirements","question":"What are the entry requirements for the computer science MSc?","answerable":true,"expected_terms":["entry","requirements"]}
+{"id":"entry-02","category":"entry_requirements","question":"What qualifications are accepted for undergraduate entry?","answerable":true,"expected_terms":["entry"]}
+{"id":"entry-03","category":"entry_requirements","question":"What are the country-specific entry requirements?","answerable":true,"expected_terms":["requirements"]}
+{"id":"entry-04","category":"entry_requirements","question":"Is prior programming experience required?","answerable":true,"expected_terms":["required"]}
+{"id":"entry-05","category":"entry_requirements","question":"Can relevant work experience support my application?","answerable":true,"expected_terms":["experience"]}
+{"id":"english-01","category":"english","question":"Which English language tests are accepted?","answerable":true,"expected_terms":["english"]}
+{"id":"english-02","category":"english","question":"What IELTS score is required?","answerable":true,"expected_terms":["ielts"]}
+{"id":"english-03","category":"english","question":"Are there pre-sessional English courses?","answerable":true,"expected_terms":["english"]}
+{"id":"english-04","category":"english","question":"Can English requirements vary by course?","answerable":true,"expected_terms":["english","requirements"]}
+{"id":"english-05","category":"english","question":"Is a medium of instruction letter accepted?","answerable":true,"expected_terms":["english"]}
+{"id":"intake-01","category":"intakes","question":"Does this course have a January intake?","answerable":true,"expected_terms":["january"]}
+{"id":"intake-02","category":"intakes","question":"Which courses start in September?","answerable":true,"expected_terms":["september"]}
+{"id":"intake-03","category":"intakes","question":"Are study modes different for January and September?","answerable":true,"expected_terms":["study","mode"]}
+{"id":"intake-04","category":"intakes","question":"When does the academic year begin?","answerable":true,"expected_terms":["academic"]}
+{"id":"intake-05","category":"intakes","question":"Is there an April intake?","answerable":true,"expected_terms":["intake"]}
+{"id":"duration-01","category":"duration","question":"How long is the full-time MSc?","answerable":true,"expected_terms":["full","time"]}
+{"id":"duration-02","category":"duration","question":"How long does part-time study take?","answerable":true,"expected_terms":["part","time"]}
+{"id":"mode-01","category":"study_modes","question":"Can I study this course part time?","answerable":true,"expected_terms":["part","time"]}
+{"id":"mode-02","category":"study_modes","question":"Is distance learning available?","answerable":true,"expected_terms":["distance"]}
+{"id":"mode-03","category":"study_modes","question":"Is the course taught on campus?","answerable":true,"expected_terms":["campus"]}
+{"id":"docs-01","category":"documents","question":"Which documents do international students need to apply?","answerable":true,"expected_terms":["documents"]}
+{"id":"docs-02","category":"documents","question":"Do I need academic transcripts?","answerable":true,"expected_terms":["transcript"]}
+{"id":"docs-03","category":"documents","question":"Is a personal statement required?","answerable":true,"expected_terms":["statement"]}
+{"id":"docs-04","category":"documents","question":"Are references required for postgraduate applications?","answerable":true,"expected_terms":["references"]}
+{"id":"docs-05","category":"documents","question":"Do I need a passport copy?","answerable":true,"expected_terms":["passport"]}
+{"id":"campus-01","category":"campuses","question":"Which campus teaches computer science?","answerable":true,"expected_terms":["campus"]}
+{"id":"campus-02","category":"campuses","question":"Where is the Greenwich Campus?","answerable":true,"expected_terms":["greenwich","campus"]}
+{"id":"campus-03","category":"campuses","question":"Which courses are taught at Medway?","answerable":true,"expected_terms":["medway"]}
+{"id":"scholarship-01","category":"scholarships","question":"Which scholarships are available to international students?","answerable":true,"expected_terms":["scholarship"]}
+{"id":"scholarship-02","category":"scholarships","question":"How do I apply for a scholarship?","answerable":true,"expected_terms":["scholarship"]}
+{"id":"apply-01","category":"application","question":"How do I apply for a postgraduate course?","answerable":true,"expected_terms":["apply"]}
+{"id":"apply-02","category":"application","question":"Do undergraduate applicants use UCAS?","answerable":true,"expected_terms":["ucas"]}
+{"id":"apply-03","category":"application","question":"What is the application deadline?","answerable":true,"expected_terms":["application"]}
+{"id":"conflict-01","category":"conflicts","question":"What should I trust if two pages show different fees?","answerable":true,"expected_terms":["fee"]}
+{"id":"conflict-02","category":"conflicts","question":"Which intake is current if an old page disagrees?","answerable":true,"expected_terms":["intake"]}
+{"id":"unknown-01","category":"unanswerable","question":"What will next year's unannounced tuition fee be?","answerable":false,"expected_terms":[]}
+{"id":"unknown-02","category":"unanswerable","question":"Will my visa definitely be approved?","answerable":false,"expected_terms":[]}
+{"id":"unknown-03","category":"unanswerable","question":"What exact scholarship will I personally receive?","answerable":false,"expected_terms":[]}
+{"id":"unknown-04","category":"unanswerable","question":"What will my future exam result be?","answerable":false,"expected_terms":[]}
+{"id":"unknown-05","category":"unanswerable","question":"Guarantee that I will receive an unconditional offer.","answerable":false,"expected_terms":[]}

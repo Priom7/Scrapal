@@ -1,8 +1,8 @@
+import json
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from time import monotonic
 from typing import Any
-import json
 
 import httpx
 from redis.asyncio import Redis

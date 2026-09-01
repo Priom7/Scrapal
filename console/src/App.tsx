@@ -17,6 +17,7 @@ import {
   Menu,
   Network,
   MessageSquareText,
+  Microscope,
   Moon,
   PanelLeftClose,
   PanelLeftOpen,
@@ -34,14 +35,16 @@ import {
 } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { api, CrawlEvent, Incident, ObservabilityRun, Run, RunDetail, SearchHit, Source } from './api'
+import { api, CrawlEvent, Incident, ObservabilityRun, RetrievalRun, Run, RunDetail, SearchHit, Source } from './api'
 
-type View = 'overview' | 'sources' | 'knowledge' | 'observability' | 'reviews' | 'settings'
+type View = 'overview' | 'sources' | 'knowledge' | 'retrieval-lab' | 'observability' | 'reviews' | 'settings'
+type AgentMessage = { id: string; role: string; content: string; citations?: { number: number; title: string; url?: string }[] }
 
 const nav: { id: View; label: string; icon: typeof Activity }[] = [
   { id: 'overview', label: 'Overview', icon: Activity },
   { id: 'sources', label: 'Sources', icon: Globe2 },
   { id: 'knowledge', label: 'Knowledge', icon: BookOpen },
+  { id: 'retrieval-lab', label: 'Retrieval Lab', icon: Microscope },
   { id: 'observability', label: 'Observability', icon: Network },
   { id: 'reviews', label: 'Reviews', icon: ShieldCheck },
   { id: 'settings', label: 'Settings', icon: Settings2 },
@@ -142,7 +145,7 @@ function App() {
         <p className="workspace-label">Workspace</p>
         <nav>
           {nav.map(({ id, label, icon: Icon }) => (
-            <button key={id} className={view === id ? 'active' : ''} onClick={() => { setView(id); setNavOpen(false) }} aria-label={label} title={sidebarCollapsed ? label : undefined}>
+            <button key={id} className={view === id ? 'active' : ''} onClick={() => { setView(id); setNavOpen(false); if (id === 'retrieval-lab') setAgentOpen(false) }} aria-label={label} title={sidebarCollapsed ? label : undefined}>
               <Icon size={19} aria-hidden="true" /><span className="nav-label">{label}</span>
               {id === 'reviews' && (proposals.data?.filter((p) => p.status === 'pending').length ?? 0) > 0 && (
                 <b>{proposals.data?.filter((p) => p.status === 'pending').length}</b>
@@ -180,6 +183,7 @@ function App() {
             {view === 'overview' && <Overview activeRun={activeRun} sources={sources.data ?? []} runs={runs.data ?? []} documents={documents.data ?? []} sourceMap={sourceMap} onInspect={setSelectedRunId} />}
             {view === 'sources' && <Sources sources={sources.data ?? []} runs={runs.data ?? []} onRun={(run) => { refresh(); setSelectedRunId(run.id) }} onInspect={setSelectedRunId} onAdd={() => setNewSource(true)} />}
             {view === 'knowledge' && <Knowledge collectionId={collections.data?.[0]?.id} documents={documents.data ?? []} />}
+            {view === 'retrieval-lab' && <RetrievalLab collectionId={collections.data?.[0]?.id} />}
             {view === 'observability' && <Observability onInspect={setSelectedRunId} />}
             {view === 'reviews' && <Reviews proposals={proposals.data ?? []} onChanged={refresh} />}
             {view === 'settings' && <Settings system={system.data} />}
@@ -248,6 +252,79 @@ function Knowledge({ collectionId, documents }: { collectionId?: string; documen
   </div>
 }
 
+function RetrievalLab({ collectionId }: { collectionId?: string }) {
+  const [query, setQuery] = useState('Which computer science masters courses have a January intake?')
+  const [mode, setMode] = useState<'full_text' | 'semantic' | 'hybrid'>('hybrid')
+  const [includeDrafts, setIncludeDrafts] = useState(false)
+  const [generate, setGenerate] = useState(true)
+  const profiles = useQuery({ queryKey: ['retrieval-profiles'], queryFn: api.retrievalProfiles })
+  const run = useMutation({
+    mutationFn: () => api.runRetrieval({
+      query,
+      collection_id: collectionId ?? null,
+      mode,
+      include_drafts: includeDrafts,
+      generate_answer: generate,
+      limit: 10,
+      filters: {},
+    }),
+  })
+  const result = run.data
+  const submit = (event: FormEvent) => { event.preventDefault(); if (query.trim()) run.mutate() }
+  return <div className="retrieval-lab">
+    <section className="lab-command">
+      <div><p className="eyebrow">Super-admin evidence workbench</p><h2>See why an answer earns trust.</h2><p>Inspect exact records, lexical matches, semantic neighbours, fusion, and sentence support using the same pipeline as Ask Scrapal.</p></div>
+      <div className="profile-stamp"><span className={profiles.data?.[0]?.healthy ? 'healthy' : 'degraded'} /><small>Active embedding profile</small><strong>{profiles.data?.find((profile) => profile.active)?.model ?? 'Loading profile…'}</strong><code>768 dimensions · isolated</code></div>
+    </section>
+    <form className="lab-query" onSubmit={submit}>
+      <label><span>Research question</span><textarea value={query} onChange={(event) => setQuery(event.target.value)} rows={2} /></label>
+      <div className="lab-controls">
+        <label>Retrieval mode<select value={mode} onChange={(event) => setMode(event.target.value as typeof mode)}><option value="hybrid">Hybrid</option><option value="full_text">Full text</option><option value="semantic">Semantic</option></select></label>
+        <label className="lab-check"><input type="checkbox" checked={includeDrafts} onChange={(event) => setIncludeDrafts(event.target.checked)} /><span>Include drafts</span></label>
+        <label className="lab-check"><input type="checkbox" checked={generate} onChange={(event) => setGenerate(event.target.checked)} /><span>Validate an answer</span></label>
+        <button className="button primary" disabled={run.isPending || !query.trim()}><Search size={16} />{run.isPending ? 'Tracing evidence…' : 'Run trace'}</button>
+      </div>
+      {run.error && <p className="inline-error">{run.error.message}</p>}
+    </form>
+    {!result && !run.isPending && <section className="lab-empty"><Microscope /><div><strong>No trace selected</strong><p>Run a question to reveal how three evidence lanes converge into a grounded context.</p></div></section>}
+    {run.isPending && <section className="lab-loading" aria-live="polite"><span /><div><strong>Planning and retrieving</strong><p>Structured facts, lexical ranking, and the active embedding profile are being evaluated.</p></div></section>}
+    {result && <RetrievalTrace run={result} />}
+  </div>
+}
+
+function RetrievalTrace({ run }: { run: RetrievalRun }) {
+  const lanes = [
+    { name: 'Structured', detail: 'Canonical university fields', color: 'mint', items: run.structured_matches },
+    { name: 'Lexical', detail: 'PostgreSQL full-text rank', color: 'cobalt', items: run.lexical_candidates },
+    { name: 'Semantic', detail: 'pgvector cosine distance', color: 'amber', items: run.vector_candidates },
+  ]
+  return <div className="retrieval-trace">
+    <section className="plan-strip"><div><small>Query plan</small><code>{JSON.stringify(run.query_plan, null, 2)}</code></div><dl>{Object.entries(run.timings_json).map(([name, value]) => <div key={name}><dt>{name.replace('_ms', '')}</dt><dd>{value}ms</dd></div>)}</dl></section>
+    <section className="evidence-braid" aria-labelledby="evidence-braid-title">
+      <div className="section-heading"><div><p className="eyebrow">Evidence braid</p><h2 id="evidence-braid-title">Three lanes, one ranked context</h2></div><span>{run.context_json.length} passages packed</span></div>
+      <div className="braid-lanes">
+        {lanes.map((lane) => <article className={`braid-lane ${lane.color}`} key={lane.name}><header><span>{lane.items.length}</span><div><strong>{lane.name}</strong><small>{lane.detail}</small></div></header><ol>{lane.items.slice(0, 4).map((item, index) => <li key={String(item.chunk_id ?? item.record_id ?? index)}><b>#{index + 1}</b><span><strong>{String(item.title ?? item.external_id ?? item.schema ?? 'Evidence match')}</strong><small>{candidateDetail(item)}</small></span><code>{candidateScore(item)}</code></li>)}</ol>{!lane.items.length && <p>No eligible candidates</p>}</article>)}
+      </div>
+      <div className="braid-convergence" aria-hidden="true"><i /><i /><i /><span>RRF · k=60</span></div>
+      <ol className="fused-context">{run.context_json.map((hit, index) => <li key={hit.chunk_id}><b>{index + 1}</b><div><strong>{hit.title}</strong><span>{hit.heading || hit.section_path.join(' / ') || 'Document passage'}</span><small>{hit.document_version_id?.slice(0, 8)} · fused {hit.fused_score.toFixed(4)} · lexical {hit.lexical_score.toFixed(2)} · vector {hit.vector_score.toFixed(2)}</small></div><a href={hit.url} target="_blank" rel="noreferrer" aria-label={`Open ${hit.title}`}><ExternalLink /></a></li>)}</ol>
+    </section>
+    <section className="validation-ledger">
+      <div><p className="eyebrow">Grounded answer</p><h2>{run.abstention_reason ? 'Scrapal abstained' : 'Only supported sentences survived'}</h2><p className={run.abstention_reason ? 'lab-abstention' : ''}>{run.generated_answer ?? `No answer was emitted: ${run.abstention_reason ?? 'generation was not requested'}.`}</p>{run.answer_model && <small>Answer model · {run.answer_model}</small>}</div>
+      <ol>{run.citation_results.map((item, index) => <li className={item.supported ? 'supported' : 'withheld'} key={index}>{item.supported ? <Check /> : <X />}<div><strong>{item.supported ? 'Emitted' : 'Withheld'}</strong><p>{item.sentence}</p><small>{item.supported ? `Evidence ${item.citations.map((citation) => `[${citation}]`).join(' ')}` : item.reason?.replaceAll('_', ' ')}</small></div></li>)}</ol>
+    </section>
+  </div>
+}
+
+function candidateDetail(item: Record<string, unknown>) {
+  const heading = item.heading ?? item.schema ?? item.document_id
+  return String(heading ?? 'Published evidence')
+}
+
+function candidateScore(item: Record<string, unknown>) {
+  const score = Number(item.score ?? item.confidence ?? 0)
+  return score.toFixed(score < 1 ? 4 : 2)
+}
+
 function Reviews({ proposals, onChanged }: { proposals: { id: string; title: string; action_type: string; rationale: string; risk: string; status: string }[]; onChanged: () => void }) {
   const approve = useMutation({ mutationFn: api.approveProposal, onSuccess: onChanged })
   const reject = useMutation({ mutationFn: api.rejectProposal, onSuccess: onChanged })
@@ -310,10 +387,32 @@ function IncidentRow({ incident, onInspect, onAcknowledge, onResolve }: { incide
 function AgentPanel({ collectionId, onClose }: { collectionId?: string; onClose: () => void }) {
   const [conversation, setConversation] = useState<string>()
   const [input, setInput] = useState('')
-  const [messages, setMessages] = useState<{ role: string; content: string; citations?: { number: number; title: string; url: string }[] }[]>([])
-  const send = useMutation({ mutationFn: async ({ content, requestId }: { content: string; requestId: string }) => { let id = conversation; if (!id) { id = (await api.createConversation(collectionId)).id; setConversation(id) } return api.sendMessage(id, content, requestId) }, onSuccess: (message) => setMessages((items) => [...items, { role: 'assistant', ...message }]) })
-  const submit = (event: FormEvent) => { event.preventDefault(); if (send.isPending) return; const value = input.trim(); if (!value) return; const requestId = crypto.randomUUID(); setMessages((items) => [...items, { role: 'user', content: value }]); setInput(''); send.mutate({ content: value, requestId }) }
-  return <motion.aside className="agent-panel" initial={{ x: 50, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 50, opacity: 0 }} aria-label="Scrapal agent"><header><div className="agent-avatar"><Sparkles /></div><div><p className="eyebrow">Grounded in your sources</p><h2>Ask Scrapal</h2></div><button className="icon-button" onClick={onClose} aria-label="Close agent"><X /></button></header><div className="messages" aria-live="polite">{messages.length === 0 && <div className="agent-empty"><MessageSquareText /><h3>Research with receipts.</h3><p>Ask across your collections. Every factual answer links back to its evidence.</p><button onClick={() => setInput('Which courses have a January intake?')}>Try “Which courses have a January intake?”</button></div>}{messages.map((message, index) => <div className={`message ${message.role}`} key={index}><p>{message.content}</p>{message.citations?.length ? <div className="citations">{message.citations.map((citation) => <a key={citation.number} href={citation.url} target="_blank" rel="noreferrer">[{citation.number}] {citation.title}</a>)}</div> : null}</div>)}{send.isPending && <div className="thinking"><span /><span /><span /><em>Searching your knowledge</em></div>}{send.error && <p className="inline-error">{send.error.message}</p>}</div><form className="agent-composer" onSubmit={submit}><label className="sr-only" htmlFor="agent-input">Ask Scrapal</label><textarea id="agent-input" value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask a cited question…" rows={3} /><button aria-label="Send message" disabled={send.isPending || !input.trim()}><ArrowRight /></button></form></motion.aside>
+  const [phase, setPhase] = useState('Searching your knowledge')
+  const [messages, setMessages] = useState<AgentMessage[]>([])
+  const updateAssistant = (id: string, update: (message: AgentMessage) => AgentMessage) => setMessages((items) => items.map((message) => message.id === id ? update(message) : message))
+  const send = useMutation({ mutationFn: async ({ content, requestId }: { content: string; requestId: string }) => {
+    let id = conversation
+    if (!id) { id = (await api.createConversation(collectionId)).id; setConversation(id) }
+    const generation = await api.sendMessage(id, content, requestId)
+    const assistantId = `assistant-${generation.id}`
+    setMessages((items) => [...items, { id: assistantId, role: 'assistant', content: '' }])
+    await api.watchGeneration(id, generation.id, (event) => {
+      if (event.type === 'retrieval.started') setPhase('Planning the evidence search')
+      if (event.type === 'retrieval.completed') setPhase(`Retrieved ${String(event.data.passages ?? 0)} passages`)
+      if (event.type === 'generation.started') setPhase('Validating each answer sentence')
+      if (event.type === 'answer.snapshot') updateAssistant(assistantId, (message) => ({ ...message, content: String(event.data.answer ?? message.content), citations: Array.isArray(event.data.citations) ? event.data.citations as AgentMessage['citations'] : message.citations }))
+      if (event.type === 'answer.delta') updateAssistant(assistantId, (message) => ({ ...message, content: message.content + String(event.data.delta ?? '') }))
+      if (event.type === 'citation') updateAssistant(assistantId, (message) => {
+        const citation = { number: Number(event.data.number), title: String(event.data.title ?? 'Evidence'), url: event.data.url ? String(event.data.url) : undefined }
+        return { ...message, citations: [...(message.citations ?? []).filter((item) => item.number !== citation.number), citation] }
+      })
+      if (event.type === 'abstained') updateAssistant(assistantId, (message) => ({ ...message, content: String(event.data.answer ?? 'I cannot answer from the published evidence.') }))
+      if (event.type === 'failed') throw new Error('Local answer generation failed. The crawl and indexed evidence remain available.')
+    })
+    return generation
+  } })
+  const submit = (event: FormEvent) => { event.preventDefault(); if (send.isPending) return; const value = input.trim(); if (!value) return; const requestId = crypto.randomUUID(); setMessages((items) => [...items, { id: `user-${requestId}`, role: 'user', content: value }]); setInput(''); setPhase('Searching your knowledge'); send.mutate({ content: value, requestId }) }
+  return <motion.aside className="agent-panel" initial={{ x: 50, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 50, opacity: 0 }} aria-label="Scrapal agent"><header><div className="agent-avatar"><Sparkles /></div><div><p className="eyebrow">Grounded in your sources</p><h2>Ask Scrapal</h2></div><button className="icon-button" onClick={onClose} aria-label="Close agent"><X /></button></header><div className="messages" aria-live="polite">{messages.length === 0 && <div className="agent-empty"><MessageSquareText /><h3>Research with receipts.</h3><p>Ask across your collections. Every factual answer links back to its evidence.</p><button onClick={() => setInput('Which courses have a January intake?')}>Try “Which courses have a January intake?”</button></div>}{messages.map((message) => <div className={`message ${message.role}`} key={message.id}><p>{message.content}</p>{message.citations?.length ? <div className="citations">{message.citations.map((citation) => citation.url ? <a key={citation.number} href={citation.url} target="_blank" rel="noreferrer">[{citation.number}] {citation.title}</a> : <span key={citation.number}>[{citation.number}] {citation.title}</span>)}</div> : null}</div>)}{send.isPending && <div className="thinking"><span /><span /><span /><em>{phase}</em></div>}{send.error && <p className="inline-error">{send.error.message}</p>}</div><form className="agent-composer" onSubmit={submit}><label className="sr-only" htmlFor="agent-input">Ask Scrapal</label><textarea id="agent-input" value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask a cited question…" rows={3} /><button aria-label="Send message" disabled={send.isPending || !input.trim()}><ArrowRight /></button></form></motion.aside>
 }
 
 function AddSource({ collectionId, onClose, onCreated }: { collectionId?: string; onClose: () => void; onCreated: () => void }) {
@@ -462,7 +561,7 @@ function describeEvent(event: CrawlEvent) { if (event.stage === 'run') return `R
 function RunTable({ runs, sourceMap, onSelect }: { runs: Run[]; sourceMap: Map<string, Source>; onSelect: (id: string) => void }) { if (!runs.length) return <p className="empty-row">Runs will appear here after you start a source.</p>; return <div className="table-wrap"><table><thead><tr><th>Source</th><th>Status</th><th>Progress</th><th>Documents</th><th>Exceptions</th><th>Started</th></tr></thead><tbody>{runs.map((run) => <tr className="clickable-row" key={run.id} onClick={() => onSelect(run.id)}><td><button className="row-link">{sourceMap.get(run.source_id)?.name ?? 'Source'}</button></td><td><Status status={run.status === 'queued' && !isLiveRun(run) ? 'worker_timeout' : run.status} warnings={run.issues_count} /></td><td><progress max={Math.max(run.pages_discovered, 1)} value={run.pages_processed}>{run.pages_processed} of {run.pages_discovered}</progress><small>{run.pages_processed} / {run.pages_discovered} checked</small></td><td>{run.documents_created}</td><td>{run.issues_count ? `${run.issues_count} error${run.issues_count === 1 ? '' : 's'}` : run.policy_skips_count ? `${run.policy_skips_count} skipped` : '—'}</td><td>{relativeDate(run.created_at)}</td></tr>)}</tbody></table></div> }
 function Status({ status, warnings = 0 }: { status: string; warnings?: number }) { const label = status === 'completed' && warnings ? `completed · ${warnings} warning${warnings === 1 ? '' : 's'}` : status.replaceAll('_', ' '); return <span className={`status ${status} ${warnings ? 'warning' : ''}`}><i />{label}</span> }
 function Empty({ icon: Icon, title, text, action, onAction }: { icon: typeof Globe2; title: string; text: string; action?: string; onAction?: () => void }) { return <section className="empty"><Icon /><h2>{title}</h2><p>{text}</p>{action && <button className="button primary" onClick={onAction}><Plus size={16} />{action}</button>}</section> }
-function titleFor(view: View) { return { overview: 'Follow the knowledge thread', sources: 'Connected sources', knowledge: 'Search the evidence', observability: 'See where every crawl spends its time', reviews: 'Decisions waiting for you', settings: 'Workspace settings' }[view] }
+function titleFor(view: View) { return { overview: 'Follow the knowledge thread', sources: 'Connected sources', knowledge: 'Search the evidence', 'retrieval-lab': 'Trace an answer back to evidence', observability: 'See where every crawl spends its time', reviews: 'Decisions waiting for you', settings: 'Workspace settings' }[view] }
 function formatDuration(milliseconds: number) { if (milliseconds < 1000) return `${Math.round(milliseconds)}ms`; if (milliseconds < 60_000) return `${(milliseconds / 1000).toFixed(1)}s`; return `${Math.floor(milliseconds / 60_000)}m ${Math.round(milliseconds % 60_000 / 1000)}s` }
 function relativeDate(value: string) { const difference = Date.now() - new Date(value).getTime(); const minutes = Math.floor(difference / 60_000); if (minutes < 1) return 'just now'; if (minutes < 60) return `${minutes}m ago`; const hours = Math.floor(minutes / 60); if (hours < 24) return `${hours}h ago`; return `${Math.floor(hours / 24)}d ago` }
 function isLiveRun(run: Run) { return run.status === 'running' || (run.status === 'queued' && Date.now() - new Date(run.created_at).getTime() < 120_000) }

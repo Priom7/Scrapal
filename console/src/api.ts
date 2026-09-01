@@ -53,7 +53,50 @@ export type SearchHit = {
   heading: string
   excerpt: string
   score: number
+  document_version_id: string | null
+  section_path: string[]
+  anchor: string | null
+  lexical_score: number
+  vector_score: number
+  structured_score: number
+  fused_score: number
 }
+export type RetrievalRun = {
+  id: string
+  query: string
+  mode: string
+  include_drafts: boolean
+  query_plan: Record<string, unknown>
+  structured_matches: Record<string, unknown>[]
+  lexical_candidates: Record<string, unknown>[]
+  vector_candidates: Record<string, unknown>[]
+  fused_candidates: SearchHit[]
+  context_json: SearchHit[]
+  generated_answer: string | null
+  citation_results: { sentence: string; supported: boolean; citations: number[]; reason: string | null }[]
+  abstention_reason: string | null
+  answer_model: string | null
+  exclusions_json: Record<string, unknown>[]
+  timings_json: Record<string, number>
+  created_at: string
+}
+export type EmbeddingProfile = {
+  id: string
+  provider: string
+  model: string
+  dimensions: number
+  normalization: string
+  version: string
+  active: boolean
+  healthy: boolean
+}
+export type Generation = {
+  id: string
+  conversation_id: string
+  status: 'queued' | 'retrieving' | 'generating' | 'completed' | 'abstained' | 'failed'
+  created_at: string
+}
+export type GenerationEvent = { type: string; data: Record<string, unknown>; id?: string }
 export type SystemStatus = {
   ollama: { status: string; version?: string; models?: string[]; detail?: string }
 }
@@ -175,10 +218,16 @@ export const api = {
       body: JSON.stringify({ collection_id: collectionId ?? null, title: 'Workspace conversation' }),
     }),
   sendMessage: (conversationId: string, content: string, requestId: string) =>
-    request<{ content: string; citations: { number: number; title: string; url: string }[] }>(
+    request<Generation>(
       `/v1/conversations/${conversationId}/messages`,
       { method: 'POST', body: JSON.stringify({ content, request_id: requestId }) },
     ),
+  retrievalProfiles: () => request<EmbeddingProfile[]>('/v1/admin/retrieval-lab/profiles'),
+  runRetrieval: (data: Record<string, unknown>) =>
+    request<RetrievalRun>('/v1/admin/retrieval-lab/runs', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
   approveProposal: (id: string) =>
     request<Proposal>(`/v1/action-proposals/${id}/approve`, { method: 'POST' }),
   rejectProposal: (id: string) =>
@@ -202,6 +251,52 @@ export const api = {
         if (data) onProgress(JSON.parse(data) as RunDetail)
       }
       if (done) break
+    }
+  },
+  watchGeneration: async (
+    conversationId: string,
+    generationId: string,
+    onEvent: (event: GenerationEvent) => void,
+    signal?: AbortSignal,
+  ) => {
+    let lastEventId: string | undefined
+    let terminal = false
+    let reconnects = 0
+    while (!terminal) {
+      try {
+        const response = await fetch(
+          `${baseUrl}/v1/conversations/${conversationId}/events?generation_id=${generationId}`,
+          { headers: { 'X-API-Key': apiKey, ...(lastEventId ? { 'Last-Event-ID': lastEventId } : {}) }, signal },
+        )
+        if (!response.ok || !response.body) throw new Error(`Answer stream unavailable (${response.status})`)
+        const reader = response.body.getReader()
+        const decoder = new TextDecoder()
+        let buffer = ''
+        while (true) {
+          const { value, done } = await reader.read()
+          buffer += decoder.decode(value, { stream: !done })
+          const frames = buffer.split('\n\n')
+          buffer = frames.pop() ?? ''
+          for (const frame of frames) {
+            if (frame.startsWith(':')) continue
+            const lines = frame.split('\n')
+            const type = lines.find((line) => line.startsWith('event:'))?.slice(6).trim()
+            const id = lines.find((line) => line.startsWith('id:'))?.slice(3).trim()
+            const raw = lines.find((line) => line.startsWith('data:'))?.slice(5).trim()
+            if (id) lastEventId = id
+            if (type && raw) {
+              onEvent({ type, id, data: JSON.parse(raw) as Record<string, unknown> })
+              terminal = ['completed', 'failed'].includes(type)
+            }
+          }
+          if (done || terminal) break
+        }
+        reconnects = 0
+      } catch (error) {
+        if (signal?.aborted || reconnects >= 4) throw error
+        reconnects += 1
+        await new Promise((resolve) => window.setTimeout(resolve, reconnects * 500))
+      }
     }
   },
 }

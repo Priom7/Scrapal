@@ -1,6 +1,6 @@
 import re
-from hashlib import sha256
 from dataclasses import dataclass
+from hashlib import sha256
 
 
 @dataclass(frozen=True)

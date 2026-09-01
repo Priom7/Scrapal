@@ -246,7 +246,7 @@ class DocumentVersion(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
 
 
-embedding_type = JSON().with_variant(Vector(768), "postgresql")
+embedding_type = Vector(768).with_variant(JSON(), "sqlite")
 
 
 class Chunk(Base):
@@ -381,6 +381,10 @@ class RetrievalRun(Base):
     vector_candidates: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list)
     fused_candidates: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list)
     context_json: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list)
+    generated_answer: Mapped[str | None] = mapped_column(Text, nullable=True)
+    citation_results: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list)
+    abstention_reason: Mapped[str | None] = mapped_column(String(240), nullable=True)
+    answer_model: Mapped[str | None] = mapped_column(String(180), nullable=True)
     exclusions_json: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list)
     timings_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     trace_id: Mapped[str | None] = mapped_column(String(32), nullable=True)

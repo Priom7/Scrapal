@@ -10,7 +10,9 @@ from scrapal.config import get_settings
 from scrapal.db import SessionLocal, init_db
 from scrapal.models import Collection
 from scrapal.observability_api import router as observability_router
+from scrapal.retrieval_api import router as retrieval_router
 from scrapal.security import bootstrap_identity
+from scrapal.services.indexing import ensure_default_profile
 from scrapal.telemetry import setup_observability
 
 
@@ -21,6 +23,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     await init_db()
     async with SessionLocal() as session:
         await bootstrap_identity(session)
+        await ensure_default_profile(session)
         collection = await session.scalar(select(Collection).limit(1))
         if not collection:
             from scrapal.models import Organization
@@ -54,6 +57,7 @@ app.add_middleware(
 )
 app.include_router(router)
 app.include_router(observability_router)
+app.include_router(retrieval_router)
 setup_observability("scrapal-api", app=app)
 
 

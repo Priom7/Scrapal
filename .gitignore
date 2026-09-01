@@ -13,5 +13,7 @@ dist/
 console/vite.config.js
 console/vite.config.d.ts
 data/
+!src/scrapal/data/
+!src/scrapal/data/*.jsonl
 *.db
 .DS_Store

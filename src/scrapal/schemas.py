@@ -3,7 +3,14 @@ from typing import Any, Literal
 
 from pydantic import AnyHttpUrl, BaseModel, ConfigDict, Field
 
-from scrapal.models import EvaluationStatus, GenerationStatus, IndexStatus, ProposalStatus, RunStatus, SourceKind
+from scrapal.models import (
+    EvaluationStatus,
+    GenerationStatus,
+    IndexStatus,
+    ProposalStatus,
+    RunStatus,
+    SourceKind,
+)
 
 
 class ORMModel(BaseModel):
@@ -232,6 +239,10 @@ class RetrievalRunOut(ORMModel):
     vector_candidates: list[dict[str, Any]]
     fused_candidates: list[dict[str, Any]]
     context_json: list[dict[str, Any]]
+    generated_answer: str | None
+    citation_results: list[dict[str, Any]]
+    abstention_reason: str | None
+    answer_model: str | None
     exclusions_json: list[dict[str, Any]]
     timings_json: dict[str, Any]
     trace_id: str | None

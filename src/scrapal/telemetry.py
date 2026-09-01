@@ -59,6 +59,11 @@ RAG_QUERIES = Counter(
 RAG_CITATIONS = Counter(
     "scrapal_rag_citations_total", "RAG sentence citation validation", ["outcome"]
 )
+RAG_CONTEXT_SIZE = Histogram(
+    "scrapal_rag_context_items",
+    "Evidence items packed into an answer context",
+    buckets=(0, 1, 2, 3, 4, 6, 8, 10),
+)
 RAG_INDEX_FAILURES = Counter(
     "scrapal_rag_index_failures_total", "RAG indexing failures", ["reason"]
 )
