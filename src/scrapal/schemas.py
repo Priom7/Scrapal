@@ -3,7 +3,7 @@ from typing import Any, Literal
 
 from pydantic import AnyHttpUrl, BaseModel, ConfigDict, Field
 
-from scrapal.models import ProposalStatus, RunStatus, SourceKind
+from scrapal.models import EvaluationStatus, GenerationStatus, IndexStatus, ProposalStatus, RunStatus, SourceKind
 
 
 class ORMModel(BaseModel):
@@ -114,6 +114,13 @@ class SearchHit(BaseModel):
     excerpt: str
     score: float
     page_number: int | None = None
+    document_version_id: str | None = None
+    section_path: list[str] = Field(default_factory=list)
+    anchor: str | None = None
+    lexical_score: float = 0
+    vector_score: float = 0
+    structured_score: float = 0
+    fused_score: float = 0
 
 
 class SearchResponse(BaseModel):
@@ -145,6 +152,121 @@ class MessageOut(ORMModel):
     role: str
     content: str
     citations: list[dict[str, Any]]
+    created_at: datetime
+
+
+class QueryPlan(BaseModel):
+    intent: str = "research"
+    entities: list[str] = Field(default_factory=list)
+    requested_fields: list[str] = Field(default_factory=list)
+    level: str | None = None
+    residency: str | None = None
+    intake: str | None = None
+    study_mode: str | None = None
+
+
+class RetrievalFilters(BaseModel):
+    source_id: str | None = None
+    level: str | None = None
+    residency: str | None = None
+    intake: str | None = None
+    study_mode: str | None = None
+
+
+class GenerationAccepted(BaseModel):
+    id: str
+    conversation_id: str
+    status: GenerationStatus
+    created_at: datetime
+
+
+class GenerationOut(ORMModel):
+    id: str
+    conversation_id: str
+    retrieval_run_id: str | None
+    status: GenerationStatus
+    answer: str
+    citations: list[dict[str, Any]]
+    unsupported_sentences: list[str]
+    model: str | None
+    error: str | None
+    started_at: datetime | None
+    finished_at: datetime | None
+    created_at: datetime
+
+
+class EmbeddingProfileOut(ORMModel):
+    id: str
+    provider: str
+    model: str
+    dimensions: int
+    normalization: str
+    version: str
+    active: bool
+    healthy: bool
+    created_at: datetime
+    activated_at: datetime | None
+
+
+class RetrievalLabRunCreate(BaseModel):
+    query: str = Field(min_length=2, max_length=20_000)
+    collection_id: str | None = None
+    mode: Literal["full_text", "semantic", "hybrid"] = "hybrid"
+    include_drafts: bool = False
+    filters: RetrievalFilters = Field(default_factory=RetrievalFilters)
+    limit: int = Field(default=10, ge=1, le=50)
+    generate_answer: bool = False
+
+
+class RetrievalRunOut(ORMModel):
+    id: str
+    organization_id: str
+    collection_id: str | None
+    query: str
+    mode: str
+    include_drafts: bool
+    filters_json: dict[str, Any]
+    query_plan: dict[str, Any]
+    structured_matches: list[dict[str, Any]]
+    lexical_candidates: list[dict[str, Any]]
+    vector_candidates: list[dict[str, Any]]
+    fused_candidates: list[dict[str, Any]]
+    context_json: list[dict[str, Any]]
+    exclusions_json: list[dict[str, Any]]
+    timings_json: dict[str, Any]
+    trace_id: str | None
+    created_at: datetime
+
+
+class DocumentIndexOut(ORMModel):
+    id: str
+    document_id: str
+    document_version_id: str
+    embedding_profile_id: str
+    status: IndexStatus
+    chunks_count: int
+    embeddings_count: int
+    attempts: int
+    error: str | None
+
+
+class EvaluationCreate(BaseModel):
+    collection_id: str | None = None
+    embedding_profile_id: str | None = None
+    dataset: str = "greenwich-rag-v1"
+
+
+class EvaluationOut(ORMModel):
+    id: str
+    collection_id: str | None
+    embedding_profile_id: str
+    dataset: str
+    status: EvaluationStatus
+    metrics_json: dict[str, Any]
+    results_json: list[dict[str, Any]]
+    error: str | None
+    started_at: datetime | None
+    finished_at: datetime | None
     created_at: datetime
 
 

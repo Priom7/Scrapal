@@ -2,6 +2,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from time import monotonic
 from typing import Any
+import json
 
 import httpx
 from redis.asyncio import Redis
@@ -138,6 +139,74 @@ class OllamaService:
                 f"Ollama returned HTTP {exc.response.status_code} for chat generation"
             ) from exc
         except (httpx.HTTPError, KeyError) as exc:
+            raise OllamaUnavailable(str(exc) or type(exc).__name__) from exc
+
+    async def structured(
+        self,
+        messages: list[dict[str, str]],
+        schema: dict[str, Any],
+        *,
+        locked: bool = False,
+        model: str | None = None,
+    ) -> dict[str, Any]:
+        if not locked:
+            async with self.workload():
+                return await self.structured(messages, schema, locked=True, model=model)
+        try:
+            async with httpx.AsyncClient(timeout=120) as client:
+                response = await client.post(
+                    f"{self.settings.ollama_base_url}/api/chat",
+                    json={
+                        "model": model or self.settings.ollama_chat_model,
+                        "messages": messages,
+                        "stream": False,
+                        "format": schema,
+                        "keep_alive": "10m",
+                        "options": {"temperature": 0},
+                    },
+                )
+            response.raise_for_status()
+            return json.loads(response.json()["message"]["content"])
+        except (httpx.HTTPError, KeyError, ValueError, json.JSONDecodeError) as exc:
+            raise OllamaUnavailable(str(exc) or type(exc).__name__) from exc
+
+    async def chat_stream(
+        self,
+        messages: list[dict[str, str]],
+        *,
+        locked: bool = False,
+        model: str | None = None,
+    ) -> AsyncIterator[str]:
+        if not locked:
+            async with self.workload():
+                async for token in self.chat_stream(messages, locked=True, model=model):
+                    yield token
+            return
+        selected_model = model or self.settings.ollama_chat_model
+        try:
+            async with httpx.AsyncClient(timeout=httpx.Timeout(180, read=180)) as client:
+                async with client.stream(
+                    "POST",
+                    f"{self.settings.ollama_base_url}/api/chat",
+                    json={
+                        "model": selected_model,
+                        "messages": messages,
+                        "stream": True,
+                        "keep_alive": "10m",
+                        "options": {"temperature": 0.1, "num_predict": 512},
+                    },
+                ) as response:
+                    response.raise_for_status()
+                    async for line in response.aiter_lines():
+                        if not line:
+                            continue
+                        payload = json.loads(line)
+                        token = payload.get("message", {}).get("content", "")
+                        if token:
+                            yield token
+            type(self)._last_chat_error = None
+            type(self)._last_chat_error_at = 0
+        except (httpx.HTTPError, KeyError, ValueError, json.JSONDecodeError) as exc:
             raise OllamaUnavailable(str(exc) or type(exc).__name__) from exc
 
 

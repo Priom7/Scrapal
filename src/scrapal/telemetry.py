@@ -44,6 +44,24 @@ FETCH_BYTES = Counter("scrapal_crawl_fetch_bytes_total", "Downloaded crawler byt
 OUTPUT_TOTAL = Counter(
     "scrapal_crawl_output_total", "Crawler output objects", ["kind"]
 )
+RAG_STAGE_DURATION = Histogram(
+    "scrapal_rag_stage_duration_seconds",
+    "RAG stage duration",
+    ["stage", "outcome"],
+    buckets=(0.01, 0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10, 30, 60, 180),
+)
+RAG_CANDIDATES = Histogram(
+    "scrapal_rag_candidates", "RAG candidates by lane", ["lane"], buckets=(0, 1, 3, 5, 10, 20, 50)
+)
+RAG_QUERIES = Counter(
+    "scrapal_rag_queries_total", "RAG queries by outcome", ["outcome"]
+)
+RAG_CITATIONS = Counter(
+    "scrapal_rag_citations_total", "RAG sentence citation validation", ["outcome"]
+)
+RAG_INDEX_FAILURES = Counter(
+    "scrapal_rag_index_failures_total", "RAG indexing failures", ["reason"]
+)
 
 
 def redact_value(value: Any, key: str = "") -> Any:

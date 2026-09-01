@@ -22,7 +22,6 @@ from scrapal.connectors.website import (
 from scrapal.db import SessionLocal
 from scrapal.domain.university.greenwich import GreenwichConfig, GreenwichConnector
 from scrapal.models import (
-    Chunk,
     Collection,
     Document,
     DocumentVersion,
@@ -41,7 +40,7 @@ from scrapal.services.crawl_events import (
     record_crawl_event,
     upsert_incident,
 )
-from scrapal.services.ollama import OllamaService, OllamaUnavailable
+from scrapal.services.indexing import index_document_version
 from scrapal.telemetry import ACTIVE_RUNS, FETCH_BYTES, OUTPUT_TOTAL, RUNS_TOTAL, trace_ids, tracer
 
 
@@ -505,30 +504,9 @@ async def persist_extraction(
     )
     session.add(version)
     await session.flush()
-    document.current_version_id = version.id
     document.title = extracted.get("title") or document.title
     with tracer.start_as_current_span("content.chunk"):
-        chunks = chunk_text(version.text)
-    embeddings: list[list[float] | None]
-    try:
-        with tracer.start_as_current_span("embedding.generate"):
-            embeddings = list(await OllamaService().embed([chunk.content for chunk in chunks]))
-    except OllamaUnavailable:
-        embeddings = [None] * len(chunks)
-    for chunk, embedding in zip(chunks, embeddings, strict=True):
-        session.add(
-            Chunk(
-                document_id=document.id,
-                document_version_id=version.id,
-                position=chunk.position,
-                heading=chunk.heading,
-                content=chunk.content,
-                token_count=chunk.token_count,
-                page_number=chunk.page_number,
-                embedding=embedding,
-                embedding_profile=get_settings().ollama_embed_model if embedding else None,
-            )
-        )
+        await index_document_version(session, document, version)
     for item in extracted.get("structured_records", []):
         record = await session.scalar(
             select(StructuredRecord).where(
