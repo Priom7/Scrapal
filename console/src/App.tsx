@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { ColumnDef, flexRender, getCoreRowModel, useReactTable } from '@tanstack/react-table'
 import {
   Activity,
   AlertTriangle,
@@ -34,9 +35,12 @@ import {
   Sun,
   X,
 } from 'lucide-react'
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
+import { AnimatePresence, motion, MotionConfig } from 'motion/react'
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api, CourseRecord, CrawlEvent, Incident, ObservabilityRun, RetrievalRun, Run, RunDetail, SearchHit, Source } from './api'
+import { RunPath } from './RunPath'
+import { formatDuration, ICON, isLiveRun, relativeDate, useDialog, useMediaQuery } from './lib'
+import { Empty, Meter, Status } from './ui'
 
 type View = 'overview' | 'sources' | 'knowledge' | 'course-intelligence' | 'retrieval-lab' | 'observability' | 'reviews' | 'settings'
 type AgentMessage = { id: string; role: string; content: string; citations?: { number: number; title: string; url?: string }[] }
@@ -52,47 +56,6 @@ const nav: { id: View; label: string; icon: typeof Activity }[] = [
   { id: 'settings', label: 'Settings', icon: Settings2 },
 ]
 
-function Threadline({ run, onInspect }: { run?: Run; onInspect?: () => void }) {
-  const reduce = useReducedMotion()
-  const stages = ['Fetch', 'Extract', 'Review', 'Publish', 'Index']
-  const progress = run?.status === 'completed' ? 5 : run?.status === 'running' ? 2 : run?.status === 'failed' ? 1 : 0
-  return (
-    <section className="threadline" aria-labelledby="threadline-title">
-      <div className="threadline-heading">
-        <div>
-          <p className="eyebrow">Live provenance</p>
-          <h2 id="threadline-title">One thread, every transformation.</h2>
-        </div>
-        <span className={`run-state ${run?.status ?? 'idle'}`}>
-          <span aria-hidden="true" /> {run?.status?.replaceAll('_', ' ') ?? 'Ready'}
-        </span>
-      </div>
-      <div className="thread-track" role="list" aria-label="Knowledge processing stages">
-        <svg aria-hidden="true" viewBox="0 0 840 120" preserveAspectRatio="none">
-          <path className="track-base" d="M30 60 C160 5 250 115 410 60 S660 5 810 60" />
-          <motion.path
-            className="track-live"
-            d="M30 60 C160 5 250 115 410 60 S660 5 810 60"
-            initial={{ pathLength: 0 }}
-            animate={{ pathLength: Math.max(0.04, progress / 5) }}
-            transition={{ duration: reduce ? 0 : 1.1, ease: 'easeOut' }}
-          />
-        </svg>
-        {stages.map((stage, index) => (
-          <div className={`thread-stage ${index < progress ? 'done' : index === progress ? 'active' : ''}`} role="listitem" key={stage}>
-            <span>{index < progress ? <Check size={14} /> : index + 1}</span>
-            <small>{stage}</small>
-          </div>
-        ))}
-      </div>
-      <p className="sr-only" aria-live="polite">
-        {run ? `${run.status}. ${run.pages_processed} of ${run.pages_discovered} pages processed.` : 'No active run.'}
-      </p>
-      {run && <button className="thread-inspect" onClick={onInspect}>View run details <ChevronRight size={15} /></button>}
-    </section>
-  )
-}
-
 function App() {
   const queryClient = useQueryClient()
   const [view, setView] = useState<View>('overview')
@@ -103,6 +66,7 @@ function App() {
   })
   const [agentOpen, setAgentOpen] = useState(() => window.matchMedia('(min-width: 1181px)').matches)
   const [navOpen, setNavOpen] = useState(false)
+  const mobile = useMediaQuery('(max-width: 760px)')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem('scrapal-sidebar') === 'collapsed')
   const [newSource, setNewSource] = useState(false)
   const [selectedRunId, setSelectedRunId] = useState<string>()
@@ -112,6 +76,7 @@ function App() {
   const documents = useQuery({ queryKey: ['documents'], queryFn: api.documents })
   const system = useQuery({ queryKey: ['system'], queryFn: api.system })
   const proposals = useQuery({ queryKey: ['proposals'], queryFn: api.proposals })
+  const connectionError = [collections.error, sources.error, runs.error, documents.error, system.error].find((error) => error instanceof Error) as Error | undefined
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
@@ -131,9 +96,10 @@ function App() {
   const closeRunMonitor = useCallback(() => setSelectedRunId(undefined), [])
 
   return (
+   <MotionConfig reducedMotion="user">
     <div className={`app-shell ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${agentOpen ? 'agent-open' : ''}`}>
       <a className="skip-link" href="#workspace">Skip to workspace</a>
-      <aside className={`sidebar ${navOpen ? 'open' : ''}`} aria-label="Primary navigation">
+      <aside id="primary-nav" className={`sidebar ${navOpen ? 'open' : ''}`} aria-label="Primary navigation" inert={mobile && !navOpen ? true : undefined}>
         <div className="brand-block">
           <div className="brand-lockup">
             <img className="brand-wordmark" src="/scrapal_logo.svg" alt="Scrapal" />
@@ -169,23 +135,25 @@ function App() {
 
       <main id="workspace" className="workspace" tabIndex={-1}>
         <header className="topbar">
-          <button className="icon-button mobile-only" onClick={() => setNavOpen(true)} aria-label="Open navigation"><Menu /></button>
+          <button className="icon-button mobile-only" onClick={() => setNavOpen(true)} aria-label="Open navigation" aria-expanded={navOpen} aria-controls="primary-nav"><Menu size={ICON.lg} /></button>
           <div>
             <p className="eyebrow">Scrapal / {view}</p>
             <h1>{titleFor(view)}</h1>
           </div>
           <div className="top-actions">
-            <button className="button secondary" onClick={() => setAgentOpen(!agentOpen)}><Bot size={17} /> {agentOpen ? 'Hide agent' : 'Ask Scrapal'}</button>
-            <button className="button primary" onClick={() => setNewSource(true)}><Plus size={17} /> Add source</button>
+            <button className="button secondary agent-trigger" onClick={() => setAgentOpen(!agentOpen)} aria-label={agentOpen ? 'Hide Scrapal agent' : 'Ask Scrapal'} title={agentOpen ? 'Hide Scrapal agent' : 'Ask Scrapal'}><Bot size={17} aria-hidden="true" /> <span>{agentOpen ? 'Hide agent' : 'Ask Scrapal'}</span></button>
+            <button className="button primary add-source-trigger" onClick={() => setNewSource(true)} aria-label="Add source" title="Add source"><Plus size={17} aria-hidden="true" /> <span>Add source</span></button>
           </div>
         </header>
+
+        {connectionError && <div className="connection-banner" role="alert"><CircleAlert aria-hidden="true" /><div><strong>Scrapal could not reach its API</strong><span>{connectionError.message}. Check the API service, then try again.</span></div><button className="button secondary" onClick={refresh}>Retry</button></div>}
 
         <AnimatePresence mode="wait">
           <motion.div key={view} className="view" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: .18 }}>
             {view === 'overview' && <Overview activeRun={activeRun} sources={sources.data ?? []} runs={runs.data ?? []} documents={documents.data ?? []} sourceMap={sourceMap} onInspect={setSelectedRunId} />}
             {view === 'sources' && <Sources sources={sources.data ?? []} runs={runs.data ?? []} onRun={(run) => { refresh(); setSelectedRunId(run.id) }} onInspect={setSelectedRunId} onAdd={() => setNewSource(true)} />}
             {view === 'knowledge' && <Knowledge collectionId={collections.data?.[0]?.id} documents={documents.data ?? []} />}
-            {view === 'course-intelligence' && <CourseIntelligence />}
+            {view === 'course-intelligence' && <CourseIntelligence collectionId={collections.data?.[0]?.id} />}
             {view === 'retrieval-lab' && <RetrievalLab collectionId={collections.data?.[0]?.id} />}
             {view === 'observability' && <Observability onInspect={setSelectedRunId} />}
             {view === 'reviews' && <Reviews proposals={proposals.data ?? []} onChanged={refresh} />}
@@ -207,12 +175,13 @@ function App() {
       </AnimatePresence>
       {navOpen && <button className="backdrop nav-backdrop" onClick={() => setNavOpen(false)} aria-label="Close navigation backdrop" />}
     </div>
+   </MotionConfig>
   )
 }
 
 function Overview({ activeRun, sources, runs, documents, sourceMap, onInspect }: { activeRun?: Run; sources: Source[]; runs: Run[]; documents: { id: string }[]; sourceMap: Map<string, Source>; onInspect: (id: string) => void }) {
   return <>
-    <Threadline run={activeRun} onInspect={activeRun ? () => onInspect(activeRun.id) : undefined} />
+    <RunPath run={activeRun} onInspect={activeRun ? () => onInspect(activeRun.id) : undefined} />
     <div className="stat-ribbon" aria-label="Workspace summary">
       <div><Globe2 /><span><strong>{sources.length}</strong> connected sources</span></div>
       <div><Archive /><span><strong>{documents.length}</strong> knowledge documents</span></div>
@@ -314,7 +283,7 @@ function CourseIntelligence({ collectionId }: { collectionId?: string }) {
           return <button className={selected?.id === record.id ? 'selected' : ''} key={record.id} onClick={() => setSelectedId(record.id)}>
             <span className={`course-state ${record.status}`}><GraduationCap /></span>
             <span><strong>{String(record.data.title ?? 'Untitled course')}</strong><small>{String(record.data.level ?? 'Unknown level')} · revision {record.revision}</small></span>
-            <span className="coverage-meter"><i style={{ width: `${coverage}%` }} /><small>{coverage}%</small></span>
+            <span className="coverage-meter"><Meter value={coverage} tone={coverage === 100 ? 'done' : 'active'} label={`${coverage}% field coverage`} /><small>{coverage}%</small></span>
             <ChevronRight />
           </button>
         })}</div>
@@ -399,21 +368,41 @@ function RetrievalLab({ collectionId }: { collectionId?: string }) {
   </div>
 }
 
+type RetrievalCandidateRow = {
+  id: string
+  title: string
+  detail: string
+  structuredRank?: number
+  lexicalRank?: number
+  semanticRank?: number
+  fusedRank?: number
+  fusedScore?: number
+  included: boolean
+}
+
 function RetrievalTrace({ run }: { run: RetrievalRun }) {
-  const lanes = [
-    { name: 'Structured', detail: 'Canonical university fields', color: 'mint', items: run.structured_matches },
-    { name: 'Lexical', detail: 'PostgreSQL full-text rank', color: 'cobalt', items: run.lexical_candidates },
-    { name: 'Semantic', detail: 'pgvector cosine distance', color: 'amber', items: run.vector_candidates },
-  ]
+  const candidates = useMemo(() => retrievalCandidateRows(run), [run])
+  const columns = useMemo<ColumnDef<RetrievalCandidateRow>[]>(() => [
+    { accessorKey: 'title', header: 'Evidence', cell: ({ row }) => <div className="evidence-cell"><strong>{row.original.title}</strong><small>{row.original.detail}</small></div> },
+    { accessorKey: 'structuredRank', header: 'Structured', cell: ({ getValue }) => <Rank value={getValue<number | undefined>()} /> },
+    { accessorKey: 'lexicalRank', header: 'Lexical', cell: ({ getValue }) => <Rank value={getValue<number | undefined>()} /> },
+    { accessorKey: 'semanticRank', header: 'Semantic', cell: ({ getValue }) => <Rank value={getValue<number | undefined>()} /> },
+    { accessorKey: 'fusedRank', header: 'Fused', cell: ({ row, getValue }) => <div className="fused-rank"><Rank value={getValue<number | undefined>()} /><small>{row.original.fusedScore?.toFixed(4) ?? '—'}</small></div> },
+    { accessorKey: 'included', header: 'Decision', cell: ({ getValue }) => getValue<boolean>() ? <span className="decision included"><Check /> Included</span> : <span className="decision excluded"><X /> Excluded</span> },
+  ], [])
+  const table = useReactTable({ data: candidates, columns, getCoreRowModel: getCoreRowModel() })
   return <div className="retrieval-trace">
     <section className="plan-strip"><div><small>Query plan</small><code>{JSON.stringify(run.query_plan, null, 2)}</code></div><dl>{Object.entries(run.timings_json).map(([name, value]) => <div key={name}><dt>{name.replace('_ms', '')}</dt><dd>{value}ms</dd></div>)}</dl></section>
-    <section className="evidence-braid" aria-labelledby="evidence-braid-title">
-      <div className="section-heading"><div><p className="eyebrow">Evidence braid</p><h2 id="evidence-braid-title">Three lanes, one ranked context</h2></div><span>{run.context_json.length} passages packed</span></div>
-      <div className="braid-lanes">
-        {lanes.map((lane) => <article className={`braid-lane ${lane.color}`} key={lane.name}><header><span>{lane.items.length}</span><div><strong>{lane.name}</strong><small>{lane.detail}</small></div></header><ol>{lane.items.slice(0, 4).map((item, index) => <li key={String(item.chunk_id ?? item.record_id ?? index)}><b>#{index + 1}</b><span><strong>{String(item.title ?? item.external_id ?? item.schema ?? 'Evidence match')}</strong><small>{candidateDetail(item)}</small></span><code>{candidateScore(item)}</code></li>)}</ol>{!lane.items.length && <p>No eligible candidates</p>}</article>)}
+    <section className="ranking-workbench" aria-labelledby="ranking-title">
+      <div className="section-heading"><div><p className="eyebrow">Retrieval decision matrix</p><h2 id="ranking-title">Why each passage ranked where it did</h2></div><span>{run.context_json.length} of {candidates.length} candidates packed</span></div>
+      <div className="ranking-table-wrap" tabIndex={0} role="region" aria-label="Scrollable retrieval rankings">
+        <table className="ranking-table">
+          <caption>Candidate evidence ranked independently by structured, lexical and semantic retrieval, followed by fused rank and inclusion decision.</caption>
+          <thead>{table.getHeaderGroups().map((group) => <tr key={group.id}>{group.headers.map((header) => <th scope="col" key={header.id}>{header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}</th>)}</tr>)}</thead>
+          <tbody>{table.getRowModel().rows.map((row) => <tr className={row.original.included ? 'included' : ''} key={row.id}>{row.getVisibleCells().map((cell) => <td key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>)}</tr>)}</tbody>
+        </table>
       </div>
-      <div className="braid-convergence" aria-hidden="true"><i /><i /><i /><span>RRF · k=60</span></div>
-      <ol className="fused-context">{run.context_json.map((hit, index) => <li key={hit.chunk_id}><b>{index + 1}</b><div><strong>{hit.title}</strong><span>{hit.heading || hit.section_path.join(' / ') || 'Document passage'}</span><small>{hit.document_version_id?.slice(0, 8)} · fused {hit.fused_score.toFixed(4)} · lexical {hit.lexical_score.toFixed(2)} · vector {hit.vector_score.toFixed(2)}</small></div><a href={hit.url} target="_blank" rel="noreferrer" aria-label={`Open ${hit.title}`}><ExternalLink /></a></li>)}</ol>
+      <p className="ranking-note"><strong>RRF · k=60</strong> combines rank positions rather than incomparable raw scores. Included rows become the bounded answer context.</p>
     </section>
     <section className="validation-ledger">
       <div><p className="eyebrow">Grounded answer</p><h2>{run.abstention_reason ? 'Scrapal abstained' : 'Only supported sentences survived'}</h2><p className={run.abstention_reason ? 'lab-abstention' : ''}>{run.generated_answer ?? `No answer was emitted: ${run.abstention_reason ?? 'generation was not requested'}.`}</p>{run.answer_model && <small>Answer model · {run.answer_model}</small>}</div>
@@ -422,14 +411,45 @@ function RetrievalTrace({ run }: { run: RetrievalRun }) {
   </div>
 }
 
+function Rank({ value }: { value?: number }) {
+  return value ? <span className="rank-value">#{value}</span> : <span className="rank-empty" aria-label="Not ranked">—</span>
+}
+
+function retrievalCandidateRows(run: RetrievalRun): RetrievalCandidateRow[] {
+  const rows = new Map<string, RetrievalCandidateRow>()
+  const add = (items: Record<string, unknown>[], field: 'structuredRank' | 'lexicalRank' | 'semanticRank') => items.forEach((item, index) => {
+    const id = candidateId(item, `${field}-${index}`)
+    const existing = rows.get(id) ?? { id, title: candidateTitle(item), detail: candidateDetail(item), included: false }
+    existing[field] = index + 1
+    rows.set(id, existing)
+  })
+  add(run.structured_matches, 'structuredRank')
+  add(run.lexical_candidates, 'lexicalRank')
+  add(run.vector_candidates, 'semanticRank')
+  run.fused_candidates.forEach((item, index) => {
+    const raw = item as unknown as Record<string, unknown>
+    const id = candidateId(raw, `fused-${index}`)
+    const existing = rows.get(id) ?? { id, title: candidateTitle(raw), detail: candidateDetail(raw), included: false }
+    existing.fusedRank = index + 1
+    existing.fusedScore = Number(raw.fused_score ?? raw.score ?? 0)
+    rows.set(id, existing)
+  })
+  const included = new Set(run.context_json.map((item) => item.chunk_id))
+  rows.forEach((row) => { row.included = included.has(row.id) })
+  return [...rows.values()].sort((a, b) => Number(b.included) - Number(a.included) || (a.fusedRank ?? 999) - (b.fusedRank ?? 999) || Math.min(a.structuredRank ?? 999, a.lexicalRank ?? 999, a.semanticRank ?? 999) - Math.min(b.structuredRank ?? 999, b.lexicalRank ?? 999, b.semanticRank ?? 999))
+}
+
+function candidateId(item: Record<string, unknown>, fallback: string) {
+  return String(item.chunk_id ?? item.record_id ?? item.external_id ?? item.title ?? fallback)
+}
+
+function candidateTitle(item: Record<string, unknown>) {
+  return String(item.title ?? item.external_id ?? item.schema ?? 'Evidence match')
+}
+
 function candidateDetail(item: Record<string, unknown>) {
   const heading = item.heading ?? item.schema ?? item.document_id
   return String(heading ?? 'Published evidence')
-}
-
-function candidateScore(item: Record<string, unknown>) {
-  const score = Number(item.score ?? item.confidence ?? 0)
-  return score.toFixed(score < 1 ? 4 : 2)
 }
 
 function Reviews({ proposals, onChanged }: { proposals: { id: string; title: string; action_type: string; rationale: string; risk: string; status: string }[]; onChanged: () => void }) {
@@ -460,7 +480,7 @@ function Observability({ onInspect }: { onInspect: (id: string) => void }) {
     <section className="ops-command">
       <div><p className="eyebrow">Crawler control plane</p><h2>Every page leaves a pulse.</h2><p>Follow work from queue to evidence. Failures stay attached to the exact stage, URL, worker, and trace that produced them.</p></div>
       <button className="button secondary" onClick={openGrafana}><ExternalLink size={16} /> Open Grafana</button>
-      <div className="ops-pulse" aria-hidden="true"><i /><i /><i /><i /><i /></div>
+      
     </section>
     <section className="ops-metrics" aria-label="Crawler service levels">
       <article><small>Live runs</small><strong>{data?.active_runs ?? '—'}</strong><span>moving through the pipeline</span></article>
@@ -484,7 +504,7 @@ function Observability({ onInspect }: { onInspect: (id: string) => void }) {
 
 function OpsRunRow({ run, onInspect }: { run: ObservabilityRun; onInspect: (id: string) => void }) {
   const progress = Math.round(run.pages_processed / Math.max(run.pages_discovered, 1) * 100)
-  return <button className="ops-run-row" onClick={() => onInspect(run.id)}><span className={`ops-node ${run.status}`}><Activity size={16} /></span><span><strong>{run.source_name}</strong><small>{run.connector} · {run.pages_processed}/{run.pages_discovered} pages</small></span><span className="mini-rail"><i style={{ width: `${progress}%` }} /></span><Status status={run.status} warnings={run.issues_count} /><ChevronRight size={17} /></button>
+  return <button className="ops-run-row" onClick={() => onInspect(run.id)}><span className={`ops-node ${run.status}`}><Activity size={16} /></span><span><strong>{run.source_name}</strong><small>{run.connector} · {run.pages_processed}/{run.pages_discovered} pages</small></span><Meter value={progress} tone={run.status === 'failed' ? 'fail' : run.status === 'completed' ? 'done' : 'active'} label={`${run.pages_processed} of ${run.pages_discovered} pages`} /><Status status={run.status} warnings={run.issues_count} /><ChevronRight size={17} /></button>
 }
 
 function HealthRow({ icon: Icon, label, status, detail }: { icon: typeof Server; label: string; status: string; detail: string }) { const ok = status === 'ok'; return <div className="health-row"><span className={ok ? 'healthy' : status === 'loading' ? 'degraded' : 'unhealthy'}><Icon size={16} /></span><div><strong>{label}</strong><small>{detail}</small></div><b>{status}</b></div> }
@@ -528,14 +548,12 @@ function AddSource({ collectionId, onClose, onCreated }: { collectionId?: string
   const [name, setName] = useState('University of Greenwich')
   const [url, setUrl] = useState('https://www.gre.ac.uk/sitemap.xml')
   const create = useMutation({ mutationFn: api.createSource, onSuccess: onCreated })
+  useDialog(dialogRef, onClose)
   useEffect(() => {
     const previousOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
-    dialogRef.current?.querySelector<HTMLElement>('button, input')?.focus()
-    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }
-    document.addEventListener('keydown', closeOnEscape)
-    return () => { document.body.style.overflow = previousOverflow; document.removeEventListener('keydown', closeOnEscape) }
-  }, [onClose])
+    return () => { document.body.style.overflow = previousOverflow }
+  }, [])
   const submit = (event: FormEvent) => { event.preventDefault(); if (!collectionId) return; create.mutate({ collection_id: collectionId, name, kind, url: kind === 'document' ? null : url, config: kind === 'greenwich' ? {} : { max_pages: 100, max_depth: 2 } }) }
   return <><button className="backdrop" onClick={onClose} aria-label="Close add source dialog" /><motion.div ref={dialogRef} className="dialog" role="dialog" aria-modal="true" aria-labelledby="add-source-title" initial={{ opacity: 0, scale: .98, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }}><header><div><p className="eyebrow">New input</p><h2 id="add-source-title">Connect a source</h2><p>Choose what Scrapal should collect and keep current.</p></div><button className="icon-button" onClick={onClose} aria-label="Close"><X /></button></header><form onSubmit={submit}><div className="dialog-scroll"><fieldset><legend>Source type</legend><div className="choice-grid">{(['greenwich', 'website', 'sitemap', 'document'] as const).map((item) => <label className={kind === item ? 'selected' : ''} key={item}><input type="radio" name="kind" value={item} checked={kind === item} onChange={() => { setKind(item); if (item === 'greenwich') { setName('University of Greenwich'); setUrl('https://www.gre.ac.uk/sitemap.xml') } }} /><span>{item === 'greenwich' ? <Sparkles /> : item === 'document' ? <FileSearch /> : <Globe2 />}{item}</span></label>)}</div></fieldset><label>Name<input value={name} onChange={(e) => setName(e.target.value)} required /></label>{kind !== 'document' && <label>Starting URL<input type="url" value={url} onChange={(e) => setUrl(e.target.value)} required /></label>}<p className="form-help">Private network addresses are blocked. Scrapal checks robots rules before fetching public pages.</p>{!collectionId && <p className="inline-error">Create a collection before connecting a source.</p>}{create.error && <p className="inline-error">{create.error.message}</p>}</div><div className="dialog-actions"><button type="button" className="button secondary" onClick={onClose}>Cancel</button><button className="button primary" disabled={create.isPending || !collectionId}>{create.isPending ? 'Connecting…' : 'Connect source'}</button></div></form></motion.div></>
 }
@@ -547,7 +565,8 @@ function RunMonitor({ runId, onClose }: { runId: string; onClose: () => void }) 
   const timeline = useQuery({ queryKey: ['timeline', activeRunId], queryFn: () => api.timeline(activeRunId), refetchInterval: 2000 })
   const [run, setRun] = useState<RunDetail>()
   const [connection, setConnection] = useState<'connecting' | 'live' | 'ended' | 'offline'>('connecting')
-  const closeRef = useRef<HTMLButtonElement>(null)
+  const panelRef = useRef<HTMLElement>(null)
+  useDialog(panelRef, onClose)
 
   useEffect(() => { if (initial.data) setRun(initial.data) }, [initial.data])
   useEffect(() => {
@@ -566,11 +585,8 @@ function RunMonitor({ runId, onClose }: { runId: string; onClose: () => void }) 
     }, controller.signal).catch((error: Error) => {
       if (error.name !== 'AbortError') setConnection('offline')
     })
-    closeRef.current?.focus()
-    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }
-    document.addEventListener('keydown', escape)
-    return () => { controller.abort(); document.removeEventListener('keydown', escape) }
-  }, [activeRunId, onClose, queryClient])
+    return () => controller.abort()
+  }, [activeRunId, queryClient])
 
   const cancel = useMutation({ mutationFn: api.cancelRun, onSuccess: (update) => setRun((current) => current ? { ...current, ...update } : current) })
   const retry = useMutation({
@@ -610,16 +626,16 @@ function RunMonitor({ runId, onClose }: { runId: string; onClose: () => void }) 
 
   return <>
     <button className="backdrop run-backdrop" onClick={onClose} aria-label="Close run monitor" />
-    <motion.aside className="run-monitor" role="dialog" aria-modal="true" aria-labelledby="run-monitor-title" initial={{ x: 36, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 36, opacity: 0 }}>
+    <motion.aside ref={panelRef} className="run-monitor" role="dialog" aria-modal="true" aria-labelledby="run-monitor-title" initial={{ x: 36, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 36, opacity: 0 }}>
       <header>
         <div><p className="eyebrow">On-demand crawl</p><h2 id="run-monitor-title">{run?.source_name ?? 'Live run'}</h2></div>
-        <button ref={closeRef} className="icon-button" onClick={onClose} aria-label="Close live run"><X /></button>
+        <button className="icon-button" onClick={onClose} aria-label="Close live run"><X /></button>
       </header>
       <div className="run-monitor-scroll">
         <div className={`live-connection ${connection}`}><Radio size={15} /><span>{connection === 'live' ? 'Live updates connected' : connection === 'connecting' ? 'Connecting to live updates' : connection === 'ended' ? 'Run finished' : 'Live connection interrupted'}</span></div>
         <section className="run-progress" aria-live="polite">
           <div className="run-progress-heading"><Status status={run?.status ?? 'queued'} warnings={run?.issues_count} /><strong>{percent}%</strong></div>
-          <div className="progress-rail"><motion.span animate={{ width: `${percent}%` }} /></div>
+          <div className="progress-rail"><Meter value={percent} tone={run?.status === 'failed' ? 'fail' : percent === 100 ? 'done' : 'active'} label={`${percent}% of discovered pages checked`} /></div>
           <h3>{activity}</h3>
           <p>{run?.status === 'running' && pagesPerMinute ? `${pagesPerMinute.toFixed(1)} pages/minute · about ${etaMinutes} minute${etaMinutes === 1 ? '' : 's'} remaining` : run?.cancel_requested && run.status === 'running' ? 'Finishing the current page before stopping safely.' : run?.status === 'cancelled' ? 'Nothing was rolled back. Start this source again whenever you are ready.' : 'Scrapal keeps going when an individual page is missing or temporarily unavailable.'}</p>
         </section>
@@ -665,12 +681,7 @@ function EventTimeline({ events, runId }: { events: CrawlEvent[]; runId: string 
 
 function describeEvent(event: CrawlEvent) { if (event.stage === 'run') return `Run ${event.outcome}`; if (event.stage === 'discovery') return 'Building the crawl frontier'; return `${event.stage} ${event.outcome}` }
 
-function RunTable({ runs, sourceMap, onSelect }: { runs: Run[]; sourceMap: Map<string, Source>; onSelect: (id: string) => void }) { if (!runs.length) return <p className="empty-row">Runs will appear here after you start a source.</p>; return <div className="table-wrap"><table><thead><tr><th>Source</th><th>Status</th><th>Progress</th><th>Documents</th><th>Exceptions</th><th>Started</th></tr></thead><tbody>{runs.map((run) => <tr className="clickable-row" key={run.id} onClick={() => onSelect(run.id)}><td><button className="row-link">{sourceMap.get(run.source_id)?.name ?? 'Source'}</button></td><td><Status status={run.status === 'queued' && !isLiveRun(run) ? 'worker_timeout' : run.status} warnings={run.issues_count} /></td><td><progress max={Math.max(run.pages_discovered, 1)} value={run.pages_processed}>{run.pages_processed} of {run.pages_discovered}</progress><small>{run.pages_processed} / {run.pages_discovered} checked</small></td><td>{run.documents_created}</td><td>{run.issues_count ? `${run.issues_count} error${run.issues_count === 1 ? '' : 's'}` : run.policy_skips_count ? `${run.policy_skips_count} skipped` : '—'}</td><td>{relativeDate(run.created_at)}</td></tr>)}</tbody></table></div> }
-function Status({ status, warnings = 0 }: { status: string; warnings?: number }) { const label = status === 'completed' && warnings ? `completed · ${warnings} warning${warnings === 1 ? '' : 's'}` : status.replaceAll('_', ' '); return <span className={`status ${status} ${warnings ? 'warning' : ''}`}><i />{label}</span> }
-function Empty({ icon: Icon, title, text, action, onAction }: { icon: typeof Globe2; title: string; text: string; action?: string; onAction?: () => void }) { return <section className="empty"><Icon /><h2>{title}</h2><p>{text}</p>{action && <button className="button primary" onClick={onAction}><Plus size={16} />{action}</button>}</section> }
+function RunTable({ runs, sourceMap, onSelect }: { runs: Run[]; sourceMap: Map<string, Source>; onSelect: (id: string) => void }) { if (!runs.length) return <p className="empty-row">Runs will appear here after you start a source.</p>; return <div className="table-wrap"><table><thead><tr><th>Source</th><th>Status</th><th>Progress</th><th>Documents</th><th>Exceptions</th><th>Started</th></tr></thead><tbody>{runs.map((run) => <tr className="clickable-row" key={run.id} onClick={() => onSelect(run.id)}><td><button className="row-link">{sourceMap.get(run.source_id)?.name ?? 'Source'}</button></td><td><Status status={run.status === 'queued' && !isLiveRun(run) ? 'worker_timeout' : run.status} warnings={run.issues_count} /></td><td><Meter value={run.pages_processed / Math.max(run.pages_discovered, 1) * 100} tone={run.status === 'failed' ? 'fail' : run.status === 'completed' ? 'done' : 'active'} label={`${run.pages_processed} of ${run.pages_discovered} pages checked`} /><small>{run.pages_processed} / {run.pages_discovered} checked</small></td><td>{run.documents_created}</td><td>{run.issues_count ? `${run.issues_count} error${run.issues_count === 1 ? '' : 's'}` : run.policy_skips_count ? `${run.policy_skips_count} skipped` : '—'}</td><td>{relativeDate(run.created_at)}</td></tr>)}</tbody></table></div> }
 function titleFor(view: View) { return { overview: 'Follow the knowledge thread', sources: 'Connected sources', knowledge: 'Search the evidence', 'course-intelligence': 'Turn course pages into trusted facts', 'retrieval-lab': 'Trace an answer back to evidence', observability: 'See where every crawl spends its time', reviews: 'Decisions waiting for you', settings: 'Workspace settings' }[view] }
-function formatDuration(milliseconds: number) { if (milliseconds < 1000) return `${Math.round(milliseconds)}ms`; if (milliseconds < 60_000) return `${(milliseconds / 1000).toFixed(1)}s`; return `${Math.floor(milliseconds / 60_000)}m ${Math.round(milliseconds % 60_000 / 1000)}s` }
-function relativeDate(value: string) { const difference = Date.now() - new Date(value).getTime(); const minutes = Math.floor(difference / 60_000); if (minutes < 1) return 'just now'; if (minutes < 60) return `${minutes}m ago`; const hours = Math.floor(minutes / 60); if (hours < 24) return `${hours}h ago`; return `${Math.floor(hours / 24)}d ago` }
-function isLiveRun(run: Run) { return run.status === 'running' || (run.status === 'queued' && Date.now() - new Date(run.created_at).getTime() < 120_000) }
 
 export default App

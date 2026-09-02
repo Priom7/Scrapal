@@ -1,4 +1,6 @@
-const baseUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
+// Keep browser requests on the console origin. Nginx proxies /api to FastAPI,
+// so the same build works on localhost, LAN addresses, and stable hostnames.
+const baseUrl = (import.meta.env.VITE_API_URL ?? '/api').replace(/\/$/, '')
 const apiKey = import.meta.env.VITE_API_KEY ?? 'scrapal-local-dev-key'
 
 export type Collection = { id: string; name: string; description: string }
