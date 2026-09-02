@@ -118,18 +118,60 @@ async def plan_query(
             RAG_STAGE_DURATION.labels("query_plan", outcome).observe(monotonic() - started)
 
 
-def _record_matches_plan(record: StructuredRecord, plan: QueryPlan, query_terms: set[str]) -> float:
+# A published record does not store a plan slot under the slot's own name: an
+# intake lives in "intake_months"/"intakes", a study mode in "study_modes", and a
+# residency only inside each entry of "fees". Reading data[field] finds none of
+# them, so every constrained query used to score every record at zero.
+_RECORD_SLOT_KEYS: dict[str, tuple[str, ...]] = {
+    "level": ("level",),
+    "intake": ("intake_months", "intakes"),
+    "study_mode": ("study_modes",),
+    "residency": ("fees",),
+}
+
+
+def _slot_text(data: dict[str, Any], slot: str) -> str:
+    """Collect every string a record publishes for one plan slot."""
+    collected: list[str] = []
+
+    def walk(value: Any) -> None:
+        if isinstance(value, str):
+            collected.append(value)
+        elif isinstance(value, dict):
+            for item in value.values():
+                walk(item)
+        elif isinstance(value, list):
+            for item in value:
+                walk(item)
+
+    for key in _RECORD_SLOT_KEYS.get(slot, (slot,)):
+        if key in data:
+            walk(data[key])
+    return " ".join(collected).lower()
+
+
+def record_matches_plan(record: StructuredRecord, plan: QueryPlan, query_terms: set[str]) -> float:
     data = record.data
     searchable = terms(" ".join(str(value) for value in data.values() if value is not None))
     entity_terms = terms(" ".join(plan.entities))
     overlap = len((query_terms | entity_terms) & searchable)
     if overlap == 0:
         return 0.0
-    for field in ("level", "residency", "intake", "study_mode"):
-        expected = getattr(plan, field)
-        if expected and expected.lower() not in str(data.get(field, "")).lower():
+    confirmed = 0
+    for slot in _RECORD_SLOT_KEYS:
+        expected = getattr(plan, slot)
+        if not expected:
+            continue
+        published = _slot_text(data, slot)
+        if not published:
+            # The record says nothing about this slot. Excluding it would hide
+            # courses whose extraction is merely incomplete; the answer still
+            # cannot claim the constraint, because no sentence can cite it.
+            continue
+        if expected.lower() not in published:
             return 0.0
-    return float(overlap) + (record.confidence * 0.25)
+        confirmed += 1
+    return float(overlap) + confirmed + (record.confidence * 0.25)
 
 
 def _candidate(chunk: Chunk, document: Document, score: float) -> dict[str, Any]:
@@ -174,7 +216,9 @@ async def retrieve_knowledge(
     plan, plan_source = await plan_query(query, ollama=ollama, locked=ollama_locked)
     explicit_filters = filters.model_dump(exclude_none=True, exclude={"source_id"})
     if explicit_filters:
-        plan = plan.model_copy(update=explicit_filters)
+        # Re-validate rather than model_copy: caller-supplied filters are free
+        # text too, and must pass through the same slot vocabulary as the plan.
+        plan = QueryPlan.model_validate({**plan.model_dump(), **explicit_filters})
     query_terms = terms(query)
     text_query = lexical_query(plan, query)
 
@@ -191,7 +235,7 @@ async def retrieve_knowledge(
             records_stmt = records_stmt.where(StructuredRecord.published.is_(True))
         records = list(await session.scalars(records_stmt.limit(500)))
         scored_records = [
-            (record, _record_matches_plan(record, plan, query_terms)) for record in records
+            (record, record_matches_plan(record, plan, query_terms)) for record in records
         ]
         scored_records = [item for item in scored_records if item[1] > 0]
         scored_records.sort(key=lambda item: item[1], reverse=True)

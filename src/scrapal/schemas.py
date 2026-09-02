@@ -1,7 +1,7 @@
 from datetime import datetime
-from typing import Any, Literal
+from typing import Any, Literal, get_args
 
-from pydantic import AnyHttpUrl, BaseModel, ConfigDict, Field
+from pydantic import AnyHttpUrl, BaseModel, ConfigDict, Field, field_validator
 
 from scrapal.models import (
     BlueprintStatus,
@@ -198,14 +198,104 @@ class MessageOut(ORMModel):
     created_at: datetime
 
 
+# A local 7B model will happily put the whole question into a slot when it cannot
+# find a real constraint. Every slot is therefore a closed vocabulary: the schema
+# advertises the allowed values to the planner, and anything outside them is
+# dropped rather than carried into retrieval as a filter.
+Intent = Literal["research", "compare", "eligibility", "cost", "application", "greeting"]
+Level = Literal["undergraduate", "postgraduate"]
+Residency = Literal["home", "international"]
+StudyMode = Literal["full-time", "part-time", "distance learning"]
+Month = Literal[
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December",
+]
+
+MONTHS: tuple[str, ...] = get_args(Month)
+
+_LEVEL_SYNONYMS = {
+    "postgraduate": ("postgraduate", "postgrad", "pg", "masters", "master", "msc", "ma",
+                     "mba", "mres", "pgdip", "pgcert", "phd", "doctorate"),
+    "undergraduate": ("undergraduate", "undergrad", "ug", "bachelors", "bachelor",
+                      "bsc", "ba", "beng", "llb", "foundation"),
+}
+_RESIDENCY_SYNONYMS = {
+    "international": ("international", "overseas", "non-uk", "foreign"),
+    "home": ("home", "domestic", "uk", "united kingdom", "eu"),
+}
+_STUDY_MODE_SYNONYMS = {
+    "full-time": ("full-time", "full time", "fulltime"),
+    "part-time": ("part-time", "part time", "parttime"),
+    "distance learning": ("distance learning", "distance", "online", "remote"),
+}
+
+
+def _normalize(value: Any, synonyms: dict[str, tuple[str, ...]]) -> str | None:
+    """Map a free-text slot onto its canonical value, or drop it."""
+    if not isinstance(value, str):
+        return None
+    candidate = value.strip().lower()
+    if not candidate or len(candidate) > 60:
+        return None
+    for canonical, aliases in synonyms.items():
+        if any(alias in candidate for alias in aliases):
+            return canonical
+    return None
+
+
 class QueryPlan(BaseModel):
-    intent: str = "research"
-    entities: list[str] = Field(default_factory=list)
-    requested_fields: list[str] = Field(default_factory=list)
-    level: str | None = None
-    residency: str | None = None
-    intake: str | None = None
-    study_mode: str | None = None
+    intent: Intent = "research"
+    entities: list[str] = Field(default_factory=list, max_length=8)
+    requested_fields: list[str] = Field(default_factory=list, max_length=8)
+    level: Level | None = None
+    residency: Residency | None = None
+    intake: Month | None = None
+    study_mode: StudyMode | None = None
+
+    @field_validator("intent", mode="before")
+    @classmethod
+    def _valid_intent(cls, value: Any) -> Any:
+        if isinstance(value, str) and value.strip().lower() in get_args(Intent):
+            return value.strip().lower()
+        return "research"
+
+    @field_validator("entities", "requested_fields", mode="before")
+    @classmethod
+    def _clean_terms(cls, value: Any) -> Any:
+        if not isinstance(value, list):
+            return value
+        cleaned = [item.strip() for item in value if isinstance(item, str) and item.strip()]
+        return cleaned[:8]
+
+    @field_validator("level", mode="before")
+    @classmethod
+    def _valid_level(cls, value: Any) -> str | None:
+        return _normalize(value, _LEVEL_SYNONYMS)
+
+    @field_validator("residency", mode="before")
+    @classmethod
+    def _valid_residency(cls, value: Any) -> str | None:
+        return _normalize(value, _RESIDENCY_SYNONYMS)
+
+    @field_validator("study_mode", mode="before")
+    @classmethod
+    def _valid_study_mode(cls, value: Any) -> str | None:
+        return _normalize(value, _STUDY_MODE_SYNONYMS)
+
+    @field_validator("intake", mode="before")
+    @classmethod
+    def _valid_intake(cls, value: Any) -> str | None:
+        if not isinstance(value, str):
+            return None
+        candidate = value.strip().lower()
+        # An intake is a month. A restated question is not, and must not become
+        # a filter that silently excludes every published record.
+        if not candidate or len(candidate) > 20:
+            return None
+        for month in MONTHS:
+            if candidate.startswith(month[:3].lower()):
+                return month
+        return None
 
 
 class RetrievalFilters(BaseModel):
