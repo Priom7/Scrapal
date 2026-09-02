@@ -247,6 +247,10 @@ class QueryPlan(BaseModel):
     intent: Intent = "research"
     entities: list[str] = Field(default_factory=list, max_length=8)
     requested_fields: list[str] = Field(default_factory=list, max_length=8)
+    # Emitted after the entities so the reformulation is written in terms of
+    # referents the planner has already resolved. Empty means "search the
+    # question as asked".
+    search_query: str = ""
     level: Level | None = None
     residency: Residency | None = None
     intake: Month | None = None
@@ -266,6 +270,15 @@ class QueryPlan(BaseModel):
             return value
         cleaned = [item.strip() for item in value if isinstance(item, str) and item.strip()]
         return cleaned[:8]
+
+    @field_validator("search_query", mode="before")
+    @classmethod
+    def _clean_search_query(cls, value: Any) -> str:
+        if not isinstance(value, str):
+            return ""
+        candidate = " ".join(value.split())
+        # A reformulation is a search query, not a restated conversation.
+        return candidate[:200] if len(candidate) <= 200 else ""
 
     @field_validator("level", mode="before")
     @classmethod

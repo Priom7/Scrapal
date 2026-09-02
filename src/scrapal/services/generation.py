@@ -135,11 +135,18 @@ def validate_sentence_support(
         return True, sorted(supported), None
 
 
-def _messages(query: str, evidence: list[dict[str, Any]]) -> list[dict[str, str]]:
+def _messages(
+    query: str, evidence: list[dict[str, Any]], resolved: str = ""
+) -> list[dict[str, str]]:
     sources = "\n\n".join(
         f"[{index}] {item['title']}\n{item['text']}"
         for index, item in enumerate(evidence, start=1)
     )
+    # The question is kept verbatim so the answer addresses what was asked; the
+    # resolved phrasing follows it so a follow-up's referent is not ambiguous.
+    question = f"Question: {query}"
+    if resolved and resolved.strip().lower() != query.strip().lower():
+        question += f"\nThe question refers to: {resolved}"
     return [
         {
             "role": "system",
@@ -150,8 +157,27 @@ def _messages(query: str, evidence: list[dict[str, Any]]) -> list[dict[str, str]
                 "If evidence is insufficient or contradictory, explicitly abstain. Keep the answer concise."
             ),
         },
-        {"role": "user", "content": f"Question: {query}\n\nEvidence:\n{sources}"},
+        {"role": "user", "content": f"{question}\n\nEvidence:\n{sources}"},
     ]
+
+
+async def conversation_history(
+    session: AsyncSession, conversation_id: str, before: Message, *, turns: int = 6
+) -> list[tuple[str, str]]:
+    """The recent turns a follow-up question needs to be understood at all."""
+    rows = list(
+        await session.scalars(
+            select(Message)
+            .where(
+                Message.conversation_id == conversation_id,
+                Message.id != before.id,
+                Message.created_at <= before.created_at,
+            )
+            .order_by(Message.created_at.desc(), Message.id.desc())
+            .limit(turns)
+        )
+    )
+    return [(message.role, message.content) for message in reversed(rows)]
 
 
 async def _finish_abstention(
@@ -200,9 +226,13 @@ async def generate_answer(generation_id: str) -> None:
         ollama = OllamaService()
         try:
             async with ollama.workload():
+                history = await conversation_history(
+                    session, generation.conversation_id, user_message
+                )
                 result = await retrieve_knowledge(
                     session,
                     user_message.content,
+                    history=history,
                     organization_id=conversation.organization_id,
                     collection_id=conversation.collection_id,
                     mode="hybrid",
@@ -244,7 +274,12 @@ async def generate_answer(generation_id: str) -> None:
                 )
                 with tracer.start_as_current_span("rag.generate"):
                     await _stream_validated_answer(
-                        session, generation, user_message.content, evidence, ollama
+                        session,
+                        generation,
+                        user_message.content,
+                        evidence,
+                        ollama,
+                        resolved=result.query_plan.search_query,
                     )
         except OllamaUnavailable as exc:
             generation.status = GenerationStatus.failed
@@ -272,6 +307,7 @@ async def _stream_validated_answer(
     query: str,
     evidence: list[dict[str, Any]],
     ollama: OllamaService,
+    resolved: str = "",
 ) -> None:
     started = monotonic()
     buffer = ""
@@ -279,7 +315,9 @@ async def _stream_validated_answer(
     unsupported: list[str] = []
     citations: dict[int, dict[str, Any]] = {}
     try:
-        async for token in _answer_tokens(session, generation, query, evidence, ollama):
+        async for token in _answer_tokens(
+            session, generation, query, evidence, ollama, resolved
+        ):
             buffer += token
             matches = list(_SENTENCE.finditer(buffer))
             complete = [match for match in matches if match.end() < len(buffer) or buffer.endswith((".", "!", "?", "\n"))]
@@ -366,6 +404,7 @@ async def _answer_tokens(
     query: str,
     evidence: list[dict[str, Any]],
     ollama: OllamaService,
+    resolved: str = "",
 ) -> AsyncIterator[str]:
     settings = get_settings()
     models = [settings.ollama_chat_model]
@@ -377,7 +416,7 @@ async def _answer_tokens(
         await session.commit()
         try:
             async for token in ollama.chat_stream(
-                _messages(query, evidence), locked=True, model=model
+                _messages(query, evidence, resolved), locked=True, model=model
             ):
                 emitted = True
                 yield token

@@ -10,6 +10,7 @@ from scrapal.services.search import (
     reciprocal_rank_fusion,
     record_matches_plan,
     terms,
+    transcript,
 )
 
 
@@ -138,3 +139,67 @@ def test_record_matching_reads_residency_out_of_the_fee_entries() -> None:
 
     assert record_matches_plan(record, QueryPlan(residency="home"), query_terms) > 0
     assert record_matches_plan(record, QueryPlan(residency="international"), query_terms) == 0.0
+
+
+async def test_plan_query_resolves_a_follow_up_against_the_conversation() -> None:
+    captured: dict[str, object] = {}
+
+    class Ollama:
+        async def structured(self, messages, schema, *, locked):  # noqa: ANN001, ARG002
+            captured["messages"] = messages
+            return {
+                "entities": ["computer science"],
+                "search_query": "courses related to Computer Science MSc",
+            }
+
+    plan, source = await plan_query(
+        "Any other course related to this?",
+        ollama=Ollama(),
+        locked=True,
+        history=[
+            ("user", "I am looking for computer science course to masters in the Uk"),
+            ("assistant", "The Computer Science, MSc program is accredited by BCS."),
+        ],
+    )
+
+    assert source == "model"
+    assert plan.search_query == "courses related to Computer Science MSc"
+    prompt = " ".join(str(message["content"]) for message in captured["messages"])  # type: ignore[index]
+    assert "computer science course to masters" in prompt
+    # Earlier turns must reach the planner as context to resolve against, never
+    # as evidence the answer may cite.
+    assert "untrusted context" in prompt
+
+
+async def test_plan_query_leaves_a_standalone_question_alone() -> None:
+    class Ollama:
+        async def structured(self, messages, schema, *, locked):  # noqa: ANN001, ARG002
+            assert len(messages) == 2, "no transcript should be sent without history"
+            return {"entities": ["january intake"]}
+
+    plan, _ = await plan_query("Which courses have a January intake?", ollama=Ollama(), locked=True)
+
+    assert plan.search_query == ""
+
+
+def test_transcript_keeps_the_last_turns_within_a_bounded_size() -> None:
+    history = [("user", f"question {index}") for index in range(10)]
+    rendered = transcript(history, turns=3)
+
+    assert rendered.splitlines() == ["user: question 7", "user: question 8", "user: question 9"]
+    assert transcript([("user", "  "), ("assistant", "kept")]) == "assistant: kept"
+
+
+def test_a_rambling_reformulation_is_dropped_rather_than_searched() -> None:
+    plan = QueryPlan.model_validate({"search_query": "word " * 60})
+
+    assert plan.search_query == ""
+    assert QueryPlan.model_validate({"search_query": "  spaced   out  "}).search_query == "spaced out"
+
+
+def test_lexical_query_searches_the_resolved_phrasing() -> None:
+    plan = QueryPlan(search_query="Computer Science MSc related courses")
+
+    assert lexical_query(plan, "Any other course related to this?") == (
+        "computer OR courses OR msc OR related OR science"
+    )

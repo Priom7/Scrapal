@@ -1,4 +1,4 @@
-import { Check, Filter, Sparkles, Target, TriangleAlert } from 'lucide-react'
+import { Check, Filter, MessageSquareQuote, Sparkles, Target, TriangleAlert } from 'lucide-react'
 import { motion } from 'motion/react'
 import { ICON, QueryPlanData } from './lib'
 
@@ -26,6 +26,9 @@ export function InterpretedQuery({ plan, compact }: { plan?: QueryPlanData; comp
   const fields = plan.requested_fields?.filter(Boolean) ?? []
   const filters = FILTERS.map((key) => [key, plan[key]] as const).filter(([, value]) => Boolean(value))
   const fallback = plan.source === 'fallback'
+  // Shown only when the planner rewrote the question, so a follow-up makes it
+  // obvious which subject was actually searched for.
+  const resolved = plan.search_query?.trim()
 
   return (
     <motion.section
@@ -44,6 +47,8 @@ export function InterpretedQuery({ plan, compact }: { plan?: QueryPlanData; comp
       </header>
       <dl>
         {plan.intent && <div><dt>Intent</dt><dd className="plan-intent">{plan.intent.replaceAll('_', ' ')}</dd></div>}
+        {resolved && <div><dt><MessageSquareQuote size={ICON.xs} aria-hidden="true" /> Searched as</dt>
+          <dd className="plan-resolved">{resolved}</dd></div>}
         <div><dt><Sparkles size={ICON.xs} aria-hidden="true" /> Looking for</dt>
           <dd>{entities.length ? <Chips items={entities} tone="entity" /> : <em>No entities extracted</em>}</dd></div>
         {!compact && <div><dt>Fields</dt>

@@ -103,6 +103,7 @@ export type QueryPlanData = {
   intent?: string
   entities?: string[]
   requested_fields?: string[]
+  search_query?: string
   level?: string | null
   residency?: string | null
   intake?: string | null

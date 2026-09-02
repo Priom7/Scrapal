@@ -1,3 +1,4 @@
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
@@ -6,14 +7,17 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from scrapal.db import Base
 from scrapal.models import (
     Collection,
+    Conversation,
     Document,
     DocumentVersion,
     EmbeddingProfile,
     IndexStatus,
+    Message,
     Organization,
     Source,
     SourceKind,
 )
+from scrapal.services.generation import conversation_history
 from scrapal.services.indexing import index_document_version
 
 
@@ -100,3 +104,52 @@ async def test_invalid_shadow_index_preserves_current_version() -> None:
         assert state.status == IndexStatus.failed
         assert document.current_version_id == "old-version"
     await engine.dispose()
+
+
+async def test_conversation_history_returns_the_recent_turns_in_order() -> None:
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    async with sessions() as session:
+        organization = Organization(name="Test")
+        session.add(organization)
+        await session.flush()
+        conversation = Conversation(organization_id=organization.id, title="Courses")
+        other = Conversation(organization_id=organization.id, title="Unrelated")
+        session.add_all([conversation, other])
+        await session.flush()
+
+        base = datetime(2026, 9, 3, 11, 18, tzinfo=UTC)
+        turns = [
+            Message(
+                conversation_id=conversation.id,
+                role=role,
+                content=content,
+                created_at=base + timedelta(seconds=index),
+            )
+            for index, (role, content) in enumerate(
+                [
+                    ("user", "I am looking for computer science course to masters in the Uk"),
+                    ("assistant", "The Computer Science, MSc program is accredited by BCS."),
+                    ("user", "Any other course related to this?"),
+                ]
+            )
+        ]
+        session.add_all(turns)
+        session.add(
+            Message(
+                conversation_id=other.id,
+                role="user",
+                content="Leaked from another conversation",
+                created_at=base,
+            )
+        )
+        await session.commit()
+
+        history = await conversation_history(session, conversation.id, turns[-1])
+
+    assert history == [
+        ("user", "I am looking for computer science course to masters in the Uk"),
+        ("assistant", "The Computer Science, MSc program is accredited by BCS."),
+    ]
