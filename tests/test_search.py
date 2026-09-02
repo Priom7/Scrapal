@@ -1,6 +1,12 @@
 from scrapal.schemas import QueryPlan
 from scrapal.services.generation import validate_sentence_support
-from scrapal.services.search import cosine, lexical_query, reciprocal_rank_fusion
+from scrapal.services.ollama import OllamaUnavailable
+from scrapal.services.search import (
+    cosine,
+    lexical_query,
+    plan_query,
+    reciprocal_rank_fusion,
+)
 
 
 def test_cosine_similarity() -> None:
@@ -39,3 +45,27 @@ def test_sentence_citations_must_exist_and_support_the_claim() -> None:
         [],
         "missing_citation",
     )
+
+
+async def test_plan_query_reports_a_model_derived_plan() -> None:
+    class Ollama:
+        async def structured(self, messages, schema, *, locked):  # noqa: ANN001, ARG002
+            return {"intent": "compare", "entities": ["computer science"]}
+
+    plan, source = await plan_query("Compare CS courses", ollama=Ollama(), locked=True)
+
+    assert source == "model"
+    assert plan.entities == ["computer science"]
+
+
+async def test_plan_query_marks_the_degraded_plan_as_a_fallback() -> None:
+    class Down:
+        async def structured(self, messages, schema, *, locked):  # noqa: ANN001, ARG002
+            raise OllamaUnavailable("ollama is down")
+
+    plan, source = await plan_query("Which courses?", ollama=Down(), locked=True)
+
+    # The console must be able to tell this apart from a real plan, otherwise it
+    # presents the raw question back as though a model had interpreted it.
+    assert source == "fallback"
+    assert plan.entities == ["Which courses?"]

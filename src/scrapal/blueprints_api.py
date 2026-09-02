@@ -17,7 +17,12 @@ from scrapal.models import (
     Source,
     SourceKind,
 )
-from scrapal.schemas import CrawlBlueprintOut, CrawlBlueprintPreview, RunOut
+from scrapal.schemas import (
+    CrawlBlueprintOut,
+    CrawlBlueprintPreview,
+    CrawlBlueprintUpdate,
+    RunOut,
+)
 from scrapal.security import Principal, require_editor
 from scrapal.services.blueprints import preview_blueprint
 from scrapal.services.ingestion import ingest_run
@@ -84,6 +89,25 @@ async def preview(
 @router.get("/{blueprint_id}", response_model=CrawlBlueprintOut)
 async def detail(blueprint_id: str, session: Session, principal: Editor) -> CrawlBlueprint:
     return await owned_blueprint(session, blueprint_id, principal)
+
+
+@router.patch("/{blueprint_id}", response_model=CrawlBlueprintOut)
+async def update_blueprint(
+    blueprint_id: str,
+    body: CrawlBlueprintUpdate,
+    session: Session,
+    principal: Editor,
+) -> CrawlBlueprint:
+    blueprint = await owned_blueprint(session, blueprint_id, principal)
+    if blueprint.status != BlueprintStatus.draft:
+        raise HTTPException(409, "Approved crawl blueprints are immutable")
+    config = dict(blueprint.suggested_config)
+    config.update(body.model_dump())
+    blueprint.suggested_config = config
+    blueprint.version += 1
+    await session.commit()
+    await session.refresh(blueprint)
+    return blueprint
 
 
 @router.post("/{blueprint_id}/approve", response_model=CrawlBlueprintOut)

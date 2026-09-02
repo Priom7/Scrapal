@@ -35,6 +35,8 @@ export type CrawlBlueprint = {
     links_observed?: number
     page_type_counts?: Record<string, number>
     candidate_pages?: { url: string; page_type: string; reason: string }[]
+    sample_results?: { url: string; title?: string; page_type: string; status: string; fields: string[]; coverage?: number; error?: string }[]
+    coverage_projection?: { overall: number; field_rates: Record<string, number>; basis: string; pages: number; confidence: string }
     sitemaps?: string[]
     robots_status?: number | null
     robots_accessible?: boolean
@@ -275,6 +277,10 @@ export const api = {
     }),
   approveBlueprint: (id: string) =>
     request<CrawlBlueprint>(`/v1/crawl-blueprints/${id}/approve`, { method: 'POST' }),
+  updateBlueprint: (id: string, data: Record<string, unknown>) =>
+    request<CrawlBlueprint>(`/v1/crawl-blueprints/${id}`, {
+      method: 'PATCH', body: JSON.stringify(data),
+    }),
   runBlueprint: (id: string) =>
     request<Run>(`/v1/crawl-blueprints/${id}/run`, { method: 'POST' }),
   startRun: (sourceId: string) =>

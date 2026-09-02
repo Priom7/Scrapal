@@ -1,7 +1,9 @@
+import asyncio
 import re
 from collections import Counter
 from typing import Any
 from urllib.parse import urljoin, urlparse
+from urllib.robotparser import RobotFileParser
 
 import httpx
 from bs4 import BeautifulSoup
@@ -82,6 +84,117 @@ def _sitemaps(robots_text: str, base_url: str) -> list[str]:
     return list(dict.fromkeys(urljoin(base_url, value) for value in values))
 
 
+def detect_evidence_fields(html: bytes, url: str, required_fields: list[str]) -> list[str]:
+    soup = BeautifulSoup(html, "html.parser")
+    text = soup.get_text(" ", strip=True).lower()
+    path = urlparse(url).path.lower()
+    signals: dict[str, bool] = {
+        "title": bool(soup.select_one("h1") or soup.title),
+        "award": bool(re.search(r"\b(bsc|ba|bed|meng|msc|ma|mba|mph|phd|llb|llm)\b", text, re.I)),
+        "level": "undergraduate" in text or "postgraduate" in text or "undergraduate" in path or "postgraduate" in path,
+        "campuses": any(value in text for value in ("campus", "location", "greenwich", "medway")),
+        "study_modes": any(value in text for value in ("full-time", "part-time", "distance learning", "online")),
+        "durations": bool(re.search(r"\b\d+(?:\.\d+)?\s+(?:year|years|month|months)\b", text)),
+        "intake_months": bool(re.search(r"\b(january|september|october|february|may)\b", text)),
+        "fees": any(value in text for value in ("tuition fee", "course fee", "£", "international fee")),
+        "entry_requirements": "entry requirements" in text or "admission requirements" in text,
+        "english_requirements": any(value in text for value in ("ielts", "english language requirement", "toefl")),
+        "application_documents": any(value in text for value in ("personal statement", "transcript", "reference letter", "documents required")),
+        "application_routes": any(value in text for value in ("apply now", "ucas", "how to apply")),
+        "deadlines": any(value in text for value in ("application deadline", "closing date", "deadline")),
+        "scholarships": "scholarship" in text or "bursary" in text,
+        "summary": len(text) > 120,
+        "source_url": True,
+    }
+    return [field for field in required_fields if signals.get(field, field.replace("_", " ") in text)]
+
+
+def representative_urls(classified: list[dict[str, str]], limit: int = 16) -> list[str]:
+    selected: list[str] = []
+    priorities = ("course", "fees", "admissions", "international", "scholarship", "student-support", "general")
+    for page_type in priorities:
+        per_type = min(8, max(4, limit // 2)) if page_type == "course" else 2
+        for item in (entry for entry in classified if entry["page_type"] == page_type):
+            if item["url"] not in selected:
+                selected.append(item["url"])
+            if len(selected) >= limit:
+                return selected
+            if sum(classify_page_type(url) == page_type for url in selected) >= per_type:
+                break
+    return selected[:limit]
+
+
+async def _sitemap_candidates(
+    client: httpx.AsyncClient, sitemap_urls: list[str], hostname: str
+) -> list[str]:
+    candidates: list[str] = []
+    for sitemap_url in sitemap_urls[:2]:
+        try:
+            await validate_public_url(sitemap_url)
+            response = await client.get(sitemap_url)
+            await validate_public_url(str(response.url))
+            if response.status_code >= 400:
+                continue
+            locs = re.findall(r"<loc>\s*([^<]+?)\s*</loc>", response.text, re.I)
+            nested = [value for value in locs if value.lower().split("?", 1)[0].endswith(".xml")]
+            if nested:
+                for nested_url in nested[:3]:
+                    await validate_public_url(nested_url)
+                    nested_response = await client.get(nested_url)
+                    if nested_response.status_code < 400:
+                        candidates.extend(re.findall(r"<loc>\s*([^<]+?)\s*</loc>", nested_response.text, re.I))
+            else:
+                candidates.extend(locs)
+        except (httpx.HTTPError, ValueError):
+            continue
+    return list(dict.fromkeys(url for url in candidates if urlparse(url).hostname == hostname))[:5000]
+
+
+async def _sample_pages(
+    client: httpx.AsyncClient,
+    urls: list[str],
+    *,
+    hostname: str,
+    robots_text: str,
+    required_fields: list[str],
+) -> list[dict[str, Any]]:
+    parser = RobotFileParser()
+    parser.parse(robots_text.splitlines())
+    semaphore = asyncio.Semaphore(4)
+
+    async def sample(url: str) -> dict[str, Any]:
+        page_type = classify_page_type(url)
+        if robots_text and not parser.can_fetch("ScrapalBlueprint/0.1", url):
+            return {"url": url, "page_type": page_type, "status": "policy_skipped", "fields": []}
+        try:
+            await validate_public_url(url)
+            async with semaphore:
+                response = await client.get(url)
+            await validate_public_url(str(response.url))
+            if urlparse(str(response.url)).hostname != hostname:
+                return {"url": url, "page_type": page_type, "status": "redirect_blocked", "fields": []}
+            response.raise_for_status()
+            content_type = response.headers.get("content-type", "")
+            if "html" not in content_type:
+                return {"url": url, "page_type": page_type, "status": "unsupported", "fields": []}
+            soup = BeautifulSoup(response.content, "html.parser")
+            title = soup.title.get_text(" ", strip=True) if soup.title else url
+            resolved_type = classify_page_type(url, title)
+            fields = detect_evidence_fields(response.content, url, required_fields)
+            return {
+                "url": url,
+                "title": title,
+                "page_type": resolved_type,
+                "status": "sampled",
+                "fields": fields,
+                "coverage": round(len(fields) / max(len(required_fields), 1), 3),
+            }
+        except (httpx.HTTPError, ValueError) as exc:
+            return {"url": url, "page_type": page_type, "status": "failed", "error": type(exc).__name__, "fields": []}
+
+    return list(await asyncio.gather(*(sample(url) for url in urls)))
+
+
 async def preview_blueprint(
     start_url: str,
     *,
@@ -110,24 +223,61 @@ async def preview_blueprint(
         candidates = re.findall(r"<loc>\s*([^<]+?)\s*</loc>", page_response.text, re.I)
     else:
         candidates = extract_links(start_url, html, config) if "html" in content_type else []
-    candidates = candidates[:200]
-    classified = [
-        {"url": value, "page_type": classify_page_type(value), "reason": "URL and navigation signal"}
-        for value in candidates
-    ]
-    counts = Counter(item["page_type"] for item in classified)
-    sitemap_urls = _sitemaps(robots_response.text if robots_response and robots_response.status_code < 400 else "", origin)
+    robots_text = robots_response.text if robots_response and robots_response.status_code < 400 else ""
+    sitemap_urls = _sitemaps(robots_text, origin)
     if is_xml:
         sitemap_urls = list(dict.fromkeys([start_url, *sitemap_urls]))
+    async with httpx.AsyncClient(timeout=12, follow_redirects=True, headers=headers) as client:
+        sitemap_candidates = await _sitemap_candidates(client, sitemap_urls, parsed.hostname or "")
+        if sitemap_candidates:
+            candidates = sitemap_candidates
+        candidates = list(dict.fromkeys(candidates))[:5000]
+        classified = [
+            {"url": value, "page_type": classify_page_type(value), "reason": "URL and navigation signal"}
+            for value in candidates
+        ]
+        sample_urls = representative_urls(classified)
+        sample_results = await _sample_pages(
+            client,
+            sample_urls,
+            hostname=parsed.hostname or "",
+            robots_text=robots_text,
+            required_fields=coverage_contract(domain_pack, requested_fields),
+        )
+    counts = Counter(item["page_type"] for item in classified)
     include_patterns = suggested_patterns(candidates, domain_pack)
     required_fields = coverage_contract(domain_pack, requested_fields)
+    successful_samples = [item for item in sample_results if item["status"] == "sampled"]
+    course_samples = [item for item in successful_samples if item["page_type"] == "course"]
+    coverage_basis = course_samples or successful_samples
+    field_counts = {
+        field: sum(field in item.get("fields", []) for item in coverage_basis)
+        for field in required_fields
+    }
+    field_rates = {
+        field: round(count / max(len(coverage_basis), 1), 3)
+        for field, count in field_counts.items()
+    }
+    projected_coverage = round(
+        sum(len(item.get("fields", [])) / max(len(required_fields), 1) for item in coverage_basis)
+        / max(len(coverage_basis), 1),
+        3,
+    )
     discovery = {
         "title": title,
         "origin": origin,
-        "sampled_pages": 1,
+        "sampled_pages": len(successful_samples),
         "links_observed": len(candidates),
         "page_type_counts": dict(counts),
         "candidate_pages": classified[:20],
+        "sample_results": sample_results,
+        "coverage_projection": {
+            "overall": projected_coverage,
+            "field_rates": field_rates,
+            "basis": "course_pages" if course_samples else "representative_pages",
+            "pages": len(coverage_basis),
+            "confidence": "medium" if len(coverage_basis) >= 6 else "low",
+        },
         "sitemaps": sitemap_urls[:5],
         "robots_status": robots_response.status_code if robots_response else None,
         "robots_accessible": bool(robots_response and robots_response.status_code < 400),

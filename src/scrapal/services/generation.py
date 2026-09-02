@@ -223,6 +223,9 @@ async def generate_answer(generation_id: str) -> None:
                         "structured": len(result.structured_matches),
                         "passages": len(result.hits),
                         "timings": result.timings,
+                        # The interpreted question, so the console can show what
+                        # was actually searched for instead of a generic phase.
+                        "plan": {**result.query_plan.model_dump(), "source": result.plan_source},
                     },
                 )
                 evidence = evidence_catalog(result)

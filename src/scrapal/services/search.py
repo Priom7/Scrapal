@@ -43,6 +43,8 @@ class RetrievalResult:
     exclusions: list[dict[str, Any]]
     timings: dict[str, float]
     embedding_profile_id: str | None
+    # "model" when Ollama produced the plan, "fallback" when planning failed.
+    plan_source: str = "model"
     retrieval_run_id: str | None = None
 
 
@@ -87,7 +89,7 @@ async def plan_query(
     *,
     ollama: OllamaService,
     locked: bool,
-) -> QueryPlan:
+) -> tuple[QueryPlan, str]:
     started = monotonic()
     outcome = "ok"
     with tracer.start_as_current_span("rag.query_plan"):
@@ -106,10 +108,12 @@ async def plan_query(
                 QueryPlan.model_json_schema(),
                 locked=locked,
             )
-            return QueryPlan.model_validate(payload)
+            return QueryPlan.model_validate(payload), "model"
         except (OllamaUnavailable, ValueError):
             outcome = "fallback"
-            return QueryPlan(entities=[query])
+            # The plan could not be derived. Report that alongside it so the
+            # console never presents a degraded plan as a model-derived one.
+            return QueryPlan(entities=[query]), "fallback"
         finally:
             RAG_STAGE_DURATION.labels("query_plan", outcome).observe(monotonic() - started)
 
@@ -167,7 +171,7 @@ async def retrieve_knowledge(
     # Release that connection while the local model plans the query so a slow
     # Ollama workload never leaves PostgreSQL idle in a transaction.
     await session.rollback()
-    plan = await plan_query(query, ollama=ollama, locked=ollama_locked)
+    plan, plan_source = await plan_query(query, ollama=ollama, locked=ollama_locked)
     explicit_filters = filters.model_dump(exclude_none=True, exclude={"source_id"})
     if explicit_filters:
         plan = plan.model_copy(update=explicit_filters)
@@ -394,6 +398,7 @@ async def retrieve_knowledge(
         exclusions=exclusions,
         timings=timings,
         embedding_profile_id=profile.id if profile else None,
+        plan_source=plan_source,
     )
     if persist:
         trace_id, _ = trace_ids()
@@ -404,7 +409,7 @@ async def retrieve_knowledge(
             mode=mode,
             include_drafts=include_drafts,
             filters_json=filters.model_dump(exclude_none=True),
-            query_plan=plan.model_dump(),
+            query_plan={**plan.model_dump(), "source": plan_source},
             structured_matches=structured_matches,
             lexical_candidates=lexical_candidates,
             vector_candidates=vector_candidates,

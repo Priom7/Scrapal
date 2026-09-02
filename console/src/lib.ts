@@ -74,3 +74,19 @@ export function useMediaQuery(query: string) {
   }, [query])
   return matches
 }
+
+/** The typed plan Ollama derives from a question, plus how it was derived. */
+export type QueryPlanData = {
+  intent?: string
+  entities?: string[]
+  requested_fields?: string[]
+  level?: string | null
+  residency?: string | null
+  intake?: string | null
+  study_mode?: string | null
+  source?: string
+}
+
+export function readPlan(raw: unknown): QueryPlanData | undefined {
+  return raw && typeof raw === 'object' ? raw as QueryPlanData : undefined
+}

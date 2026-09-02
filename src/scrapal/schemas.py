@@ -63,6 +63,13 @@ class CrawlBlueprintPreview(BaseModel):
     max_pages: int = Field(default=250, ge=1, le=10_000)
 
 
+class CrawlBlueprintUpdate(BaseModel):
+    include_patterns: list[str] = Field(default_factory=list, max_length=30)
+    exclude_patterns: list[str] = Field(default_factory=list, max_length=30)
+    max_pages: int = Field(ge=1, le=10_000)
+    max_depth: int = Field(ge=0, le=10)
+
+
 class CrawlBlueprintOut(ORMModel):
     id: str
     collection_id: str
