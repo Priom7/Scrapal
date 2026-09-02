@@ -39,7 +39,7 @@ import { AnimatePresence, motion, MotionConfig } from 'motion/react'
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api, CourseRecord, CrawlBlueprint, CrawlEvent, Incident, ObservabilityRun, RetrievalRun, Run, RunDetail, SearchHit, Source } from './api'
 import { RunPath } from './RunPath'
-import { formatDuration, ICON, isLiveRun, relativeDate, useDialog, useMediaQuery } from './lib'
+import { formatDuration, ICON, isLiveRun, relativeDate, Tone, useDialog, useMediaQuery } from './lib'
 import { Empty, Meter, Status } from './ui'
 
 type View = 'overview' | 'sources' | 'knowledge' | 'course-intelligence' | 'retrieval-lab' | 'observability' | 'reviews' | 'settings'
@@ -91,6 +91,13 @@ function App() {
     () => runs.data?.find(isLiveRun) ?? runs.data?.find((run) => run.status !== 'queued' || isLiveRun(run)),
     [runs.data],
   )
+  // An unreachable API is not an Ollama outage. Reporting one as the other sent
+  // us hunting a healthy model server while nginx was the thing that was broken.
+  const localAi: { tone: Tone; label: string } = system.isPending ? { tone: 'idle', label: 'Checking local AI' }
+    : system.error ? { tone: 'idle', label: 'Status unknown · API unreachable' }
+    : system.data?.ollama.status === 'ok' ? { tone: 'done', label: 'Ollama ready' }
+    : system.data?.ollama.status === 'degraded' ? { tone: 'wait', label: 'Chat needs attention' }
+    : { tone: 'fail', label: 'Ollama unavailable' }
   const sourceMap = new Map(sources.data?.map((source) => [source.id, source]))
   const refresh = () => queryClient.invalidateQueries()
   const closeRunMonitor = useCallback(() => setSelectedRunId(undefined), [])
@@ -123,8 +130,8 @@ function App() {
         </nav>
         <div className="sidebar-foot">
           <div className="model-health">
-            <span className={system.data?.ollama.status === 'ok' ? 'healthy' : system.data?.ollama.status === 'degraded' ? 'degraded' : 'unhealthy'} />
-            <div className="health-copy"><small>Local AI</small><strong>{system.data?.ollama.status === 'ok' ? 'Ollama ready' : system.data?.ollama.status === 'degraded' ? 'Chat needs attention' : 'Unavailable'}</strong></div>
+            <span className={`tone-${localAi.tone}`} />
+            <div className="health-copy"><small>Local AI</small><strong>{localAi.label}</strong></div>
           </div>
           <button className="theme-toggle" onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} aria-label={theme === 'light' ? 'Use dark theme' : 'Use light theme'} title={sidebarCollapsed ? (theme === 'light' ? 'Use dark theme' : 'Use light theme') : undefined}>
             {theme === 'light' ? <Moon size={ICON.md} /> : <Sun size={ICON.md} />}

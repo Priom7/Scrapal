@@ -79,7 +79,7 @@ h2 { font-size: clamp(1.2rem, 1.7vw, 1.6rem); }
 .sidebar nav button b { margin-left: auto; min-width: 22px; padding: .15rem .4rem; color: var(--surface); background: var(--amber); border-radius: 99px; font-size: .73rem; text-align: center; }
 .sidebar-foot { margin-top: auto; display: grid; gap: .8rem; }
 .model-health { display: flex; align-items: center; gap: .7rem; padding: .75rem; border: 1px solid #293541; border-radius: 12px; background: #141d27; }
-.model-health > span, .health-detail > span { flex: 0 0 auto; width: 9px; height: 9px; border-radius: 50%; box-shadow: 0 0 0 4px color-mix(in srgb, currentColor 14%, transparent); }
+.model-health > span, .health-detail > span { flex: 0 0 auto; width: 9px; height: 9px; border-radius: 50%; color: var(--tone, var(--ink-soft)); background: currentColor; box-shadow: 0 0 0 4px color-mix(in srgb, currentColor 14%, transparent); }
 .healthy { color: var(--mint); background: var(--mint); }
 .degraded { color: var(--amber); background: var(--amber); }
 .unhealthy { color: var(--coral); background: var(--coral); }
