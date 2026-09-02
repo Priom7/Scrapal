@@ -4,6 +4,7 @@ from typing import Any, Literal
 from pydantic import AnyHttpUrl, BaseModel, ConfigDict, Field
 
 from scrapal.models import (
+    BlueprintStatus,
     EvaluationStatus,
     GenerationStatus,
     IndexStatus,
@@ -49,6 +50,33 @@ class SourceOut(ORMModel):
     config: dict[str, Any]
     enabled: bool
     last_run_at: datetime | None
+    created_at: datetime
+
+
+class CrawlBlueprintPreview(BaseModel):
+    collection_id: str
+    name: str = Field(min_length=1, max_length=180)
+    start_url: AnyHttpUrl
+    objective: str = Field(min_length=12, max_length=2000)
+    domain_pack: Literal["generic", "university"] = "generic"
+    required_fields: list[str] = Field(default_factory=list, max_length=40)
+    max_pages: int = Field(default=250, ge=1, le=10_000)
+
+
+class CrawlBlueprintOut(ORMModel):
+    id: str
+    collection_id: str
+    source_id: str | None
+    name: str
+    start_url: str
+    objective: str
+    domain_pack: str
+    required_fields: list[str]
+    suggested_config: dict[str, Any]
+    discovery_json: dict[str, Any]
+    status: BlueprintStatus
+    version: int
+    approved_at: datetime | None
     created_at: datetime
 
 

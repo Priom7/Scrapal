@@ -90,6 +90,11 @@ class RecordStatus(str, enum.Enum):
     rejected = "rejected"
 
 
+class BlueprintStatus(str, enum.Enum):
+    draft = "draft"
+    approved = "approved"
+
+
 class Organization(Base):
     __tablename__ = "organizations"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
@@ -132,6 +137,31 @@ class Source(Base):
     last_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
     collection: Mapped[Collection] = relationship(back_populates="sources")
+
+
+class CrawlBlueprint(Base):
+    __tablename__ = "crawl_blueprints"
+    __table_args__ = (
+        Index("ix_crawl_blueprints_collection_created", "collection_id", "created_at"),
+    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    organization_id: Mapped[str] = mapped_column(ForeignKey("organizations.id"), index=True)
+    collection_id: Mapped[str] = mapped_column(ForeignKey("collections.id"), index=True)
+    source_id: Mapped[str | None] = mapped_column(ForeignKey("sources.id"), nullable=True)
+    name: Mapped[str] = mapped_column(String(180))
+    start_url: Mapped[str] = mapped_column(Text)
+    objective: Mapped[str] = mapped_column(Text)
+    domain_pack: Mapped[str] = mapped_column(String(80), default="generic")
+    required_fields: Mapped[list[str]] = mapped_column(JSON, default=list)
+    suggested_config: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    discovery_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    status: Mapped[BlueprintStatus] = mapped_column(
+        Enum(BlueprintStatus), default=BlueprintStatus.draft, index=True
+    )
+    version: Mapped[int] = mapped_column(Integer, default=1)
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, onupdate=now)
 
 
 class Run(Base):

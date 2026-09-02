@@ -37,7 +37,7 @@ import {
 } from 'lucide-react'
 import { AnimatePresence, motion, MotionConfig } from 'motion/react'
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { api, CourseRecord, CrawlEvent, Incident, ObservabilityRun, RetrievalRun, Run, RunDetail, SearchHit, Source } from './api'
+import { api, CourseRecord, CrawlBlueprint, CrawlEvent, Incident, ObservabilityRun, RetrievalRun, Run, RunDetail, SearchHit, Source } from './api'
 import { RunPath } from './RunPath'
 import { formatDuration, ICON, isLiveRun, relativeDate, useDialog, useMediaQuery } from './lib'
 import { Empty, Meter, Status } from './ui'
@@ -603,18 +603,47 @@ function AgentPanel({ collectionId, onClose }: { collectionId?: string; onClose:
 
 function AddSource({ collectionId, onClose, onCreated }: { collectionId?: string; onClose: () => void; onCreated: () => void }) {
   const dialogRef = useRef<HTMLDivElement>(null)
-  const [kind, setKind] = useState<'website' | 'sitemap' | 'document' | 'greenwich'>('greenwich')
+  const [kind, setKind] = useState<'university' | 'website' | 'sitemap' | 'document'>('university')
   const [name, setName] = useState('University of Greenwich')
-  const [url, setUrl] = useState('https://www.gre.ac.uk/sitemap.xml')
+  const [url, setUrl] = useState('https://www.gre.ac.uk/')
+  const [objective, setObjective] = useState('Find every course and the fees, intakes, entry requirements, English requirements, application documents, deadlines, campuses, and scholarships a prospective student needs.')
+  const [blueprint, setBlueprint] = useState<CrawlBlueprint>()
+  const fields = ['title', 'award', 'level', 'campuses', 'study_modes', 'durations', 'intake_months', 'fees', 'entry_requirements', 'english_requirements', 'application_documents', 'deadlines', 'scholarships']
+  const [requiredFields, setRequiredFields] = useState(fields)
   const create = useMutation({ mutationFn: api.createSource, onSuccess: onCreated })
+  const preview = useMutation({
+    mutationFn: () => api.previewBlueprint({ collection_id: collectionId, name, start_url: url, objective, domain_pack: kind === 'university' ? 'university' : 'generic', required_fields: kind === 'university' ? requiredFields : [], max_pages: 500 }),
+    onSuccess: setBlueprint,
+  })
+  const launch = useMutation({
+    mutationFn: async () => {
+      if (!blueprint) throw new Error('Preview the crawl plan first.')
+      await api.approveBlueprint(blueprint.id)
+      return api.runBlueprint(blueprint.id)
+    },
+    onSuccess: onCreated,
+  })
   useDialog(dialogRef, onClose)
   useEffect(() => {
     const previousOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     return () => { document.body.style.overflow = previousOverflow }
   }, [])
-  const submit = (event: FormEvent) => { event.preventDefault(); if (!collectionId) return; create.mutate({ collection_id: collectionId, name, kind, url: kind === 'document' ? null : url, config: kind === 'greenwich' ? {} : { max_pages: 100, max_depth: 2 } }) }
-  return <><button className="backdrop" onClick={onClose} aria-label="Close add source dialog" /><motion.div ref={dialogRef} className="dialog" role="dialog" aria-modal="true" aria-labelledby="add-source-title" initial={{ opacity: 0, scale: .98, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }}><header><div><p className="eyebrow">New input</p><h2 id="add-source-title">Connect a source</h2><p>Choose what Scrapal should collect and keep current.</p></div><button className="icon-button" onClick={onClose} aria-label="Close"><X /></button></header><form onSubmit={submit}><div className="dialog-scroll"><fieldset><legend>Source type</legend><div className="choice-grid">{(['greenwich', 'website', 'sitemap', 'document'] as const).map((item) => <label className={kind === item ? 'selected' : ''} key={item}><input type="radio" name="kind" value={item} checked={kind === item} onChange={() => { setKind(item); if (item === 'greenwich') { setName('University of Greenwich'); setUrl('https://www.gre.ac.uk/sitemap.xml') } }} /><span>{item === 'greenwich' ? <Sparkles /> : item === 'document' ? <FileSearch /> : <Globe2 />}{item}</span></label>)}</div></fieldset><label>Name<input value={name} onChange={(e) => setName(e.target.value)} required /></label>{kind !== 'document' && <label>Starting URL<input type="url" value={url} onChange={(e) => setUrl(e.target.value)} required /></label>}<p className="form-help">Private network addresses are blocked. Scrapal checks robots rules before fetching public pages.</p>{!collectionId && <p className="inline-error">Create a collection before connecting a source.</p>}{create.error && <p className="inline-error">{create.error.message}</p>}</div><div className="dialog-actions"><button type="button" className="button secondary" onClick={onClose}>Cancel</button><button className="button primary" disabled={create.isPending || !collectionId}>{create.isPending ? 'Connecting…' : 'Connect source'}</button></div></form></motion.div></>
+  const submit = (event: FormEvent) => {
+    event.preventDefault()
+    if (!collectionId) return
+    if (kind === 'document') create.mutate({ collection_id: collectionId, name, kind: 'document', url: null, config: {} })
+    else preview.mutate()
+  }
+  const toggleField = (field: string) => setRequiredFields((current) => current.includes(field) ? current.filter((item) => item !== field) : [...current, field])
+  const error = create.error ?? preview.error ?? launch.error
+  return <><button className="backdrop" onClick={onClose} aria-label="Close add source dialog" /><motion.div ref={dialogRef} className="dialog blueprint-dialog" role="dialog" aria-modal="true" aria-labelledby="add-source-title" initial={{ opacity: 0, scale: .98, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }}><header><div><p className="eyebrow">{blueprint ? 'Crawl blueprint · preview' : 'New input · guided setup'}</p><h2 id="add-source-title">{blueprint ? 'Review before crawling' : 'Tell Scrapal what to find'}</h2><p>{blueprint ? 'Approve the proposed scope only when it matches your research objective.' : 'Start with a homepage and an outcome. Scrapal will propose a safe crawl plan.'}</p></div><button className="icon-button" onClick={onClose} aria-label="Close"><X /></button></header>{!blueprint ? <form onSubmit={submit}><div className="dialog-scroll"><fieldset><legend>Source type</legend><div className="choice-grid">{(['university', 'website', 'sitemap', 'document'] as const).map((item) => <label className={kind === item ? 'selected' : ''} key={item}><input type="radio" name="kind" value={item} checked={kind === item} onChange={() => { setKind(item); setBlueprint(undefined); if (item === 'university') { setName('University of Greenwich'); setUrl('https://www.gre.ac.uk/') } }} /><span>{item === 'university' ? <GraduationCap /> : item === 'document' ? <FileSearch /> : <Globe2 />}{item}</span></label>)}</div></fieldset><label>Name<input value={name} onChange={(e) => setName(e.target.value)} required /></label>{kind !== 'document' && <><label>Starting URL<input type="url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://university.example/" required /></label><label>Research objective<textarea value={objective} onChange={(e) => setObjective(e.target.value)} rows={3} required minLength={12} /></label>{kind === 'university' && <fieldset><legend>Required evidence</legend><div className="field-contract">{fields.map((field) => <label key={field}><input type="checkbox" checked={requiredFields.includes(field)} onChange={() => toggleField(field)} /><span>{field.replaceAll('_', ' ')}</span></label>)}</div></fieldset>}</>}<p className="form-help">Preview samples only the starting page and public crawl-policy metadata. It does not start a bulk crawl.</p>{!collectionId && <p className="inline-error">Create a collection before connecting a source.</p>}{error && <p className="inline-error">{error.message}</p>}</div><div className="dialog-actions"><button type="button" className="button secondary" onClick={onClose}>Cancel</button><button className="button primary" disabled={preview.isPending || create.isPending || !collectionId || (kind !== 'document' && objective.trim().length < 12)}>{preview.isPending ? 'Inspecting site…' : kind === 'document' ? 'Connect document source' : 'Preview crawl plan'}</button></div></form> : <BlueprintPreview blueprint={blueprint} onBack={() => setBlueprint(undefined)} onLaunch={() => launch.mutate()} busy={launch.isPending} error={error?.message} />}</motion.div></>
+}
+
+function BlueprintPreview({ blueprint, onBack, onLaunch, busy, error }: { blueprint: CrawlBlueprint; onBack: () => void; onLaunch: () => void; busy: boolean; error?: string }) {
+  const discovery = blueprint.discovery_json
+  const typeCounts = Object.entries(discovery.page_type_counts ?? {}).sort((left, right) => right[1] - left[1])
+  return <div className="blueprint-preview"><div className="dialog-scroll"><section className="blueprint-verdict"><span><CircleCheckBig /></span><div><small>Planning sample complete</small><strong>{discovery.links_observed ?? 0} eligible links observed</strong><p>{discovery.sitemaps?.length ? `${discovery.sitemaps.length} sitemap${discovery.sitemaps.length === 1 ? '' : 's'} discovered.` : 'No sitemap advertised; Scrapal will follow eligible page links.'} Robots returned {discovery.robots_status ?? 'no response'}.</p></div></section><dl className="blueprint-metrics"><div><dt>Maximum pages</dt><dd>{blueprint.suggested_config.max_pages ?? '—'}</dd></div><div><dt>Crawl depth</dt><dd>{blueprint.suggested_config.max_depth ?? '—'}</dd></div><div><dt>Required fields</dt><dd>{blueprint.required_fields.length}</dd></div><div><dt>Plan version</dt><dd>v{blueprint.version}</dd></div></dl><section className="blueprint-section"><header><div><small>Coverage contract</small><strong>Evidence Scrapal must capture</strong></div><span>{blueprint.required_fields.length} fields</span></header><div className="contract-chips">{blueprint.required_fields.map((field) => <span key={field}><Check /> {field.replaceAll('_', ' ')}</span>)}</div></section><section className="blueprint-section"><header><div><small>Discovery signals</small><strong>What the starting page appears to contain</strong></div></header>{typeCounts.length ? <div className="page-type-grid">{typeCounts.map(([type, count]) => <div key={type}><strong>{count}</strong><span>{type.replaceAll('-', ' ')}</span></div>)}</div> : <p className="form-help">No classifiable navigation links were found in the planning sample.</p>}<div className="pattern-list"><small>Suggested scope</small><code>{blueprint.suggested_config.include_patterns?.join(' · ') || 'All eligible same-domain pages'}</code></div></section>{discovery.warnings?.map((warning) => <p className="blueprint-warning" key={warning}><AlertTriangle /> {warning}</p>)}{error && <p className="inline-error">{error}</p>}</div><div className="dialog-actions"><button type="button" className="button secondary" onClick={onBack}>Edit objective</button><button type="button" className="button primary" onClick={onLaunch} disabled={busy}><Play /> {busy ? 'Starting crawl…' : 'Approve & start crawl'}</button></div></div>
 }
 
 function RunMonitor({ runId, onClose }: { runId: string; onClose: () => void }) {

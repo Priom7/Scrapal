@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
 
 from scrapal.api import router
+from scrapal.blueprints_api import router as blueprints_router
 from scrapal.config import get_settings
 from scrapal.course_intelligence_api import router as course_intelligence_router
 from scrapal.db import SessionLocal, init_db
@@ -57,6 +58,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(router)
+app.include_router(blueprints_router)
 app.include_router(observability_router)
 app.include_router(retrieval_router)
 app.include_router(course_intelligence_router)

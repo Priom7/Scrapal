@@ -396,6 +396,38 @@ td .meter { width: 110px; margin-bottom: .3rem; }
 .dialog input[type='text'], .dialog input[type='url'], .dialog input:not([type]), .dialog-scroll > label input { width: 100%; min-height: 46px; padding: .6rem .7rem; border: 1px solid var(--line); border-radius: 10px; color: var(--ink); background: var(--paper); }
 .form-help { margin: 0; color: var(--ink-soft); font-size: .82rem; }
 .dialog-actions { display: flex; justify-content: flex-end; gap: .6rem; padding: 1rem 1.4rem; border-top: 1px solid var(--line); background: var(--surface); }
+.blueprint-dialog { width: min(760px, calc(100vw - 2rem)); }
+.dialog textarea { width: 100%; resize: vertical; padding: .7rem; border: 1px solid var(--line); border-radius: 10px; color: var(--ink); background: var(--paper); font: inherit; line-height: 1.45; }
+.field-contract { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .45rem; margin-top: .5rem; }
+.field-contract label { display: flex; align-items: center; gap: .45rem; min-width: 0; padding: .55rem .6rem; border: 1px solid var(--line); border-radius: 8px; color: var(--ink-soft); background: var(--paper); cursor: pointer; font-size: .72rem; font-weight: 600; }
+.field-contract input { accent-color: var(--cobalt); }
+.field-contract span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.blueprint-preview { min-height: 0; display: grid; grid-template-rows: minmax(0, 1fr) auto; }
+.blueprint-verdict { display: grid; grid-template-columns: auto 1fr; gap: .8rem; padding: .85rem; border-left: 3px solid var(--mint); background: color-mix(in srgb, var(--mint) 8%, var(--paper)); }
+.blueprint-verdict > span { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 9px; color: #0a7657; background: color-mix(in srgb, var(--mint) 22%, var(--surface)); }
+.blueprint-verdict div { display: grid; gap: .15rem; }
+.blueprint-verdict small, .blueprint-section small, .pattern-list small { color: var(--ink-soft); font-size: .66rem; font-weight: 700; }
+.blueprint-verdict p { margin: 0; color: var(--ink-soft); font-size: .78rem; }
+.blueprint-metrics { display: grid; grid-template-columns: repeat(4, 1fr); margin: 0; border: 1px solid var(--line); border-radius: 10px; }
+.blueprint-metrics div { padding: .7rem; border-right: 1px solid var(--line); }
+.blueprint-metrics div:last-child { border: 0; }
+.blueprint-metrics dt { color: var(--ink-soft); font-size: .62rem; }
+.blueprint-metrics dd { margin: .15rem 0 0; font: 700 .9rem 'IBM Plex Mono', monospace; }
+.blueprint-section { display: grid; gap: .7rem; padding: .85rem; border: 1px solid var(--line); border-radius: 10px; }
+.blueprint-section > header { display: flex; justify-content: space-between; align-items: end; gap: 1rem; }
+.blueprint-section > header div { display: grid; gap: .12rem; }
+.blueprint-section > header > span { color: var(--ink-soft); font: 700 .65rem 'IBM Plex Mono', monospace; }
+.contract-chips { display: flex; flex-wrap: wrap; gap: .35rem; }
+.contract-chips span { display: inline-flex; align-items: center; gap: .28rem; padding: .32rem .45rem; border-radius: 6px; color: #0a6c51; background: color-mix(in srgb, var(--mint) 12%, var(--paper)); font-size: .67rem; font-weight: 700; }
+.contract-chips svg { width: 12px; height: 12px; }
+.page-type-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; overflow: hidden; border: 1px solid var(--line); border-radius: 8px; background: var(--line); }
+.page-type-grid div { display: grid; gap: .05rem; padding: .55rem; background: var(--surface); }
+.page-type-grid strong { font: 700 .9rem 'IBM Plex Mono', monospace; }
+.page-type-grid span { color: var(--ink-soft); font-size: .65rem; text-transform: capitalize; }
+.pattern-list { display: grid; gap: .25rem; }
+.pattern-list code { overflow-wrap: anywhere; color: var(--ink-soft); font-size: .68rem; }
+.blueprint-warning { display: flex; align-items: start; gap: .45rem; margin: 0; padding: .65rem; border-left: 3px solid var(--amber); color: var(--ink-soft); background: color-mix(in srgb, var(--amber) 8%, transparent); font-size: .75rem; }
+.blueprint-warning svg { flex: 0 0 auto; width: 16px; height: 16px; color: var(--amber); }
 .inline-error { padding: .6rem .7rem; color: var(--coral); border-left: 3px solid var(--coral); background: color-mix(in srgb, var(--coral) 8%, transparent); }
 
 .run-backdrop { z-index: 40; }
@@ -672,6 +704,11 @@ td .meter { width: 110px; margin-bottom: .3rem; }
   .stat-ribbon { grid-template-columns: 1fr; }
   .stat-ribbon > div + div { border-left: 0; border-top: 1px solid var(--line); }
   .choice-grid { grid-template-columns: 1fr; }
+  .field-contract { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .blueprint-metrics { grid-template-columns: repeat(2, 1fr); }
+  .blueprint-metrics div:nth-child(2) { border-right: 0; }
+  .blueprint-metrics div:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+  .page-type-grid { grid-template-columns: repeat(2, 1fr); }
   .dialog { inset: .5rem; width: calc(100vw - 1rem); max-height: calc(100dvh - 1rem); border-radius: 16px; }
   .dialog > header, .dialog-scroll, .dialog-actions { padding-inline: 1rem; }
   .run-monitor { width: 100vw; }

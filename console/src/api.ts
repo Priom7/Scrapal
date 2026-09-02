@@ -13,6 +13,36 @@ export type Source = {
   enabled: boolean
   last_run_at: string | null
 }
+export type CrawlBlueprint = {
+  id: string
+  collection_id: string
+  source_id: string | null
+  name: string
+  start_url: string
+  objective: string
+  domain_pack: 'generic' | 'university'
+  required_fields: string[]
+  suggested_config: {
+    start_url?: string
+    include_patterns?: string[]
+    exclude_patterns?: string[]
+    max_pages?: number
+    max_depth?: number
+  }
+  discovery_json: {
+    title?: string
+    sampled_pages?: number
+    links_observed?: number
+    page_type_counts?: Record<string, number>
+    candidate_pages?: { url: string; page_type: string; reason: string }[]
+    sitemaps?: string[]
+    robots_status?: number | null
+    robots_accessible?: boolean
+    warnings?: string[]
+  }
+  status: 'draft' | 'approved'
+  version: number
+}
 export type Run = {
   id: string
   source_id: string
@@ -239,6 +269,14 @@ export const api = {
   grafanaLink: (runId?: string, traceId?: string) => request<{ url: string }>(`/v1/admin/observability/grafana-link?${traceId ? `trace_id=${traceId}` : runId ? `run_id=${runId}` : ''}`),
   createSource: (data: Record<string, unknown>) =>
     request<Source>('/v1/sources', { method: 'POST', body: JSON.stringify(data) }),
+  previewBlueprint: (data: Record<string, unknown>) =>
+    request<CrawlBlueprint>('/v1/crawl-blueprints/preview', {
+      method: 'POST', body: JSON.stringify(data),
+    }),
+  approveBlueprint: (id: string) =>
+    request<CrawlBlueprint>(`/v1/crawl-blueprints/${id}/approve`, { method: 'POST' }),
+  runBlueprint: (id: string) =>
+    request<Run>(`/v1/crawl-blueprints/${id}/run`, { method: 'POST' }),
   startRun: (sourceId: string) =>
     request<Run>('/v1/runs', {
       method: 'POST',
