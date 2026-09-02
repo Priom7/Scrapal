@@ -44,7 +44,7 @@ import { formatDuration, ICON, isLiveRun, QueryPlanData, readPlan, relativeDate,
 import { Empty, Meter, Status } from './ui'
 
 type View = 'overview' | 'sources' | 'knowledge' | 'course-intelligence' | 'retrieval-lab' | 'observability' | 'reviews' | 'settings'
-type AgentMessage = { id: string; role: string; content: string; citations?: { number: number; title: string; url?: string }[] }
+type AgentMessage = { id: string; role: string; content: string; citations?: { number: number; title: string; url?: string }[]; withheld?: string[] }
 
 const nav: { id: View; label: string; icon: typeof Activity }[] = [
   { id: 'overview', label: 'Overview', icon: Activity },
@@ -573,6 +573,18 @@ function HealthRow({ icon: Icon, label, status, detail }: { icon: typeof Server;
 
 function IncidentRow({ incident, onInspect, onAcknowledge, onResolve }: { incident: Incident; onInspect: (id: string) => void; onAcknowledge: () => void; onResolve: () => void }) { return <article className={`incident-row ${incident.severity}`}><AlertTriangle /><div><div><span>{incident.severity}</span><small>{incident.service} · {relativeDate(incident.last_seen_at)}</small></div><strong>{incident.summary}</strong><p>{incident.remediation}</p></div><div className="incident-actions">{incident.run_id && <button onClick={() => onInspect(incident.run_id!)}>Inspect run</button>}<button onClick={onAcknowledge}>Acknowledge</button><button onClick={onResolve}>Resolve</button></div></article> }
 
+const WITHHELD_REASONS: Record<string, string> = {
+  missing_citation: 'it cited no evidence',
+  unknown_citation: 'it cited evidence that was never retrieved',
+  insufficient_overlap: 'the evidence it cited did not support it',
+}
+
+function withheldNote(reasons: string[]) {
+  const distinct = [...new Set(reasons.map((reason) => WITHHELD_REASONS[reason] ?? 'it could not be verified'))]
+  const count = reasons.length === 1 ? '1 sentence was removed' : `${reasons.length} sentences were removed`
+  return `${count} from this answer because ${distinct.join(', and ')}.`
+}
+
 function AgentPanel({ collectionId, onClose }: { collectionId?: string; onClose: () => void }) {
   const panelRef = useRef<HTMLElement>(null)
   const mobile = useMediaQuery('(max-width: 760px)')
@@ -602,6 +614,9 @@ function AgentPanel({ collectionId, onClose }: { collectionId?: string; onClose:
         const citation = { number: Number(event.data.number), title: String(event.data.title ?? 'Evidence'), url: event.data.url ? String(event.data.url) : undefined }
         return { ...message, citations: [...(message.citations ?? []).filter((item) => item.number !== citation.number), citation] }
       })
+      // A sentence the validator dropped leaves a shorter answer that otherwise
+      // reads as complete. Say so instead of letting the gap pass unnoticed.
+      if (event.type === 'answer.withheld') updateAssistant(assistantId, (message) => ({ ...message, withheld: [...(message.withheld ?? []), String(event.data.reason ?? 'unsupported')] }))
       if (event.type === 'abstained') updateAssistant(assistantId, (message) => ({ ...message, content: String(event.data.answer ?? 'I cannot answer from the published evidence.') }))
       if (event.type === 'failed') throw new Error('Local answer generation failed. The crawl and indexed evidence remain available.')
     })
@@ -612,7 +627,7 @@ function AgentPanel({ collectionId, onClose }: { collectionId?: string; onClose:
   // Enter sends, shift+enter starts a line. isComposing keeps an IME candidate
   // list from being mistaken for a finished question.
   const onKey = (event: KeyboardEvent<HTMLTextAreaElement>) => { if (event.key !== 'Enter' || event.shiftKey || event.nativeEvent.isComposing) return; event.preventDefault(); dispatch() }
-  return <motion.aside ref={panelRef} className="agent-panel" initial={{ x: 50, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 50, opacity: 0 }} role={mobile ? 'dialog' : undefined} aria-modal={mobile ? 'true' : undefined} aria-label="Scrapal agent"><header><div className="agent-avatar"><Sparkles /></div><div><p className="eyebrow">Grounded in your sources</p><h2>Ask Scrapal</h2></div><button className="icon-button" onClick={onClose} aria-label="Close agent"><X /></button></header><div className="messages" aria-live="polite">{messages.length === 0 && <div className="agent-empty"><MessageSquareText /><h3>Research with receipts.</h3><p>Ask across your collections. Every factual answer links back to its evidence.</p><button onClick={() => setInput('Which courses have a January intake?')}>Try “Which courses have a January intake?”</button></div>}{messages.map((message) => <div className={`message ${message.role}`} key={message.id}><p>{message.content}</p>{message.citations?.length ? <div className="citations">{message.citations.map((citation) => citation.url ? <a key={citation.number} href={citation.url} target="_blank" rel="noreferrer">[{citation.number}] {citation.title}</a> : <span key={citation.number}>[{citation.number}] {citation.title}</span>)}</div> : null}</div>)}{send.isPending && <div className="agent-progress"><div className="thinking"><span /><span /><span /><em>{phase}</em></div><InterpretedQuery plan={plan} compact /></div>}{send.error && <p className="inline-error">{send.error.message}</p>}</div><form className="agent-composer" onSubmit={submit}><label className="sr-only" htmlFor="agent-input">Ask Scrapal</label><textarea id="agent-input" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={onKey} placeholder="Ask a cited question…" rows={3} enterKeyHint="send" /><button type="submit" aria-label="Send message" onMouseDown={(e) => e.preventDefault()} disabled={send.isPending || !input.trim()}><ArrowRight /></button></form></motion.aside>
+  return <motion.aside ref={panelRef} className="agent-panel" initial={{ x: 50, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 50, opacity: 0 }} role={mobile ? 'dialog' : undefined} aria-modal={mobile ? 'true' : undefined} aria-label="Scrapal agent"><header><div className="agent-avatar"><Sparkles /></div><div><p className="eyebrow">Grounded in your sources</p><h2>Ask Scrapal</h2></div><button className="icon-button" onClick={onClose} aria-label="Close agent"><X /></button></header><div className="messages" aria-live="polite">{messages.length === 0 && <div className="agent-empty"><MessageSquareText /><h3>Research with receipts.</h3><p>Ask across your collections. Every factual answer links back to its evidence.</p><button onClick={() => setInput('Which courses have a January intake?')}>Try “Which courses have a January intake?”</button></div>}{messages.map((message) => <div className={`message ${message.role}`} key={message.id}><p>{message.content}</p>{message.citations?.length ? <div className="citations">{message.citations.map((citation) => citation.url ? <a key={citation.number} href={citation.url} target="_blank" rel="noreferrer">[{citation.number}] {citation.title}</a> : <span key={citation.number}>[{citation.number}] {citation.title}</span>)}</div> : null}{message.withheld?.length ? <p className="withheld-note"><ShieldCheck size={ICON.xs} aria-hidden="true" />{withheldNote(message.withheld)}</p> : null}</div>)}{send.isPending && <div className="agent-progress"><div className="thinking"><span /><span /><span /><em>{phase}</em></div><InterpretedQuery plan={plan} compact /></div>}{send.error && <p className="inline-error">{send.error.message}</p>}</div><form className="agent-composer" onSubmit={submit}><label className="sr-only" htmlFor="agent-input">Ask Scrapal</label><textarea id="agent-input" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={onKey} placeholder="Ask a cited question…" rows={3} enterKeyHint="send" /><button type="submit" aria-label="Send message" onMouseDown={(e) => e.preventDefault()} disabled={send.isPending || !input.trim()}><ArrowRight /></button></form></motion.aside>
 }
 
 function AddSource({ collectionId, onClose, onCreated }: { collectionId?: string; onClose: () => void; onCreated: () => void }) {

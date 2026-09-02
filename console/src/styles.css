@@ -535,6 +535,8 @@ td .meter { width: 110px; margin-bottom: .3rem; }
 .interpreted-query dd em { color: var(--ink-soft); font-size: .76rem; font-style: normal; }
 .plan-intent { font-size: .82rem; font-weight: 700; text-transform: capitalize; }
 .plan-resolved { font-size: .82rem; font-style: italic; }
+.withheld-note { display: flex; gap: .35rem; align-items: baseline; margin: .5rem 0 0; font-size: .78rem; opacity: .75; }
+.withheld-note svg { flex: none; }
 .plan-chips { display: flex; flex-wrap: wrap; gap: .3rem; }
 .plan-chip { padding: .18rem .45rem; border: 1px solid var(--line); border-radius: 6px; font-size: .72rem; }
 .plan-chip.entity { color: var(--cobalt-dark); border-color: color-mix(in srgb, var(--cobalt) 30%, var(--line)); background: color-mix(in srgb, var(--cobalt) 7%, var(--surface)); }

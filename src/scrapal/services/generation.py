@@ -35,6 +35,16 @@ _ABSTENTION = (
     "I cannot answer that from the currently published evidence. "
     "No fee, deadline, intake, or requirement should be inferred when the source is missing."
 )
+# Retrieving nothing and retrieving evidence that supports nothing are different
+# failures. Saying "no evidence" when passages were read sends the reader looking
+# for a source that is already indexed.
+_ABSTENTIONS = {
+    "no_published_evidence": _ABSTENTION,
+    "no_supported_sentences": (
+        "I found related evidence but could not tie a single sentence of the answer to it. "
+        "Nothing is shown rather than an uncited claim. Try naming the course or field you mean."
+    ),
+}
 
 
 async def append_generation_event(
@@ -184,12 +194,12 @@ async def _finish_abstention(
     session: AsyncSession, generation: MessageGeneration, reason: str
 ) -> None:
     generation.status = GenerationStatus.abstained
-    generation.answer = _ABSTENTION
+    generation.answer = _ABSTENTIONS.get(reason, _ABSTENTION)
     generation.finished_at = datetime.now(UTC)
     assistant = Message(
         conversation_id=generation.conversation_id,
         role="assistant",
-        content=_ABSTENTION,
+        content=generation.answer,
         citations=[],
     )
     session.add(assistant)
@@ -198,7 +208,7 @@ async def _finish_abstention(
     await session.commit()
     RAG_QUERIES.labels("abstained").inc()
     await append_generation_event(
-        session, generation.id, "abstained", {"reason": reason, "answer": _ABSTENTION}
+        session, generation.id, "abstained", {"reason": reason, "answer": generation.answer}
     )
     await append_generation_event(session, generation.id, "completed", {"status": "abstained"})
 
@@ -301,6 +311,22 @@ async def generate_answer(generation_id: str) -> None:
             )
 
 
+async def _withhold(
+    session: AsyncSession, generation: MessageGeneration, sentence: str, reason: str | None
+) -> None:
+    """Announce a sentence dropped for want of citable evidence.
+
+    The sentence itself stays out of the payload: it may carry the invented fee
+    that failed validation in the first place.
+    """
+    await append_generation_event(
+        session,
+        generation.id,
+        "answer.withheld",
+        {"reason": reason or "unsupported", "characters": len(sentence)},
+    )
+
+
 async def _stream_validated_answer(
     session: AsyncSession,
     generation: MessageGeneration,
@@ -333,6 +359,7 @@ async def _stream_validated_answer(
                 if not valid:
                     unsupported.append(sentence)
                     RAG_CITATIONS.labels(reason or "unsupported").inc()
+                    await _withhold(session, generation, sentence, reason)
                     continue
                 delta = sentence + " "
                 answer_parts.append(delta)
@@ -365,6 +392,7 @@ async def _stream_validated_answer(
             else:
                 unsupported.append(buffer.strip())
                 RAG_CITATIONS.labels(reason or "unsupported").inc()
+                await _withhold(session, generation, buffer.strip(), reason)
 
         if not answer_parts:
             generation.unsupported_sentences = unsupported
