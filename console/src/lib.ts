@@ -21,8 +21,9 @@ export function toneFor(status: string): Tone {
 const FOCUSABLE = 'button, input, textarea, select, a[href], [tabindex]:not([tabindex="-1"])'
 
 /** Escape to close, initial focus, a focus trap, and focus restored to whatever opened the dialog. */
-export function useDialog(ref: RefObject<HTMLElement | null>, onClose: () => void) {
+export function useDialog(ref: RefObject<HTMLElement | null>, onClose: () => void, enabled = true) {
   useEffect(() => {
+    if (!enabled) return
     const opener = document.activeElement as HTMLElement | null
     ref.current?.querySelector<HTMLElement>(FOCUSABLE)?.focus()
     const onKey = (event: KeyboardEvent) => {
@@ -36,13 +37,13 @@ export function useDialog(ref: RefObject<HTMLElement | null>, onClose: () => voi
     }
     document.addEventListener('keydown', onKey)
     return () => { document.removeEventListener('keydown', onKey); opener?.focus?.() }
-  }, [ref, onClose])
+  }, [enabled, ref, onClose])
 }
 
 export function formatDuration(milliseconds: number) {
   if (milliseconds < 1000) return `${Math.round(milliseconds)}ms`
   if (milliseconds < 60_000) return `${(milliseconds / 1000).toFixed(1)}s`
-  return `${Math.floor(milliseconds / 60_000)}m ${Math.round(milliseconds % 60_000 / 1000)}s`
+  return `${Math.floor(milliseconds / 60_000)}m ${Math.floor(milliseconds / 1000) % 60}s`
 }
 
 export function compactUrl(value: string) {

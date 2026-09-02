@@ -99,14 +99,14 @@ function App() {
    <MotionConfig reducedMotion="user">
     <div className={`app-shell ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${agentOpen ? 'agent-open' : ''}`}>
       <a className="skip-link" href="#workspace">Skip to workspace</a>
-      <aside id="primary-nav" className={`sidebar ${navOpen ? 'open' : ''}`} aria-label="Primary navigation" inert={mobile && !navOpen ? true : undefined}>
+      <aside id="primary-nav" className={`sidebar ${navOpen ? 'open' : ''}`} aria-label="Primary navigation" inert={mobile && (!navOpen || agentOpen) ? true : undefined}>
         <div className="brand-block">
           <div className="brand-lockup">
             <img className="brand-wordmark" src="/scrapal_logo.svg" alt="Scrapal" />
             <span className="brand-mark" aria-label="Scrapal"><img src="/scrapal_logo.svg" alt="" /></span>
           </div>
           <button className="icon-button collapse-button" onClick={() => setSidebarCollapsed(!sidebarCollapsed)} aria-label={sidebarCollapsed ? 'Expand navigation' : 'Collapse navigation'} title={sidebarCollapsed ? 'Expand navigation' : 'Collapse navigation'}>
-            {sidebarCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+            {sidebarCollapsed ? <PanelLeftOpen size={ICON.lg} /> : <PanelLeftClose size={ICON.lg} />}
           </button>
           <button className="icon-button mobile-only" onClick={() => setNavOpen(false)} aria-label="Close navigation"><X /></button>
         </div>
@@ -114,7 +114,7 @@ function App() {
         <nav>
           {nav.map(({ id, label, icon: Icon }) => (
             <button key={id} className={view === id ? 'active' : ''} onClick={() => { setView(id); setNavOpen(false); if (id === 'retrieval-lab' || id === 'course-intelligence') setAgentOpen(false) }} aria-label={label} title={sidebarCollapsed ? label : undefined}>
-              <Icon size={19} aria-hidden="true" /><span className="nav-label">{label}</span>
+              <Icon size={ICON.lg} aria-hidden="true" /><span className="nav-label">{label}</span>
               {id === 'reviews' && (proposals.data?.filter((p) => p.status === 'pending').length ?? 0) > 0 && (
                 <b>{proposals.data?.filter((p) => p.status === 'pending').length}</b>
               )}
@@ -127,13 +127,13 @@ function App() {
             <div className="health-copy"><small>Local AI</small><strong>{system.data?.ollama.status === 'ok' ? 'Ollama ready' : system.data?.ollama.status === 'degraded' ? 'Chat needs attention' : 'Unavailable'}</strong></div>
           </div>
           <button className="theme-toggle" onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} aria-label={theme === 'light' ? 'Use dark theme' : 'Use light theme'} title={sidebarCollapsed ? (theme === 'light' ? 'Use dark theme' : 'Use light theme') : undefined}>
-            {theme === 'light' ? <Moon size={17} /> : <Sun size={17} />}
+            {theme === 'light' ? <Moon size={ICON.md} /> : <Sun size={ICON.md} />}
             <span className="nav-label">{theme === 'light' ? 'Dark theme' : 'Light theme'}</span>
           </button>
         </div>
       </aside>
 
-      <main id="workspace" className="workspace" tabIndex={-1}>
+      <main id="workspace" className="workspace" tabIndex={-1} inert={mobile && agentOpen ? true : undefined}>
         <header className="topbar">
           <button className="icon-button mobile-only" onClick={() => setNavOpen(true)} aria-label="Open navigation" aria-expanded={navOpen} aria-controls="primary-nav"><Menu size={ICON.lg} /></button>
           <div>
@@ -141,8 +141,8 @@ function App() {
             <h1>{titleFor(view)}</h1>
           </div>
           <div className="top-actions">
-            <button className="button secondary agent-trigger" onClick={() => setAgentOpen(!agentOpen)} aria-label={agentOpen ? 'Hide Scrapal agent' : 'Ask Scrapal'} title={agentOpen ? 'Hide Scrapal agent' : 'Ask Scrapal'}><Bot size={17} aria-hidden="true" /> <span>{agentOpen ? 'Hide agent' : 'Ask Scrapal'}</span></button>
-            <button className="button primary add-source-trigger" onClick={() => setNewSource(true)} aria-label="Add source" title="Add source"><Plus size={17} aria-hidden="true" /> <span>Add source</span></button>
+            <button className="button secondary agent-trigger" onClick={() => setAgentOpen(!agentOpen)} aria-label={agentOpen ? 'Hide Scrapal agent' : 'Ask Scrapal'} title={agentOpen ? 'Hide Scrapal agent' : 'Ask Scrapal'}><Bot size={ICON.md} aria-hidden="true" /> <span>{agentOpen ? 'Hide agent' : 'Ask Scrapal'}</span></button>
+            <button className="button primary add-source-trigger" onClick={() => setNewSource(true)} aria-label="Add source" title="Add source"><Plus size={ICON.md} aria-hidden="true" /> <span>Add source</span></button>
           </div>
         </header>
 
@@ -153,7 +153,7 @@ function App() {
             {view === 'overview' && <Overview activeRun={activeRun} sources={sources.data ?? []} runs={runs.data ?? []} documents={documents.data ?? []} sourceMap={sourceMap} onInspect={setSelectedRunId} />}
             {view === 'sources' && <Sources sources={sources.data ?? []} runs={runs.data ?? []} onRun={(run) => { refresh(); setSelectedRunId(run.id) }} onInspect={setSelectedRunId} onAdd={() => setNewSource(true)} />}
             {view === 'knowledge' && <Knowledge collectionId={collections.data?.[0]?.id} documents={documents.data ?? []} />}
-            {view === 'course-intelligence' && <CourseIntelligence collectionId={collections.data?.[0]?.id} />}
+            {view === 'course-intelligence' && <CourseIntelligence collectionId={collections.data?.[0]?.id} onOpenSources={() => setView('sources')} />}
             {view === 'retrieval-lab' && <RetrievalLab collectionId={collections.data?.[0]?.id} />}
             {view === 'observability' && <Observability onInspect={setSelectedRunId} />}
             {view === 'reviews' && <Reviews proposals={proposals.data ?? []} onChanged={refresh} />}
@@ -165,7 +165,7 @@ function App() {
       <AnimatePresence>
         {agentOpen && <AgentPanel collectionId={collections.data?.[0]?.id} onClose={() => setAgentOpen(false)} />}
       </AnimatePresence>
-      {agentOpen && <button className="agent-backdrop" onClick={() => setAgentOpen(false)} aria-label="Close Scrapal agent" />}
+      {agentOpen && <button className="agent-backdrop" onClick={() => setAgentOpen(false)} aria-hidden="true" tabIndex={-1} />}
 
       <AnimatePresence>
         {newSource && <AddSource collectionId={collections.data?.[0]?.id} onClose={() => setNewSource(false)} onCreated={() => { setNewSource(false); refresh(); setView('sources') }} />}
@@ -180,18 +180,53 @@ function App() {
 }
 
 function Overview({ activeRun, sources, runs, documents, sourceMap, onInspect }: { activeRun?: Run; sources: Source[]; runs: Run[]; documents: { id: string }[]; sourceMap: Map<string, Source>; onInspect: (id: string) => void }) {
-  return <>
-    <RunPath run={activeRun} onInspect={activeRun ? () => onInspect(activeRun.id) : undefined} />
-    <div className="stat-ribbon" aria-label="Workspace summary">
-      <div><Globe2 /><span><strong>{sources.length}</strong> connected sources</span></div>
-      <div><Archive /><span><strong>{documents.length}</strong> knowledge documents</span></div>
-      <div><Check /><span><strong>{runs.filter((r) => r.status === 'completed').length}</strong> completed runs</span></div>
+  const [activityFilter, setActivityFilter] = useState<'all' | 'live' | 'attention' | 'completed'>('all')
+  const liveRuns = runs.filter(isLiveRun)
+  const attentionRuns = runs.filter((run) => run.status === 'failed' || run.issues_count > 0)
+  const attentionSourceMap = new Map<string, Run>()
+  attentionRuns.forEach((run) => {
+    const sourceKey = sourceMap.get(run.source_id)?.name.trim().toLocaleLowerCase() || run.source_id
+    if (!attentionSourceMap.has(sourceKey)) attentionSourceMap.set(sourceKey, run)
+  })
+  const attentionSources = [...attentionSourceMap.values()]
+  const visibleRuns = runs.filter((run) => activityFilter === 'all'
+    || (activityFilter === 'live' && isLiveRun(run))
+    || (activityFilter === 'attention' && (run.status === 'failed' || run.issues_count > 0))
+    || (activityFilter === 'completed' && run.status === 'completed'))
+  const exceptions = runs.reduce((total, run) => total + run.issues_count, 0)
+  return <div className="overview-console">
+    <div className="overview-command-grid">
+      <RunPath run={activeRun} onInspect={activeRun ? () => onInspect(activeRun.id) : undefined} />
+      <aside className="operations-brief" aria-labelledby="operations-brief-title">
+        <header><div><span className={liveRuns.length ? 'brief-live' : 'brief-idle'} aria-hidden="true" /><p>Operations brief</p></div><strong>{liveRuns.length ? `${liveRuns.length} live` : 'Quiet'}</strong></header>
+        <div className={`brief-verdict ${attentionRuns.length ? 'attention' : 'clear'}`}>
+          {attentionRuns.length ? <CircleAlert aria-hidden="true" /> : <CircleCheckBig aria-hidden="true" />}
+          <div><strong>{attentionSources.length ? `${attentionSources.length} source${attentionSources.length === 1 ? '' : 's'} show exceptions` : 'No blocked work'}</strong><span>{attentionSources.length ? 'Review the latest affected run for each source.' : 'Workers and recent runs have no unresolved exceptions.'}</span></div>
+        </div>
+        <dl className="brief-metrics">
+          <div><dt>Sources</dt><dd>{sources.length}</dd></div>
+          <div><dt>Evidence</dt><dd>{documents.length}</dd></div>
+          <div><dt>Exceptions</dt><dd>{exceptions}</dd></div>
+        </dl>
+        <div className="brief-queue">
+          <span>Priority queue</span>
+          {attentionSources.slice(0, 3).map((run) => <button key={run.id} onClick={() => onInspect(run.id)}><span><strong>{sourceMap.get(run.source_id)?.name ?? 'Unknown source'}</strong><small>{run.status === 'failed' ? 'Latest run failed' : `${run.issues_count} exception${run.issues_count === 1 ? '' : 's'} in latest affected run`}</small></span><ChevronRight size={ICON.sm} /></button>)}
+          {!attentionSources.length && <p>New failures and policy exceptions will appear here.</p>}
+        </div>
+      </aside>
     </div>
-    <section className="panel">
-      <div className="section-heading"><div><p className="eyebrow">Recent activity</p><h2>What Scrapal has been doing</h2></div></div>
-      <RunTable runs={runs.slice(0, 6)} sourceMap={sourceMap} onSelect={onInspect} />
+    <section className="command-metrics" aria-label="Workspace operating metrics">
+      <article><span><Radio aria-hidden="true" /></span><div><small>Active workload</small><strong>{liveRuns.length}</strong><p>{liveRuns.length ? 'crawler runs in progress' : 'no runs in progress'}</p></div></article>
+      <article><span><Globe2 aria-hidden="true" /></span><div><small>Source estate</small><strong>{sources.length}</strong><p>connected inputs</p></div></article>
+      <article><span><Archive aria-hidden="true" /></span><div><small>Searchable evidence</small><strong>{documents.length}</strong><p>current documents</p></div></article>
+      <article className={exceptions ? 'attention' : ''}><span><CircleAlert aria-hidden="true" /></span><div><small>Recorded exceptions</small><strong>{exceptions}</strong><p>across retained runs</p></div></article>
     </section>
-  </>
+    <section className="activity-panel">
+      <div className="activity-heading"><div><h2>Run activity</h2><p>Open any run to inspect pages, retries, errors, and trace links.</p></div><div className="segmented-control" role="group" aria-label="Filter run activity">{(['all', 'live', 'attention', 'completed'] as const).map((filter) => <button key={filter} aria-pressed={activityFilter === filter} onClick={() => setActivityFilter(filter)}>{filter === 'all' ? `All ${runs.length}` : filter === 'live' ? `Live ${liveRuns.length}` : filter === 'attention' ? `Attention ${attentionRuns.length}` : `Completed ${runs.filter((run) => run.status === 'completed').length}`}</button>)}</div></div>
+      <RunTable runs={visibleRuns.slice(0, 8)} sourceMap={sourceMap} onSelect={onInspect} />
+      {!visibleRuns.length && <div className="inline-empty"><CircleCheckBig aria-hidden="true" /><span><strong>No runs in this view</strong><small>Choose another filter to inspect retained activity.</small></span></div>}
+    </section>
+  </div>
 }
 
 function Sources({ sources, runs, onRun, onInspect, onAdd }: { sources: Source[]; runs: Run[]; onRun: (run: Run) => void; onInspect: (id: string) => void; onAdd: () => void }) {
@@ -205,8 +240,8 @@ function Sources({ sources, runs, onRun, onInspect, onAdd }: { sources: Source[]
         <div className="source-main"><p className="eyebrow">{source.kind}</p><h2>{source.name}</h2><p>{source.url ?? 'Document uploads'}</p></div>
         <dl><div><dt>Last run</dt><dd>{source.last_run_at ? relativeDate(source.last_run_at) : 'Not run'}</dd></div><div><dt>State</dt><dd><Status status={run && run.status === 'queued' && !isLiveRun(run) ? 'worker_timeout' : run?.status ?? 'ready'} /></dd></div></dl>
         {source.kind !== 'document' && (run && isLiveRun(run)
-          ? <button className="button live full" onClick={() => onInspect(run.id)}><Radio size={16} /> Watch live run</button>
-          : <button className="button secondary full" disabled={mutation.isPending} onClick={() => mutation.mutate(source.id)}><Play size={16} /> Run now</button>)}
+          ? <button className="button live full" onClick={() => onInspect(run.id)}><Radio size={ICON.md} /> Watch live run</button>
+          : <button className="button secondary full" disabled={mutation.isPending} onClick={() => mutation.mutate(source.id)}><Play size={ICON.md} /> Run now</button>)}
       </article>
     })}
   </section>
@@ -219,7 +254,7 @@ function Knowledge({ collectionId, documents }: { collectionId?: string; documen
   return <div className="knowledge-layout">
     <section className="search-hero"><p className="eyebrow">Hybrid retrieval</p><h2>Find the evidence, not just the phrase.</h2><form onSubmit={(event) => { event.preventDefault(); setSubmitted(query) }}><Search aria-hidden="true" /><label className="sr-only" htmlFor="knowledge-query">Search knowledge</label><input id="knowledge-query" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Ask about courses, requirements, fees…" /><button>Search</button></form></section>
     {search.isFetching && <p className="loading-line"><Sparkles /> Searching words and meaning…</p>}
-    {search.data?.hits.map((hit: SearchHit) => <article className="result" key={hit.chunk_id}><div><p className="eyebrow">{hit.heading || 'Source passage'}</p><h3>{hit.title}</h3></div><p>{hit.excerpt}</p><a href={hit.url} target="_blank" rel="noreferrer">Open source <ArrowRight size={14} /></a></article>)}
+    {search.data?.hits.map((hit: SearchHit) => <article className="result" key={hit.chunk_id}><div><p className="eyebrow">{hit.heading || 'Source passage'}</p><h3>{hit.title}</h3></div><p>{hit.excerpt}</p><a href={hit.url} target="_blank" rel="noreferrer">Open source <ArrowRight size={ICON.sm} /></a></article>)}
     {!submitted && <section className="panel"><div className="section-heading"><div><p className="eyebrow">Indexed material</p><h2>Latest documents</h2></div></div>{documents.slice(0, 8).map((doc) => <div className="document-row" key={doc.id}><Database /><div><strong>{doc.title}</strong><small>{doc.media_type} · {relativeDate(doc.updated_at)}</small></div><a href={doc.canonical_url} target="_blank" rel="noreferrer" aria-label={`Open ${doc.title}`}><ChevronRight /></a></div>)}</section>}
   </div>
 }
@@ -240,7 +275,7 @@ const courseFields = [
   'deadlines',
 ] as const
 
-function CourseIntelligence({ collectionId }: { collectionId?: string }) {
+function CourseIntelligence({ collectionId, onOpenSources }: { collectionId?: string; onOpenSources: () => void }) {
   const queryClient = useQueryClient()
   const [filter, setFilter] = useState<'all' | CourseRecord['status']>('all')
   const [selectedId, setSelectedId] = useState<string>()
@@ -273,7 +308,7 @@ function CourseIntelligence({ collectionId }: { collectionId?: string }) {
       <button className={filter === 'review' ? 'active' : ''} onClick={() => setFilter('review')}><strong>{summary?.review ?? 0}</strong><span>Need review</span></button>
       <button className={filter === 'rejected' ? 'active' : ''} onClick={() => setFilter('rejected')}><strong>{summary?.rejected ?? 0}</strong><span>Rejected</span></button>
     </section>
-    {!records.isLoading && !records.data?.length && <Empty icon={GraduationCap} title="No course intelligence yet" text="Run a Greenwich source to extract typed courses, offerings, fees, requirements, and field-level evidence." />}
+    {!records.isLoading && !records.data?.length && <Empty icon={GraduationCap} title="No course records have been extracted" text="Open Sources and run a Greenwich connector. Course records appear here after pages reach the extraction stage." action="Open sources" onAction={onOpenSources} />}
     {records.isLoading && <div className="loading-line"><Radio /> Loading course evidence…</div>}
     {records.data?.length ? <div className="course-workbench">
       <section className="course-index" aria-label="Extracted courses">
@@ -299,7 +334,7 @@ function CourseEvidenceLedger({ record, note, setNote, publish, reject, busy, er
   const requiredEvidenceMissing = ['title', 'award', 'level', 'campuses', 'durations', 'intake_months', 'fees', 'entry_requirements'].some((field) => !(evidence[field]?.length))
   return <section className="course-ledger" aria-labelledby="course-ledger-title">
     <header>
-      <div><p className="eyebrow">Evidence ledger · {record.extractor_version}</p><h2 id="course-ledger-title">{String(record.data.title ?? 'Course record')}</h2><a href={record.external_id} target="_blank" rel="noreferrer">Open captured source <ExternalLink size={14} /></a></div>
+      <div><p className="eyebrow">Evidence ledger · {record.extractor_version}</p><h2 id="course-ledger-title">{String(record.data.title ?? 'Course record')}</h2><a href={record.external_id} target="_blank" rel="noreferrer">Open captured source <ExternalLink size={ICON.sm} /></a></div>
       <Status status={record.status} />
     </header>
     {(record.validation_json.review_reasons?.length ?? 0) > 0 && <div className="review-callout"><AlertTriangle /><div><strong>Review before publication</strong><p>{record.validation_json.review_reasons?.join(' · ')}</p></div></div>}
@@ -315,7 +350,7 @@ function CourseEvidenceLedger({ record, note, setNote, publish, reject, busy, er
     <div className="ledger-actions">
       <label>Review note<textarea rows={2} value={note} onChange={(event) => setNote(event.target.value)} /></label>
       {error && <p className="inline-error">{error}</p>}
-      <div><button className="button secondary" disabled={busy || note.trim().length < 3} onClick={reject}>Reject record</button><button className="button primary" disabled={busy || note.trim().length < 3 || missing.size > 0 || requiredEvidenceMissing || record.validation_json.coverage !== 1 || (record.validation_json.contradictions?.length ?? 0) > 0} onClick={publish}><Check size={16} /> Publish evidence</button></div>
+      <div><button className="button secondary" disabled={busy || note.trim().length < 3} onClick={reject}>Reject record</button><button className="button primary" disabled={busy || note.trim().length < 3 || missing.size > 0 || requiredEvidenceMissing || record.validation_json.coverage !== 1 || (record.validation_json.contradictions?.length ?? 0) > 0} onClick={publish}><Check size={ICON.md} /> Publish evidence</button></div>
     </div>
   </section>
 }
@@ -358,7 +393,7 @@ function RetrievalLab({ collectionId }: { collectionId?: string }) {
         <label>Retrieval mode<select value={mode} onChange={(event) => setMode(event.target.value as typeof mode)}><option value="hybrid">Hybrid</option><option value="full_text">Full text</option><option value="semantic">Semantic</option></select></label>
         <label className="lab-check"><input type="checkbox" checked={includeDrafts} onChange={(event) => setIncludeDrafts(event.target.checked)} /><span>Include drafts</span></label>
         <label className="lab-check"><input type="checkbox" checked={generate} onChange={(event) => setGenerate(event.target.checked)} /><span>Validate an answer</span></label>
-        <button className="button primary" disabled={run.isPending || !query.trim()}><Search size={16} />{run.isPending ? 'Tracing evidence…' : 'Run trace'}</button>
+        <button className="button primary" disabled={run.isPending || !query.trim()}><Search size={ICON.md} />{run.isPending ? 'Tracing evidence…' : 'Run trace'}</button>
       </div>
       {run.error && <p className="inline-error">{run.error.message}</p>}
     </form>
@@ -372,6 +407,8 @@ type RetrievalCandidateRow = {
   id: string
   title: string
   detail: string
+  excerpt?: string
+  url?: string
   structuredRank?: number
   lexicalRank?: number
   semanticRank?: number
@@ -382,19 +419,30 @@ type RetrievalCandidateRow = {
 
 function RetrievalTrace({ run }: { run: RetrievalRun }) {
   const candidates = useMemo(() => retrievalCandidateRows(run), [run])
+  const [scope, setScope] = useState<'context' | 'top' | 'all'>('context')
+  const [selectedId, setSelectedId] = useState<string>()
+  const packedCandidates = candidates.filter((candidate) => candidate.included)
+  const visibleCandidates = scope === 'context' ? packedCandidates : scope === 'top' ? candidates.slice(0, 15) : candidates
+  const selectedCandidate = visibleCandidates.find((candidate) => candidate.id === selectedId) ?? visibleCandidates[0]
   const columns = useMemo<ColumnDef<RetrievalCandidateRow>[]>(() => [
-    { accessorKey: 'title', header: 'Evidence', cell: ({ row }) => <div className="evidence-cell"><strong>{row.original.title}</strong><small>{row.original.detail}</small></div> },
+    { accessorKey: 'title', header: 'Evidence', cell: ({ row }) => <button className="evidence-cell" aria-pressed={selectedId === row.original.id} onClick={() => setSelectedId(row.original.id)}><strong>{row.original.title}</strong><small>{row.original.detail}</small></button> },
     { accessorKey: 'structuredRank', header: 'Structured', cell: ({ getValue }) => <Rank value={getValue<number | undefined>()} /> },
     { accessorKey: 'lexicalRank', header: 'Lexical', cell: ({ getValue }) => <Rank value={getValue<number | undefined>()} /> },
     { accessorKey: 'semanticRank', header: 'Semantic', cell: ({ getValue }) => <Rank value={getValue<number | undefined>()} /> },
     { accessorKey: 'fusedRank', header: 'Fused', cell: ({ row, getValue }) => <div className="fused-rank"><Rank value={getValue<number | undefined>()} /><small>{row.original.fusedScore?.toFixed(4) ?? '—'}</small></div> },
     { accessorKey: 'included', header: 'Decision', cell: ({ getValue }) => getValue<boolean>() ? <span className="decision included"><Check /> Included</span> : <span className="decision excluded"><X /> Excluded</span> },
-  ], [])
-  const table = useReactTable({ data: candidates, columns, getCoreRowModel: getCoreRowModel() })
+  ], [selectedId])
+  const table = useReactTable({ data: visibleCandidates, columns, getCoreRowModel: getCoreRowModel() })
+  const plan = run.query_plan as Record<string, unknown>
+  const planFilters = [plan.level, plan.residency, plan.intake, plan.study_mode].filter(Boolean).map(String)
   return <div className="retrieval-trace">
-    <section className="plan-strip"><div><small>Query plan</small><code>{JSON.stringify(run.query_plan, null, 2)}</code></div><dl>{Object.entries(run.timings_json).map(([name, value]) => <div key={name}><dt>{name.replace('_ms', '')}</dt><dd>{value}ms</dd></div>)}</dl></section>
+    <section className="plan-strip">
+      <div className="query-plan-readable"><small>Interpreted request</small><strong>{String(plan.intent ?? 'Research')}</strong><p>{Array.isArray(plan.requested_fields) && plan.requested_fields.length ? plan.requested_fields.map(String).join(', ') : 'No exact fields detected'}</p><div>{planFilters.length ? planFilters.map((filter) => <span key={filter}>{filter}</span>) : <span>No additional filters</span>}</div><details><summary>View raw plan</summary><pre>{JSON.stringify(run.query_plan, null, 2)}</pre></details></div>
+      <dl aria-label="Retrieval timing">{Object.entries(run.timings_json).map(([name, value]) => <div key={name}><dt>{name.replace('_ms', '')}</dt><dd>{formatDuration(Number(value))}</dd></div>)}</dl>
+    </section>
     <section className="ranking-workbench" aria-labelledby="ranking-title">
-      <div className="section-heading"><div><p className="eyebrow">Retrieval decision matrix</p><h2 id="ranking-title">Why each passage ranked where it did</h2></div><span>{run.context_json.length} of {candidates.length} candidates packed</span></div>
+      <div className="section-heading ranking-heading"><div><p className="eyebrow">Retrieval decision matrix</p><h2 id="ranking-title">Evidence ranking</h2><p>Start with answer context. Expand only when investigating why evidence was excluded.</p></div><span>{run.context_json.length} of {candidates.length} packed</span></div>
+      <div className="ranking-toolbar"><div className="segmented-control" role="group" aria-label="Choose evidence scope"><button aria-pressed={scope === 'context'} onClick={() => setScope('context')}>Answer context {candidates.filter((candidate) => candidate.included).length}</button><button aria-pressed={scope === 'top'} onClick={() => setScope('top')}>Top ranked {Math.min(15, candidates.length)}</button><button aria-pressed={scope === 'all'} onClick={() => setScope('all')}>All candidates {candidates.length}</button></div><p>{scope === 'context' ? 'These passages were sent to the answer model.' : scope === 'top' ? 'Best fused and single-lane candidates.' : 'Full diagnostic set. Use only for deep investigation.'}</p></div>
       <div className="ranking-table-wrap" tabIndex={0} role="region" aria-label="Scrollable retrieval rankings">
         <table className="ranking-table">
           <caption>Candidate evidence ranked independently by structured, lexical and semantic retrieval, followed by fused rank and inclusion decision.</caption>
@@ -402,10 +450,11 @@ function RetrievalTrace({ run }: { run: RetrievalRun }) {
           <tbody>{table.getRowModel().rows.map((row) => <tr className={row.original.included ? 'included' : ''} key={row.id}>{row.getVisibleCells().map((cell) => <td key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>)}</tr>)}</tbody>
         </table>
       </div>
-      <p className="ranking-note"><strong>RRF · k=60</strong> combines rank positions rather than incomparable raw scores. Included rows become the bounded answer context.</p>
+      {selectedCandidate && <aside className="candidate-inspector" aria-label="Selected evidence details"><div><small>Selected evidence</small><strong>{selectedCandidate.title}</strong><p>{selectedCandidate.excerpt ?? selectedCandidate.detail}</p></div><dl><div><dt>Structured</dt><dd>{selectedCandidate.structuredRank ? `#${selectedCandidate.structuredRank}` : '—'}</dd></div><div><dt>Lexical</dt><dd>{selectedCandidate.lexicalRank ? `#${selectedCandidate.lexicalRank}` : '—'}</dd></div><div><dt>Semantic</dt><dd>{selectedCandidate.semanticRank ? `#${selectedCandidate.semanticRank}` : '—'}</dd></div><div><dt>Fused</dt><dd>{selectedCandidate.fusedRank ? `#${selectedCandidate.fusedRank}` : '—'}</dd></div></dl>{selectedCandidate.url && <a href={selectedCandidate.url} target="_blank" rel="noreferrer">Open evidence <ExternalLink size={ICON.sm} /></a>}</aside>}
+      <p className="ranking-note"><strong>RRF, k=60.</strong> Rank positions are combined because lexical and semantic scores use different scales.</p>
     </section>
     <section className="validation-ledger">
-      <div><p className="eyebrow">Grounded answer</p><h2>{run.abstention_reason ? 'Scrapal abstained' : 'Only supported sentences survived'}</h2><p className={run.abstention_reason ? 'lab-abstention' : ''}>{run.generated_answer ?? `No answer was emitted: ${run.abstention_reason ?? 'generation was not requested'}.`}</p>{run.answer_model && <small>Answer model · {run.answer_model}</small>}</div>
+      <div><p className="eyebrow">Answer validation</p><h2>{run.abstention_reason ? 'No supported answer' : 'Grounded answer'}</h2><p className={run.abstention_reason ? 'lab-abstention' : ''}>{run.generated_answer ?? (run.abstention_reason ? `Scrapal stopped because ${run.abstention_reason.replaceAll('_', ' ')}.` : 'Answer generation was not requested.')}</p>{run.answer_model && <small>Answer model · {run.answer_model}</small>}</div>
       <ol>{run.citation_results.map((item, index) => <li className={item.supported ? 'supported' : 'withheld'} key={index}>{item.supported ? <Check /> : <X />}<div><strong>{item.supported ? 'Emitted' : 'Withheld'}</strong><p>{item.sentence}</p><small>{item.supported ? `Evidence ${item.citations.map((citation) => `[${citation}]`).join(' ')}` : item.reason?.replaceAll('_', ' ')}</small></div></li>)}</ol>
     </section>
   </div>
@@ -420,6 +469,7 @@ function retrievalCandidateRows(run: RetrievalRun): RetrievalCandidateRow[] {
   const add = (items: Record<string, unknown>[], field: 'structuredRank' | 'lexicalRank' | 'semanticRank') => items.forEach((item, index) => {
     const id = candidateId(item, `${field}-${index}`)
     const existing = rows.get(id) ?? { id, title: candidateTitle(item), detail: candidateDetail(item), included: false }
+    hydrateCandidate(existing, item)
     existing[field] = index + 1
     rows.set(id, existing)
   })
@@ -430,6 +480,7 @@ function retrievalCandidateRows(run: RetrievalRun): RetrievalCandidateRow[] {
     const raw = item as unknown as Record<string, unknown>
     const id = candidateId(raw, `fused-${index}`)
     const existing = rows.get(id) ?? { id, title: candidateTitle(raw), detail: candidateDetail(raw), included: false }
+    hydrateCandidate(existing, raw)
     existing.fusedRank = index + 1
     existing.fusedScore = Number(raw.fused_score ?? raw.score ?? 0)
     rows.set(id, existing)
@@ -437,6 +488,11 @@ function retrievalCandidateRows(run: RetrievalRun): RetrievalCandidateRow[] {
   const included = new Set(run.context_json.map((item) => item.chunk_id))
   rows.forEach((row) => { row.included = included.has(row.id) })
   return [...rows.values()].sort((a, b) => Number(b.included) - Number(a.included) || (a.fusedRank ?? 999) - (b.fusedRank ?? 999) || Math.min(a.structuredRank ?? 999, a.lexicalRank ?? 999, a.semanticRank ?? 999) - Math.min(b.structuredRank ?? 999, b.lexicalRank ?? 999, b.semanticRank ?? 999))
+}
+
+function hydrateCandidate(candidate: RetrievalCandidateRow, item: Record<string, unknown>) {
+  candidate.url ??= typeof item.url === 'string' ? item.url : typeof item.canonical_url === 'string' ? item.canonical_url : undefined
+  candidate.excerpt ??= typeof item.excerpt === 'string' ? item.excerpt : typeof item.content === 'string' ? item.content.slice(0, 420) : undefined
 }
 
 function candidateId(item: Record<string, unknown>, fallback: string) {
@@ -457,7 +513,7 @@ function Reviews({ proposals, onChanged }: { proposals: { id: string; title: str
   const reject = useMutation({ mutationFn: api.rejectProposal, onSuccess: onChanged })
   const pending = proposals.filter((proposal) => proposal.status === 'pending')
   if (!pending.length) return <Empty icon={ShieldCheck} title="Nothing needs review" text="Low-confidence changes and agent-proposed actions will wait here before they can affect your workspace." />
-  return <section className="review-stack">{pending.map((proposal) => <article className="review-card" key={proposal.id}><div className={`risk ${proposal.risk}`}><CircleAlert /> {proposal.risk} risk</div><p className="eyebrow">Agent proposal · {proposal.action_type}</p><h2>{proposal.title}</h2><p>{proposal.rationale}</p><div className="review-actions"><button className="button secondary" disabled={reject.isPending} onClick={() => reject.mutate(proposal.id)}>Reject</button><button className="button primary" disabled={approve.isPending} onClick={() => approve.mutate(proposal.id)}><Check size={16} /> Approve action</button></div></article>)}</section>
+  return <section className="review-stack">{pending.map((proposal) => <article className="review-card" key={proposal.id}><div className={`risk ${proposal.risk}`}><CircleAlert /> {proposal.risk} risk</div><p className="eyebrow">Agent proposal · {proposal.action_type}</p><h2>{proposal.title}</h2><p>{proposal.rationale}</p><div className="review-actions"><button className="button secondary" disabled={reject.isPending} onClick={() => reject.mutate(proposal.id)}>Reject</button><button className="button primary" disabled={approve.isPending} onClick={() => approve.mutate(proposal.id)}><Check size={ICON.md} /> Approve action</button></div></article>)}</section>
 }
 
 function Settings({ system }: { system?: { ollama: { status: string; version?: string; models?: string[]; detail?: string } } }) {
@@ -479,7 +535,7 @@ function Observability({ onInspect }: { onInspect: (id: string) => void }) {
   return <div className="observability-view">
     <section className="ops-command">
       <div><p className="eyebrow">Crawler control plane</p><h2>Every page leaves a pulse.</h2><p>Follow work from queue to evidence. Failures stay attached to the exact stage, URL, worker, and trace that produced them.</p></div>
-      <button className="button secondary" onClick={openGrafana}><ExternalLink size={16} /> Open Grafana</button>
+      <button className="button secondary" onClick={openGrafana}><ExternalLink size={ICON.md} /> Open Grafana</button>
       
     </section>
     <section className="ops-metrics" aria-label="Crawler service levels">
@@ -489,7 +545,7 @@ function Observability({ onInspect }: { onInspect: (id: string) => void }) {
       <article className={data?.open_incidents ? 'attention' : ''}><small>Open incidents</small><strong>{data?.open_incidents ?? '—'}</strong><span>{data?.stage_failures ?? 0} failed stages</span></article>
     </section>
     <div className="ops-grid">
-      <section className="panel ops-runs"><div className="section-heading"><div><p className="eyebrow">Live workload</p><h2>Crawler runs</h2></div><span className="connection-chip"><Radio size={13} /> Refreshing live</span></div>
+      <section className="panel ops-runs"><div className="section-heading"><div><p className="eyebrow">Live workload</p><h2>Crawler runs</h2></div><span className="connection-chip"><Radio size={ICON.xs} /> Refreshing live</span></div>
         <div className="ops-run-list">{runs.data?.slice(0, 8).map((run) => <OpsRunRow key={run.id} run={run} onInspect={onInspect} />)}{!runs.data?.length && <p className="empty-row">No crawler runs recorded.</p>}</div>
       </section>
       <section className="panel ops-health"><div className="section-heading"><div><p className="eyebrow">Runtime</p><h2>Workers & dependencies</h2></div></div>
@@ -504,18 +560,21 @@ function Observability({ onInspect }: { onInspect: (id: string) => void }) {
 
 function OpsRunRow({ run, onInspect }: { run: ObservabilityRun; onInspect: (id: string) => void }) {
   const progress = Math.round(run.pages_processed / Math.max(run.pages_discovered, 1) * 100)
-  return <button className="ops-run-row" onClick={() => onInspect(run.id)}><span className={`ops-node ${run.status}`}><Activity size={16} /></span><span><strong>{run.source_name}</strong><small>{run.connector} · {run.pages_processed}/{run.pages_discovered} pages</small></span><Meter value={progress} tone={run.status === 'failed' ? 'fail' : run.status === 'completed' ? 'done' : 'active'} label={`${run.pages_processed} of ${run.pages_discovered} pages`} /><Status status={run.status} warnings={run.issues_count} /><ChevronRight size={17} /></button>
+  return <button className="ops-run-row" onClick={() => onInspect(run.id)}><span className={`ops-node ${run.status}`}><Activity size={ICON.md} /></span><span><strong>{run.source_name}</strong><small>{run.connector} · {run.pages_processed}/{run.pages_discovered} pages</small></span><Meter value={progress} tone={run.status === 'failed' ? 'fail' : run.status === 'completed' ? 'done' : 'active'} label={`${run.pages_processed} of ${run.pages_discovered} pages`} /><Status status={run.status} warnings={run.issues_count} /><ChevronRight size={ICON.md} /></button>
 }
 
-function HealthRow({ icon: Icon, label, status, detail }: { icon: typeof Server; label: string; status: string; detail: string }) { const ok = status === 'ok'; return <div className="health-row"><span className={ok ? 'healthy' : status === 'loading' ? 'degraded' : 'unhealthy'}><Icon size={16} /></span><div><strong>{label}</strong><small>{detail}</small></div><b>{status}</b></div> }
+function HealthRow({ icon: Icon, label, status, detail }: { icon: typeof Server; label: string; status: string; detail: string }) { const ok = status === 'ok'; return <div className="health-row"><span className={ok ? 'healthy' : status === 'loading' ? 'degraded' : 'unhealthy'}><Icon size={ICON.md} /></span><div><strong>{label}</strong><small>{detail}</small></div><b>{status}</b></div> }
 
 function IncidentRow({ incident, onInspect, onAcknowledge, onResolve }: { incident: Incident; onInspect: (id: string) => void; onAcknowledge: () => void; onResolve: () => void }) { return <article className={`incident-row ${incident.severity}`}><AlertTriangle /><div><div><span>{incident.severity}</span><small>{incident.service} · {relativeDate(incident.last_seen_at)}</small></div><strong>{incident.summary}</strong><p>{incident.remediation}</p></div><div className="incident-actions">{incident.run_id && <button onClick={() => onInspect(incident.run_id!)}>Inspect run</button>}<button onClick={onAcknowledge}>Acknowledge</button><button onClick={onResolve}>Resolve</button></div></article> }
 
 function AgentPanel({ collectionId, onClose }: { collectionId?: string; onClose: () => void }) {
+  const panelRef = useRef<HTMLElement>(null)
+  const mobile = useMediaQuery('(max-width: 760px)')
   const [conversation, setConversation] = useState<string>()
   const [input, setInput] = useState('')
   const [phase, setPhase] = useState('Searching your knowledge')
   const [messages, setMessages] = useState<AgentMessage[]>([])
+  useDialog(panelRef, onClose, mobile)
   const updateAssistant = (id: string, update: (message: AgentMessage) => AgentMessage) => setMessages((items) => items.map((message) => message.id === id ? update(message) : message))
   const send = useMutation({ mutationFn: async ({ content, requestId }: { content: string; requestId: string }) => {
     let id = conversation
@@ -539,7 +598,7 @@ function AgentPanel({ collectionId, onClose }: { collectionId?: string; onClose:
     return generation
   } })
   const submit = (event: FormEvent) => { event.preventDefault(); if (send.isPending) return; const value = input.trim(); if (!value) return; const requestId = crypto.randomUUID(); setMessages((items) => [...items, { id: `user-${requestId}`, role: 'user', content: value }]); setInput(''); setPhase('Searching your knowledge'); send.mutate({ content: value, requestId }) }
-  return <motion.aside className="agent-panel" initial={{ x: 50, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 50, opacity: 0 }} aria-label="Scrapal agent"><header><div className="agent-avatar"><Sparkles /></div><div><p className="eyebrow">Grounded in your sources</p><h2>Ask Scrapal</h2></div><button className="icon-button" onClick={onClose} aria-label="Close agent"><X /></button></header><div className="messages" aria-live="polite">{messages.length === 0 && <div className="agent-empty"><MessageSquareText /><h3>Research with receipts.</h3><p>Ask across your collections. Every factual answer links back to its evidence.</p><button onClick={() => setInput('Which courses have a January intake?')}>Try “Which courses have a January intake?”</button></div>}{messages.map((message) => <div className={`message ${message.role}`} key={message.id}><p>{message.content}</p>{message.citations?.length ? <div className="citations">{message.citations.map((citation) => citation.url ? <a key={citation.number} href={citation.url} target="_blank" rel="noreferrer">[{citation.number}] {citation.title}</a> : <span key={citation.number}>[{citation.number}] {citation.title}</span>)}</div> : null}</div>)}{send.isPending && <div className="thinking"><span /><span /><span /><em>{phase}</em></div>}{send.error && <p className="inline-error">{send.error.message}</p>}</div><form className="agent-composer" onSubmit={submit}><label className="sr-only" htmlFor="agent-input">Ask Scrapal</label><textarea id="agent-input" value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask a cited question…" rows={3} /><button aria-label="Send message" disabled={send.isPending || !input.trim()}><ArrowRight /></button></form></motion.aside>
+  return <motion.aside ref={panelRef} className="agent-panel" initial={{ x: 50, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 50, opacity: 0 }} role={mobile ? 'dialog' : undefined} aria-modal={mobile ? 'true' : undefined} aria-label="Scrapal agent"><header><div className="agent-avatar"><Sparkles /></div><div><p className="eyebrow">Grounded in your sources</p><h2>Ask Scrapal</h2></div><button className="icon-button" onClick={onClose} aria-label="Close agent"><X /></button></header><div className="messages" aria-live="polite">{messages.length === 0 && <div className="agent-empty"><MessageSquareText /><h3>Research with receipts.</h3><p>Ask across your collections. Every factual answer links back to its evidence.</p><button onClick={() => setInput('Which courses have a January intake?')}>Try “Which courses have a January intake?”</button></div>}{messages.map((message) => <div className={`message ${message.role}`} key={message.id}><p>{message.content}</p>{message.citations?.length ? <div className="citations">{message.citations.map((citation) => citation.url ? <a key={citation.number} href={citation.url} target="_blank" rel="noreferrer">[{citation.number}] {citation.title}</a> : <span key={citation.number}>[{citation.number}] {citation.title}</span>)}</div> : null}</div>)}{send.isPending && <div className="thinking"><span /><span /><span /><em>{phase}</em></div>}{send.error && <p className="inline-error">{send.error.message}</p>}</div><form className="agent-composer" onSubmit={submit}><label className="sr-only" htmlFor="agent-input">Ask Scrapal</label><textarea id="agent-input" value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask a cited question…" rows={3} /><button aria-label="Send message" disabled={send.isPending || !input.trim()}><ArrowRight /></button></form></motion.aside>
 }
 
 function AddSource({ collectionId, onClose, onCreated }: { collectionId?: string; onClose: () => void; onCreated: () => void }) {
@@ -632,7 +691,7 @@ function RunMonitor({ runId, onClose }: { runId: string; onClose: () => void }) 
         <button className="icon-button" onClick={onClose} aria-label="Close live run"><X /></button>
       </header>
       <div className="run-monitor-scroll">
-        <div className={`live-connection ${connection}`}><Radio size={15} /><span>{connection === 'live' ? 'Live updates connected' : connection === 'connecting' ? 'Connecting to live updates' : connection === 'ended' ? 'Run finished' : 'Live connection interrupted'}</span></div>
+        <div className={`live-connection ${connection}`}><Radio size={ICON.sm} /><span>{connection === 'live' ? 'Live updates connected' : connection === 'connecting' ? 'Connecting to live updates' : connection === 'ended' ? 'Run finished' : 'Live connection interrupted'}</span></div>
         <section className="run-progress" aria-live="polite">
           <div className="run-progress-heading"><Status status={run?.status ?? 'queued'} warnings={run?.issues_count} /><strong>{percent}%</strong></div>
           <div className="progress-rail"><Meter value={percent} tone={run?.status === 'failed' ? 'fail' : percent === 100 ? 'done' : 'active'} label={`${percent}% of discovered pages checked`} /></div>
@@ -648,9 +707,9 @@ function RunMonitor({ runId, onClose }: { runId: string; onClose: () => void }) 
         <EventTimeline events={timeline.data ?? []} runId={activeRunId} />
         {run?.status === 'failed' && run.error && <section className="fatal-error"><CircleAlert /><div><strong>Run stopped</strong><p>{run.error}</p></div></section>}
         <div className="run-controls">
-          {run && ['queued', 'running'].includes(run.status) && <button className="button danger" disabled={cancel.isPending || run.cancel_requested} onClick={() => cancel.mutate(run.id)}><X size={16} />{run.cancel_requested ? 'Stopping safely…' : 'Stop crawl'}</button>}
-          {run?.status === 'failed' && run.pages_processed < run.pages_discovered && <button className="button primary" disabled={resume.isPending} onClick={() => resume.mutate(run.source_id)}><Play size={16} />{resume.isPending ? 'Resuming…' : 'Resume crawl'}</button>}
-          {run && !['queued', 'running'].includes(run.status) && run.issues.some((issue) => issue.stage !== 'policy') && <button className="button secondary" disabled={retry.isPending} onClick={() => retry.mutate(run.id)}><RotateCcw size={16} />{retry.isPending ? 'Starting retry…' : 'Retry failed pages'}</button>}
+          {run && ['queued', 'running'].includes(run.status) && <button className="button danger" disabled={cancel.isPending || run.cancel_requested} onClick={() => cancel.mutate(run.id)}><X size={ICON.md} />{run.cancel_requested ? 'Stopping safely…' : 'Stop crawl'}</button>}
+          {run?.status === 'failed' && run.pages_processed < run.pages_discovered && <button className="button primary" disabled={resume.isPending} onClick={() => resume.mutate(run.source_id)}><Play size={ICON.md} />{resume.isPending ? 'Resuming…' : 'Resume crawl'}</button>}
+          {run && !['queued', 'running'].includes(run.status) && run.issues.some((issue) => issue.stage !== 'policy') && <button className="button secondary" disabled={retry.isPending} onClick={() => retry.mutate(run.id)}><RotateCcw size={ICON.md} />{retry.isPending ? 'Starting retry…' : 'Retry failed pages'}</button>}
         </div>
         <section className="issue-feed">
           <div className="section-heading"><div><p className="eyebrow">Page-level feedback</p><h3>What happened</h3></div><span>{run?.issues.length ?? 0}</span></div>
@@ -669,7 +728,7 @@ function EventTimeline({ events, runId }: { events: CrawlEvent[]; runId: string 
   const recent = events.slice(-12).reverse()
   const openGrafana = async (traceId?: string | null) => window.open((await api.grafanaLink(runId, traceId ?? undefined)).url, '_blank', 'noopener,noreferrer')
   return <section className="event-timeline">
-    <div className="section-heading"><div><p className="eyebrow">Stage telemetry</p><h3>Live execution thread</h3></div><button className="text-action" onClick={() => openGrafana()}><ExternalLink size={14} /> Grafana</button></div>
+    <div className="section-heading"><div><p className="eyebrow">Stage telemetry</p><h3>Live execution thread</h3></div><button className="text-action" onClick={() => openGrafana()}><ExternalLink size={ICON.sm} /> Grafana</button></div>
     {!recent.length && <div className="timeline-waiting"><Radio /><span><strong>Waiting for the first stage event</strong><small>The worker will report discovery, fetch, extraction, persistence, and indexing here.</small></span></div>}
     <ol>{recent.map((event) => <li key={event.id} className={event.outcome}>
       <span className="event-pin">{event.outcome === 'failed' ? <AlertTriangle /> : event.outcome === 'completed' ? <Check /> : event.outcome === 'policy_skipped' ? <ShieldCheck /> : <Activity />}</span>
