@@ -100,6 +100,8 @@ h2 { font-size: clamp(1.2rem, 1.7vw, 1.6rem); }
 .topbar { position: sticky; top: 0; z-index: 8; min-height: 78px; display: flex; gap: 1rem; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--paper) 96%, transparent); backdrop-filter: blur(16px); }
 .topbar > div:nth-child(2) { min-width: 0; }
 .top-actions { display: flex; gap: .6rem; }
+.collection-picker { display: flex; align-items: center; gap: 8px; }
+.collection-picker select { max-width: 220px; border: 1px solid var(--line); border-radius: 9px; padding: 7px 10px; color: var(--ink); background: var(--surface); font-size: 13.5px; font-weight: 700; }
 .view { padding-top: 1.1rem; }
 .connection-banner { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; gap: .8rem; align-items: center; margin-top: 1rem; padding: .85rem 1rem; border: 1px solid color-mix(in srgb, var(--coral) 45%, var(--line)); border-radius: 13px; background: color-mix(in srgb, var(--coral) 8%, var(--surface)); }
 .connection-banner > svg { color: var(--coral); }
@@ -113,6 +115,11 @@ h2 { font-size: clamp(1.2rem, 1.7vw, 1.6rem); }
 .button.secondary:hover { border-color: var(--cobalt); }
 .button.live { color: var(--cobalt-dark); border-color: color-mix(in srgb, var(--cobalt) 38%, var(--line)); background: color-mix(in srgb, var(--cobalt) 8%, var(--surface)); }
 .button.full { width: 100%; }
+.institution-spine { margin-bottom: 1rem; }
+.institution-spine ul { display: grid; gap: 10px; margin: 12px 0 0; padding: 0; list-style: none; }
+.institution-spine li { display: grid; grid-template-columns: minmax(0, 1fr) 120px auto; gap: 14px; align-items: center; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+.institution-spine .country { margin-left: 8px; border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; color: var(--ink-soft); font-size: 11px; }
+.institution-spine .counts { color: var(--ink-soft); font-size: 12.5px; white-space: nowrap; }
 .icon-button { width: 44px; height: 44px; display: inline-grid; place-items: center; flex: 0 0 auto; padding: 0; border: 1px solid var(--line); border-radius: 11px; background: var(--surface); cursor: pointer; }
 .mobile-only { display: none; }
 
@@ -709,6 +716,8 @@ td .meter { width: 110px; margin-bottom: .3rem; }
   .top-actions .button { width: 44px; min-width: 44px; padding: 0; box-shadow: none; }
   .top-actions .button span { display: none; }
   .top-actions .button svg { width: 19px; height: 19px; }
+  .collection-picker select { max-width: 42vw; }
+  .institution-spine li { grid-template-columns: 1fr; gap: 8px; }
   .connection-banner { grid-template-columns: 22px minmax(0, 1fr); }
   .connection-banner .button { grid-column: 2; justify-self: start; }
   .run-path { padding: 1rem; }

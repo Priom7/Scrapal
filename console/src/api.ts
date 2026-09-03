@@ -4,6 +4,18 @@ const baseUrl = (import.meta.env.VITE_API_URL ?? '/api').replace(/\/$/, '')
 const apiKey = import.meta.env.VITE_API_KEY ?? 'scrapal-local-dev-key'
 
 export type Collection = { id: string; name: string; description: string }
+export type Institution = {
+  id: string
+  name: string
+  slug: string
+  domain: string
+  country_code: string | null
+  city: string | null
+  website_url: string | null
+  logo_url: string | null
+  banner_url: string | null
+  brand_color: string | null
+}
 export type Source = {
   id: string
   collection_id: string
@@ -232,6 +244,16 @@ export type CourseIntelligenceOverview = {
   review: number
   rejected: number
   average_coverage: number
+  by_institution: {
+    institution_id: string | null
+    name: string
+    country_code: string | null
+    total: number
+    published: number
+    review: number
+    rejected: number
+    average_coverage: number
+  }[]
   missing_fields: { field: string; count: number }[]
 }
 
@@ -254,6 +276,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
 export const api = {
   collections: () => request<Collection[]>('/v1/collections'),
+  institutions: () => request<Institution[]>('/v1/admin/course-intelligence/institutions'),
   sources: () => request<Source[]>('/v1/sources'),
   runs: () => request<Run[]>('/v1/runs'),
   run: (id: string) => request<RunDetail>(`/v1/runs/${id}`),

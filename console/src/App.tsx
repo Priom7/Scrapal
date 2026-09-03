@@ -38,6 +38,8 @@ import {
 import { AnimatePresence, motion, MotionConfig } from 'motion/react'
 import { FormEvent, KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api, CourseRecord, CrawlBlueprint, CrawlEvent, Incident, ObservabilityRun, RetrievalRun, Run, RunDetail, SearchHit, Source } from './api'
+import { CollectionPicker } from './CollectionPicker'
+import { useCollectionScope } from './CollectionScope'
 import { InterpretedQuery } from './QueryPlan'
 import { RunPath } from './RunPath'
 import { formatDuration, ICON, isLiveRun, QueryPlanData, readPlan, relativeDate, Tone, useDialog, useMediaQuery, uuid } from './lib'
@@ -72,6 +74,7 @@ function App() {
   const [newSource, setNewSource] = useState(false)
   const [selectedRunId, setSelectedRunId] = useState<string>()
   const collections = useQuery({ queryKey: ['collections'], queryFn: api.collections })
+  const { scope, setScope } = useCollectionScope()
   const sources = useQuery({ queryKey: ['sources'], queryFn: api.sources })
   const runs = useQuery({ queryKey: ['runs'], queryFn: api.runs })
   const documents = useQuery({ queryKey: ['documents'], queryFn: api.documents })
@@ -149,6 +152,7 @@ function App() {
             <h1>{titleFor(view)}</h1>
           </div>
           <div className="top-actions">
+            <CollectionPicker collections={collections.data ?? []} scope={scope} onChange={setScope} />
             <button className="button secondary agent-trigger" onClick={() => setAgentOpen(!agentOpen)} aria-label={agentOpen ? 'Hide Scrapal agent' : 'Ask Scrapal'} title={agentOpen ? 'Hide Scrapal agent' : 'Ask Scrapal'}><Bot size={ICON.md} aria-hidden="true" /> <span>{agentOpen ? 'Hide agent' : 'Ask Scrapal'}</span></button>
             <button className="button primary add-source-trigger" onClick={() => setNewSource(true)} aria-label="Add source" title="Add source"><Plus size={ICON.md} aria-hidden="true" /> <span>Add source</span></button>
           </div>
@@ -160,9 +164,9 @@ function App() {
           <motion.div key={view} className="view" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: .18 }}>
             {view === 'overview' && <Overview activeRun={activeRun} sources={sources.data ?? []} runs={runs.data ?? []} documents={documents.data ?? []} sourceMap={sourceMap} onInspect={setSelectedRunId} />}
             {view === 'sources' && <Sources sources={sources.data ?? []} runs={runs.data ?? []} onRun={(run) => { refresh(); setSelectedRunId(run.id) }} onInspect={setSelectedRunId} onAdd={() => setNewSource(true)} />}
-            {view === 'knowledge' && <Knowledge collectionId={collections.data?.[0]?.id} documents={documents.data ?? []} />}
-            {view === 'course-intelligence' && <CourseIntelligence collectionId={collections.data?.[0]?.id} onOpenSources={() => setView('sources')} />}
-            {view === 'retrieval-lab' && <RetrievalLab collectionId={collections.data?.[0]?.id} />}
+            {view === 'knowledge' && <Knowledge collectionId={scope} documents={documents.data ?? []} />}
+            {view === 'course-intelligence' && <CourseIntelligence collectionId={scope} onOpenSources={() => setView('sources')} />}
+            {view === 'retrieval-lab' && <RetrievalLab collectionId={scope} />}
             {view === 'observability' && <Observability onInspect={setSelectedRunId} />}
             {view === 'reviews' && <Reviews proposals={proposals.data ?? []} onChanged={refresh} />}
             {view === 'settings' && <Settings system={system.data} />}
@@ -171,12 +175,12 @@ function App() {
       </main>
 
       <AnimatePresence>
-        {agentOpen && <AgentPanel collectionId={collections.data?.[0]?.id} onClose={() => setAgentOpen(false)} />}
+        {agentOpen && <AgentPanel collectionId={scope} onClose={() => setAgentOpen(false)} />}
       </AnimatePresence>
       {agentOpen && <button className="agent-backdrop" onClick={() => setAgentOpen(false)} aria-hidden="true" tabIndex={-1} />}
 
       <AnimatePresence>
-        {newSource && <AddSource collectionId={collections.data?.[0]?.id} onClose={() => setNewSource(false)} onCreated={() => { setNewSource(false); refresh(); setView('sources') }} />}
+        {newSource && <AddSource collectionId={scope ?? collections.data?.[0]?.id} onClose={() => setNewSource(false)} onCreated={() => { setNewSource(false); refresh(); setView('sources') }} />}
       </AnimatePresence>
       <AnimatePresence>
         {selectedRunId && <RunMonitor runId={selectedRunId} onClose={closeRunMonitor} />}
@@ -315,6 +319,23 @@ function CourseIntelligence({ collectionId, onOpenSources }: { collectionId?: st
       <button className={filter === 'published' ? 'active' : ''} onClick={() => setFilter('published')}><strong>{summary?.published ?? 0}</strong><span>Published</span></button>
       <button className={filter === 'review' ? 'active' : ''} onClick={() => setFilter('review')}><strong>{summary?.review ?? 0}</strong><span>Need review</span></button>
       <button className={filter === 'rejected' ? 'active' : ''} onClick={() => setFilter('rejected')}><strong>{summary?.rejected ?? 0}</strong><span>Rejected</span></button>
+    </section>
+    <section className="institution-spine">
+      <h3>Coverage by university</h3>
+      <ul>
+        {overview.data?.by_institution.map((row) => (
+          <li key={row.institution_id ?? 'none'}>
+            <div>
+              <strong>{row.name}</strong>
+              {row.country_code && <span className="country">{row.country_code}</span>}
+            </div>
+            <Meter value={row.average_coverage * 100} />
+            <span className="counts">
+              {row.published} published · {row.review} in review
+            </span>
+          </li>
+        ))}
+      </ul>
     </section>
     {!records.isLoading && !records.data?.length && <Empty icon={GraduationCap} title="No course records have been extracted" text="Open Sources and run a Greenwich connector. Course records appear here after pages reach the extraction stage." action="Open sources" onAction={onOpenSources} />}
     {records.isLoading && <div className="loading-line"><Radio /> Loading course evidence…</div>}
