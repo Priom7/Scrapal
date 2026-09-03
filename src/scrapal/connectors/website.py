@@ -20,6 +20,7 @@ class WebsiteConfig(BaseModel):
     exclude_patterns: list[str] = Field(default_factory=list)
     max_pages: int = Field(default=100, ge=1, le=10_000)
     max_depth: int = Field(default=2, ge=0, le=10)
+    max_llm_pages: int = Field(default=200, ge=0, le=10_000)
     respect_robots: bool = True
 
     @field_validator("start_url")

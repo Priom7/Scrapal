@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import mimetypes
 import time
 from collections import deque
@@ -49,6 +50,8 @@ from scrapal.services.crawl_events import (
 from scrapal.services.indexing import index_document_version
 from scrapal.services.ollama import OllamaService
 from scrapal.telemetry import ACTIVE_RUNS, FETCH_BYTES, OUTPUT_TOTAL, RUNS_TOTAL, trace_ids, tracer
+
+logger = logging.getLogger(__name__)
 
 
 class FetchFailure(RuntimeError):
@@ -261,6 +264,7 @@ async def _ingest_source(session: AsyncSession, source: Source, run: Run) -> Non
     else:
         queue = deque([(str(source.url or config.start_url), 0)])
     seen: set[str] = set()
+    llm_pages = 0
     run.pages_discovered = len(queue)
     await record_crawl_event(
         session,
@@ -402,6 +406,21 @@ async def _ingest_source(session: AsyncSession, source: Source, run: Run) -> Non
                 )
                 persist_started = time.perf_counter()
                 with tracer.start_as_current_span("document.persist"):
+                    within_budget = llm_pages < config.max_llm_pages
+                    if content_type.startswith("text/html"):
+                        if within_budget:
+                            llm_pages += 1
+                        elif llm_pages == config.max_llm_pages:
+                            llm_pages += 1
+                            await record_run_issue(
+                                session,
+                                run,
+                                url,
+                                "extraction",
+                                "llm_budget_exhausted",
+                                "Model-assisted extraction budget spent; later pages are "
+                                "read structurally only.",
+                            )
                     created = await persist_extraction(
                         session,
                         source,
@@ -410,6 +429,7 @@ async def _ingest_source(session: AsyncSession, source: Source, run: Run) -> Non
                         response.content,
                         content_type,
                         extracted,
+                        use_model=within_budget,
                     )
                 chunks_count = len(chunk_text(extracted.get("text", "")))
                 await record_crawl_event(
@@ -488,9 +508,17 @@ async def persist_extraction(
     raw: bytes,
     content_type: str,
     extracted: dict,
+    *,
+    use_model: bool = True,
 ) -> bool:
     if not extracted.get("structured_records") and content_type.startswith("text/html"):
-        course_records = await extract_course_records(source, url, raw, ollama=OllamaService())
+        # The model pass is the slowest stage of a large crawl, so the caller
+        # decides whether this page still has budget for it. Without it the
+        # structural pass still runs and the record still reaches review with
+        # its missing fields named.
+        course_records = await extract_course_records(
+            source, url, raw, ollama=OllamaService() if use_model else None
+        )
         if course_records:
             extracted = {**extracted, "structured_records": course_records}
     suffix = mimetypes.guess_extension(content_type) or Path(urlparse(url).path).suffix or ".bin"
@@ -561,7 +589,9 @@ async def extract_course_records(
     try:
         return await extractor.extract_records(url, html)
     except Exception:
-        # One unreadable page must not end a 500-page crawl.
+        # One unreadable page must not end a 500-page crawl, but a silent
+        # failure must not look like a page that simply had no course on it.
+        logger.exception("Course extraction failed for %s", url)
         return []
 
 
@@ -584,6 +614,12 @@ async def persist_structured_records(
             )
         )
         if record:
+            # An institution is not content: it must stay current on every
+            # revisit, including one where nothing else changed, or a record
+            # whose page never changes again keeps a stale or null
+            # institution forever and silently drops out of institution
+            # joins.
+            record.institution_id = source.institution_id
             changed = (
                 record.data != item["data"]
                 or record.evidence != item.get("evidence", {})
@@ -597,7 +633,6 @@ async def persist_structured_records(
                 record.published = status == RecordStatus.published
                 record.validation_json = validation
                 record.extractor_version = extractor_version
-                record.institution_id = source.institution_id
                 record.revision += 1
                 session.add(
                     StructuredRecordRevision(

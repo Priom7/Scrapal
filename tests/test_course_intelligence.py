@@ -16,7 +16,11 @@ from scrapal.models import (
     StructuredRecord,
     StructuredRecordRevision,
 )
-from scrapal.services.ingestion import extract_course_records, persist_structured_records
+from scrapal.services.ingestion import (
+    extract_course_records,
+    persist_extraction,
+    persist_structured_records,
+)
 
 
 @pytest.mark.asyncio
@@ -196,4 +200,79 @@ async def test_persisted_records_carry_the_institution_of_their_source() -> None
         stored = await session.scalar(select(StructuredRecord))
     assert stored is not None
     assert stored.institution_id == institution.id
+    await engine.dispose()
+
+
+async def test_persist_extraction_runs_course_extraction_for_a_university_page() -> None:
+    # The guard in persist_extraction is the seam this task exists to wire: an
+    # HTML page from a university source, whose connector found no records of
+    # its own, must reach the generic extractor.
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    async with sessions() as session:
+        organization = Organization(name="Test")
+        session.add(organization)
+        await session.flush()
+        collection = Collection(organization_id=organization.id, name="Courses")
+        session.add(collection)
+        await session.flush()
+        source = Source(
+            collection_id=collection.id,
+            name="Buckingham",
+            kind=SourceKind.sitemap,
+            url="https://www.buckingham.ac.uk/course-page-sitemap.xml",
+            config={"domain_pack": "university"},
+        )
+        session.add(source)
+        await session.commit()
+        html = Path("tests/fixtures/buckingham_course.html").read_bytes()
+        await persist_extraction(
+            session,
+            source,
+            None,
+            "https://www.buckingham.ac.uk/courses/llm-international-commercial-law",
+            html,
+            "text/html",
+            {"title": "LLM", "text": "x", "metadata": {}},
+            use_model=False,
+        )
+        await session.commit()
+        stored = await session.scalar(select(StructuredRecord))
+    assert stored is not None
+    assert stored.schema_name == "university.course"
+    assert stored.extractor_version == "generic-university-v1"
+    await engine.dispose()
+
+
+async def test_persist_extraction_leaves_a_non_html_page_alone() -> None:
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    async with sessions() as session:
+        organization = Organization(name="Test")
+        session.add(organization)
+        await session.flush()
+        collection = Collection(organization_id=organization.id, name="Courses")
+        session.add(collection)
+        await session.flush()
+        source = Source(
+            collection_id=collection.id,
+            name="Buckingham",
+            kind=SourceKind.sitemap,
+            url="https://www.buckingham.ac.uk/course-page-sitemap.xml",
+            config={"domain_pack": "university"},
+        )
+        session.add(source)
+        await session.commit()
+        await persist_extraction(
+            session, source, None, "https://www.buckingham.ac.uk/prospectus.pdf",
+            b"%PDF-1.4 not html", "application/pdf",
+            {"title": "Prospectus", "text": "x", "metadata": {}}, use_model=False,
+        )
+        await session.commit()
+        stored = await session.scalar(select(StructuredRecord))
+    assert stored is None
     await engine.dispose()
