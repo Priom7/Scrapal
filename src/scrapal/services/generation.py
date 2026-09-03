@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import re
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime
@@ -28,6 +29,8 @@ from scrapal.telemetry import (
     RAG_STAGE_DURATION,
     tracer,
 )
+
+logger = logging.getLogger(__name__)
 
 _SENTENCE = re.compile(r".+?(?:[.!?](?=\s|$)|\n+|$)", re.S)
 _CITATION = re.compile(r"\[(\d+)]")
@@ -233,6 +236,12 @@ async def generate_answer(generation_id: str) -> None:
         await session.commit()
         await append_generation_event(session, generation.id, "retrieval.started")
 
+        # Retrieval resets the session transaction, which expires every loaded
+        # row. Read what the answer needs while these objects are still usable.
+        question = user_message.content
+        organization_id = conversation.organization_id
+        collection_id = conversation.collection_id
+
         ollama = OllamaService()
         try:
             async with ollama.workload():
@@ -241,10 +250,10 @@ async def generate_answer(generation_id: str) -> None:
                 )
                 result = await retrieve_knowledge(
                     session,
-                    user_message.content,
+                    question,
                     history=history,
-                    organization_id=conversation.organization_id,
-                    collection_id=conversation.collection_id,
+                    organization_id=organization_id,
+                    collection_id=collection_id,
                     mode="hybrid",
                     limit=10,
                     ollama_service=ollama,
@@ -286,7 +295,7 @@ async def generate_answer(generation_id: str) -> None:
                     await _stream_validated_answer(
                         session,
                         generation,
-                        user_message.content,
+                        question,
                         evidence,
                         ollama,
                         resolved=result.query_plan.search_query,
@@ -301,6 +310,7 @@ async def generate_answer(generation_id: str) -> None:
                 session, generation.id, "failed", {"code": "ollama_unavailable", "retryable": True}
             )
         except Exception as exc:
+            logger.exception("Generation %s failed", generation_id)
             generation.status = GenerationStatus.failed
             generation.error = f"{type(exc).__name__}: generation failed"[:500]
             generation.finished_at = datetime.now(UTC)

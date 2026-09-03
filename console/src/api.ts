@@ -360,6 +360,9 @@ export const api = {
     let lastEventId: string | undefined
     let terminal = false
     let reconnects = 0
+    // A handler that throws is reporting the answer, not a broken connection.
+    // Reconnecting on it would reopen a stream that has nothing left to send.
+    let handlerError: unknown
     while (!terminal) {
       try {
         const response = await fetch(
@@ -383,8 +386,13 @@ export const api = {
             const raw = lines.find((line) => line.startsWith('data:'))?.slice(5).trim()
             if (id) lastEventId = id
             if (type && raw) {
-              onEvent({ type, id, data: JSON.parse(raw) as Record<string, unknown> })
               terminal = ['completed', 'failed'].includes(type)
+              try {
+                onEvent({ type, id, data: JSON.parse(raw) as Record<string, unknown> })
+              } catch (error) {
+                handlerError = error
+                terminal = true
+              }
             }
           }
           if (done || terminal) break
@@ -396,5 +404,6 @@ export const api = {
         await new Promise((resolve) => window.setTimeout(resolve, reconnects * 500))
       }
     }
+    if (handlerError) throw handlerError
   },
 }
