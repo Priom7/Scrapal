@@ -94,3 +94,69 @@ async def test_generic_returns_nothing_for_a_page_that_is_not_a_course() -> None
         "https://www.buckingham.ac.uk/about/campus", html
     )
     assert records == []
+
+
+async def test_a_required_field_nobody_read_does_not_count_as_covered() -> None:
+    # `level` is a required Literal, so a record is given a default to validate
+    # at all. That default must never be mistaken for a fact read from the page:
+    # it has no evidence, so it counts as missing and the record cannot publish.
+    page = (
+        b"<html><body><h1>Marine Ecology</h1>"
+        b"<p>Tuition for international students is 14,000 pounds.</p></body></html>"
+    )
+    records = await GenericUniversityExtractor().extract_records(
+        "https://www.example.ac.uk/courses/marine-ecology", page
+    )
+    record = records[0]
+    assert record["data"]["level"] == "postgraduate"
+    assert "level" not in record["evidence"]["fields"]
+    assert "level" in record["validation"]["missing_fields"]
+    assert record["status"] == "review"
+    assert record["validation"]["coverage"] < 1
+
+
+async def test_coverage_counts_only_fields_that_carry_evidence() -> None:
+    html = Path("tests/fixtures/westminster_course.html").read_bytes()
+    records = await GenericUniversityExtractor().extract_records(
+        "https://www.westminster.ac.uk/media-campaigning-social-change-ma", html
+    )
+    record = records[0]
+    evidenced = set(record["evidence"]["fields"])
+    for field in record["data"]:
+        if field in record["validation"]["missing_fields"]:
+            continue
+        if record["data"][field] in (None, [], ""):
+            continue
+        # Anything present and not reported missing must be able to prove itself.
+        assert field in evidenced or field in {"level", "source_url", "intakes"}, field
+    assert record["validation"]["required_fields"] == 8
+    # intakes is derived, but it still cites the months it was derived from
+    if record["data"]["intakes"]:
+        assert record["evidence"]["fields"]["intakes"][0]["method"] == (
+            "derived-from-intake-months"
+        )
+
+
+async def test_a_cost_of_living_row_is_not_read_as_tuition() -> None:
+    # "student" alone used to qualify a table row as a fee, which turned a
+    # living-costs table into a tuition figure — the one kind of error that
+    # can reach a published record looking entirely legitimate.
+    page = (
+        b"<html><body><h1>Marine Ecology, MSc</h1>"
+        b"<dl><dt>Duration</dt><dd>1 year full-time</dd>"
+        b"<dt>Location</dt><dd>Plymouth Campus</dd>"
+        b"<dt>Start dates</dt><dd>September</dd></dl>"
+        b"<h2>Living costs</h2><table><tbody>"
+        b"<tr><th>Average student spend</th><td>&pound;1,200 per month</td></tr>"
+        b"</tbody></table>"
+        b"<h2>Entry requirements</h2><p>A 2:1 honours degree in a science subject.</p>"
+        b"</body></html>"
+    )
+    records = await GenericUniversityExtractor().extract_records(
+        "https://www.example.ac.uk/courses/marine-ecology-msc", page
+    )
+    record = records[0]
+    assert record["data"]["fees"] == []
+    assert "fees" in record["validation"]["missing_fields"]
+    assert record["status"] == "review"
+
