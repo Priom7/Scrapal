@@ -447,8 +447,22 @@ class ProposalEdit(BaseModel):
     rationale: str | None = None
 
 
+class InstitutionOut(ORMModel):
+    id: str
+    name: str
+    slug: str
+    domain: str
+    country_code: str | None
+    city: str | None
+    website_url: str | None
+    logo_url: str | None
+    banner_url: str | None
+    brand_color: str | None
+
+
 class StructuredRecordOut(ORMModel):
     id: str
+    institution_id: str | None = None
     schema_name: str
     external_id: str
     data: dict[str, Any]

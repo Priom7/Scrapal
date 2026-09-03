@@ -15,11 +15,12 @@ from scrapal.domain.university.schemas import (
 from scrapal.jobs import reindex_task
 from scrapal.models import (
     Document,
+    Institution,
     RecordStatus,
     StructuredRecord,
     StructuredRecordRevision,
 )
-from scrapal.schemas import StructuredRecordOut
+from scrapal.schemas import InstitutionOut, StructuredRecordOut
 from scrapal.security import Principal, require_super_admin
 
 router = APIRouter(prefix="/v1/admin/course-intelligence", tags=["course-intelligence"])
@@ -61,6 +62,38 @@ def revision_snapshot(record: StructuredRecord, note: str) -> StructuredRecordRe
     )
 
 
+def institution_breakdown(
+    records: list[Any],
+    names: dict[str, tuple[str, str | None]],
+) -> list[dict[str, Any]]:
+    """Per-university totals, so an operator sees which sites are producing."""
+    grouped: dict[str | None, list[Any]] = {}
+    for record in records:
+        grouped.setdefault(record.institution_id, []).append(record)
+    rows: list[dict[str, Any]] = []
+    for institution_id, group in grouped.items():
+        name, country = names.get(institution_id or "", ("Unattributed", None))
+        coverage = [float(item.validation_json.get("coverage", 0)) for item in group]
+        rows.append(
+            {
+                "institution_id": institution_id,
+                "name": name,
+                "country_code": country,
+                "total": len(group),
+                "published": sum(item.status == RecordStatus.published for item in group),
+                "review": sum(item.status == RecordStatus.review for item in group),
+                "rejected": sum(item.status == RecordStatus.rejected for item in group),
+                "average_coverage": round(sum(coverage) / len(coverage), 3) if coverage else 0,
+            }
+        )
+    return sorted(rows, key=lambda row: (-row["published"], -row["total"], row["name"]))
+
+
+@router.get("/institutions", response_model=list[InstitutionOut])
+async def institutions(session: Session, _: SuperAdmin) -> list[Institution]:
+    return list(await session.scalars(select(Institution).order_by(Institution.name)))
+
+
 @router.get("/overview")
 async def overview(
     session: Session,
@@ -73,6 +106,8 @@ async def overview(
     if collection_id:
         statement = statement.where(StructuredRecord.collection_id == collection_id)
     records = list(await session.scalars(statement))
+    institution_rows = list(await session.scalars(select(Institution)))
+    names = {row.id: (row.name, row.country_code) for row in institution_rows}
     coverage = [float(record.validation_json.get("coverage", 0)) for record in records]
     missing: dict[str, int] = {}
     for record in records:
@@ -84,6 +119,7 @@ async def overview(
         "review": sum(record.status == RecordStatus.review for record in records),
         "rejected": sum(record.status == RecordStatus.rejected for record in records),
         "average_coverage": round(sum(coverage) / len(coverage), 3) if coverage else 0,
+        "by_institution": institution_breakdown(records, names),
         "missing_fields": sorted(
             ({"field": field, "count": count} for field, count in missing.items()),
             key=lambda item: (-item["count"], item["field"]),
@@ -96,6 +132,7 @@ async def records(
     session: Session,
     _: SuperAdmin,
     collection_id: str | None = None,
+    institution_id: str | None = None,
     status: RecordStatus | None = None,
     limit: int = Query(100, ge=1, le=500),
 ) -> list[StructuredRecord]:
@@ -104,6 +141,8 @@ async def records(
     )
     if collection_id:
         statement = statement.where(StructuredRecord.collection_id == collection_id)
+    if institution_id:
+        statement = statement.where(StructuredRecord.institution_id == institution_id)
     if status:
         statement = statement.where(StructuredRecord.status == status)
     return list(

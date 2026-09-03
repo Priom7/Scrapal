@@ -5,6 +5,7 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
+from scrapal.course_intelligence_api import institution_breakdown
 from scrapal.db import Base
 from scrapal.models import (
     Collection,
@@ -22,6 +23,46 @@ from scrapal.services.ingestion import (
     persist_extraction,
     persist_structured_records,
 )
+
+
+class _Stub:
+    def __init__(
+        self,
+        institution_id: str | None,
+        status: RecordStatus,
+        coverage: float,
+    ) -> None:
+        self.institution_id = institution_id
+        self.status = status
+        self.validation_json = {"coverage": coverage}
+
+
+def _record(institution_id: str | None, status: RecordStatus, coverage: float) -> _Stub:
+    return _Stub(institution_id, status, coverage)
+
+
+def test_institution_breakdown_counts_each_university_separately() -> None:
+    rows = institution_breakdown(
+        records=[
+            _record("i1", RecordStatus.published, 1.0),
+            _record("i1", RecordStatus.published, 1.0),
+            _record("i1", RecordStatus.review, 0.5),
+            _record("i2", RecordStatus.review, 0.25),
+            _record(None, RecordStatus.review, 0.0),
+        ],
+        names={
+            "i1": ("University of Greenwich", "GB"),
+            "i2": ("University of Buckingham", "GB"),
+        },
+    )
+    by_id = {row["institution_id"]: row for row in rows}
+    assert by_id["i1"]["total"] == 3
+    assert by_id["i1"]["published"] == 2
+    assert by_id["i1"]["review"] == 1
+    assert by_id["i1"]["average_coverage"] == 0.833
+    assert by_id["i2"]["name"] == "University of Buckingham"
+    assert by_id[None]["name"] == "Unattributed"
+    assert [row["institution_id"] for row in rows][0] == "i1"
 
 
 @pytest.mark.asyncio
