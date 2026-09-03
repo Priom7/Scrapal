@@ -239,13 +239,16 @@ def institution_name_from_domain(domain: str) -> str:
 
 
 def slugify(name: str) -> str:
-    return re.sub(r"-+", "-", re.sub(r"[^a-z0-9]+", "-", name.lower())).strip("-")
+    # Apostrophes vanish rather than becoming separators, so "St Mary's"
+    # slugs as "st-marys" and not "st-mary-s".
+    bare = name.lower().replace("'", "").replace("\u2019", "")
+    return re.sub(r"-+", "-", re.sub(r"[^a-z0-9]+", "-", bare)).strip("-")
 ```
 
 - [ ] **Step 4: Run the test to verify it passes**
 
 Run: `pytest tests/test_institutions.py -v`
-Expected: PASS, 20 tests.
+Expected: PASS, 22 tests.
 
 Run: `ruff check src/scrapal/domain/university/institutions.py tests/test_institutions.py`
 Expected: no findings.
@@ -764,15 +767,37 @@ from scrapal.services.institutions import resolve_institution
 
 Remove the now-unused `hostname` variable. `SourceKind.greenwich` is no longer assigned here; the enum member stays so existing rows keep validating.
 
-- [ ] **Step 6: Run the blueprint tests**
+- [ ] **Step 6: Wire it into direct source creation**
+
+The spec calls for resolution "from blueprint approval and from source creation".
+Blueprint approval is done; a source added straight through the API still needs it.
+In `src/scrapal/api.py`, find the `POST /v1/sources` handler and, immediately before
+the `Source(...)` is constructed, add:
+
+```python
+    institution = None
+    if body.config.get("domain_pack") == "university" and body.url:
+        collection = await session.get(Collection, body.collection_id)
+        if collection:
+            institution = await resolve_institution(
+                session, collection.organization_id, str(body.url), body.name
+            )
+```
+
+and pass `institution_id=institution.id if institution else None` to the constructor.
+Import `resolve_institution` from `scrapal.services.institutions`. If the handler's
+request model has no `config` field, read the domain pack from `body.config` only when
+present — use `getattr(body, "config", {}) or {}`.
+
+- [ ] **Step 7: Run the blueprint tests**
 
 Run: `pytest tests/test_blueprints.py -v`
 Expected: PASS. If a test asserts `SourceKind.greenwich` is chosen for a `gre.ac.uk` blueprint, update it to assert `SourceKind.sitemap` and `source.config["domain_pack"] == "university"` — that assertion was encoding the bug.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
-git add src/scrapal/services/institutions.py src/scrapal/blueprints_api.py tests/test_institutions.py tests/test_blueprints.py
+git add src/scrapal/services/institutions.py src/scrapal/blueprints_api.py src/scrapal/api.py tests/test_institutions.py tests/test_blueprints.py
 git commit -m "blueprints: approve a source against its institution, not a hostname check"
 ```
 
@@ -1928,7 +1953,9 @@ async def extract_course_records(
     domain pack decides that a source is a university; the registry decides
     how to read it.
     """
-    if source.config.get("domain_pack") != "university":
+    # default=dict fires at INSERT, not at Python construction, so a Source
+    # built in a test has config None until it is persisted.
+    if (source.config or {}).get("domain_pack") != "university":
         return []
     domain = registrable_domain(str(source.url or url))
     extractor = resolve_extractor(domain, extractor_override)
@@ -1986,17 +2013,21 @@ with:
     if source.kind == SourceKind.greenwich:
         connector: WebsiteConnector = GreenwichConnector()
         config: WebsiteConfig = GreenwichConfig(
-            **{key: value for key, value in source.config.items() if key != "domain_pack"}
+            **{key: value for key, value in (source.config or {}).items() if key != "domain_pack"}
         )
     else:
         connector = WebsiteConnector()
+        # One dict, so a stored start_url cannot collide with the keyword and
+        # the source's url column keeps the precedence it had before.
         config = WebsiteConfig(
             **{
-                key: value
-                for key, value in source.config.items()
-                if key != "domain_pack"
-            },
-            start_url=source.url,
+                **{
+                    key: value
+                    for key, value in (source.config or {}).items()
+                    if key != "domain_pack"
+                },
+                "start_url": source.url,
+            }
         )
 ```
 
@@ -2242,27 +2273,51 @@ git commit -m "course intelligence: report coverage per university"
 Create `console/src/CollectionPicker.test.tsx`:
 
 ```tsx
-import { describe, expect, it, beforeEach } from 'vitest'
-import { readScope, writeScope } from './CollectionPicker'
+import { describe, expect, it } from 'vitest'
+import { readScope, writeScope, type ScopeStore } from './CollectionPicker'
+
+// This console has no vitest DOM environment configured, so the scope logic
+// takes its store as a parameter and the tests pass a fake one. That also
+// covers the browser that refuses storage entirely.
+function fakeStore(): ScopeStore & { map: Map<string, string> } {
+  const map = new Map<string, string>()
+  return {
+    map,
+    getItem: (key) => map.get(key) ?? null,
+    setItem: (key, value) => void map.set(key, value),
+    removeItem: (key) => void map.delete(key),
+  }
+}
+
+const throwingStore: ScopeStore = {
+  getItem: () => { throw new Error('storage blocked') },
+  setItem: () => { throw new Error('storage blocked') },
+  removeItem: () => { throw new Error('storage blocked') },
+}
 
 describe('collection scope', () => {
-  beforeEach(() => localStorage.clear())
-
   it('defaults to every collection rather than the first one', () => {
     // The console used to pass collections[0], which silently hid the
     // second collection and everything in it.
-    expect(readScope()).toBeUndefined()
+    expect(readScope(fakeStore())).toBeUndefined()
   })
 
   it('remembers an explicit choice across reloads', () => {
-    writeScope('abc-123')
-    expect(readScope()).toBe('abc-123')
+    const store = fakeStore()
+    writeScope('abc-123', store)
+    expect(readScope(store)).toBe('abc-123')
   })
 
   it('returns to every collection when the choice is cleared', () => {
-    writeScope('abc-123')
-    writeScope(undefined)
-    expect(readScope()).toBeUndefined()
+    const store = fakeStore()
+    writeScope('abc-123', store)
+    writeScope(undefined, store)
+    expect(readScope(store)).toBeUndefined()
+  })
+
+  it('still works when the browser refuses storage', () => {
+    expect(readScope(throwingStore)).toBeUndefined()
+    expect(() => writeScope('abc-123', throwingStore)).not.toThrow()
   })
 })
 ```
@@ -2283,25 +2338,44 @@ import { ICON } from './lib'
 
 const KEY = 'scrapal-collection-scope'
 
-export function readScope(): string | undefined {
+export type ScopeStore = {
+  getItem: (key: string) => string | null
+  setItem: (key: string, value: string) => void
+  removeItem: (key: string) => void
+}
+
+// Resolved lazily: reading localStorage at module scope throws in some
+// privacy modes before any component has mounted.
+function browserStore(): ScopeStore | undefined {
   try {
-    return localStorage.getItem(KEY) ?? undefined
+    return window.localStorage
   } catch {
     return undefined
   }
 }
 
-export function writeScope(id: string | undefined): void {
+export function readScope(store: ScopeStore | undefined = browserStore()): string | undefined {
   try {
-    if (id) localStorage.setItem(KEY, id)
-    else localStorage.removeItem(KEY)
+    return store?.getItem(KEY) ?? undefined
+  } catch {
+    return undefined
+  }
+}
+
+export function writeScope(
+  id: string | undefined,
+  store: ScopeStore | undefined = browserStore(),
+): void {
+  try {
+    if (id) store?.setItem(KEY, id)
+    else store?.removeItem(KEY)
   } catch {
     /* a browser with storage blocked still works, it just forgets */
   }
 }
 
 export function useCollectionScope() {
-  const [scope, set] = useState<string | undefined>(readScope)
+  const [scope, set] = useState<string | undefined>(() => readScope())
   return {
     scope,
     setScope: (id: string | undefined) => {
@@ -2337,7 +2411,7 @@ export function CollectionPicker(
 - [ ] **Step 4: Run the test to verify it passes**
 
 Run: `cd console && npx vitest run src/CollectionPicker.test.tsx`
-Expected: PASS, 3 tests.
+Expected: PASS, 4 tests.
 
 - [ ] **Step 5: Wire it through App.tsx**
 
