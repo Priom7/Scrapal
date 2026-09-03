@@ -428,6 +428,25 @@ class StructuredRecordRevision(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
 
 
+class CourseShortlistEntry(Base):
+    __tablename__ = "course_shortlist_entries"
+    __table_args__ = (
+        Index(
+            "ix_course_shortlist_principal_record",
+            "principal_key",
+            "record_id",
+            unique=True,
+        ),
+    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    principal_key: Mapped[str] = mapped_column(String(180), index=True)
+    record_id: Mapped[str] = mapped_column(
+        ForeignKey("structured_records.id", ondelete="CASCADE"), index=True
+    )
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
 class Conversation(Base):
     __tablename__ = "conversations"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)

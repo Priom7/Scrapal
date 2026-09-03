@@ -23,6 +23,7 @@ class Principal:
     organization_id: str
     role: Role
     scopes: list[str]
+    key_id: str | None = None
 
 
 async def bootstrap_identity(session: AsyncSession) -> None:
@@ -54,7 +55,7 @@ async def get_principal(
     record = await session.scalar(select(APIKey).where(APIKey.key_hash == hash_key(supplied)))
     if not record or not record.active:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid API key")
-    return Principal(record.organization_id, record.role, record.scopes)
+    return Principal(record.organization_id, record.role, record.scopes, record.id)
 
 
 def require_editor(principal: Principal = Depends(get_principal)) -> Principal:

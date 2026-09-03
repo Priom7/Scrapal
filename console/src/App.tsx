@@ -16,6 +16,7 @@ import {
   FileSearch,
   Globe2,
   GraduationCap,
+  LibraryBig,
   Menu,
   Network,
   MessageSquareText,
@@ -40,12 +41,13 @@ import { FormEvent, KeyboardEvent, useCallback, useEffect, useMemo, useRef, useS
 import { api, CourseRecord, CrawlBlueprint, CrawlEvent, Incident, ObservabilityRun, RetrievalRun, Run, RunDetail, SearchHit, Source } from './api'
 import { CollectionPicker } from './CollectionPicker'
 import { useCollectionScope } from './CollectionScope'
+import { CourseGallery } from './CourseGallery'
 import { InterpretedQuery } from './QueryPlan'
 import { RunPath } from './RunPath'
 import { formatDuration, ICON, isLiveRun, QueryPlanData, readPlan, relativeDate, Tone, useDialog, useMediaQuery, uuid } from './lib'
 import { Empty, Meter, Status } from './ui'
 
-type View = 'overview' | 'sources' | 'knowledge' | 'course-intelligence' | 'retrieval-lab' | 'observability' | 'reviews' | 'settings'
+type View = 'overview' | 'sources' | 'knowledge' | 'course-intelligence' | 'course-gallery' | 'retrieval-lab' | 'observability' | 'reviews' | 'settings'
 type AgentMessage = { id: string; role: string; content: string; citations?: { number: number; title: string; url?: string }[]; withheld?: string[] }
 
 const nav: { id: View; label: string; icon: typeof Activity }[] = [
@@ -53,6 +55,7 @@ const nav: { id: View; label: string; icon: typeof Activity }[] = [
   { id: 'sources', label: 'Sources', icon: Globe2 },
   { id: 'knowledge', label: 'Knowledge', icon: BookOpen },
   { id: 'course-intelligence', label: 'Course intelligence', icon: GraduationCap },
+  { id: 'course-gallery', label: 'Course gallery', icon: LibraryBig },
   { id: 'retrieval-lab', label: 'Retrieval Lab', icon: Microscope },
   { id: 'observability', label: 'Observability', icon: Network },
   { id: 'reviews', label: 'Reviews', icon: ShieldCheck },
@@ -166,6 +169,7 @@ function App() {
             {view === 'sources' && <Sources sources={sources.data ?? []} runs={runs.data ?? []} onRun={(run) => { refresh(); setSelectedRunId(run.id) }} onInspect={setSelectedRunId} onAdd={() => setNewSource(true)} />}
             {view === 'knowledge' && <Knowledge collectionId={scope} documents={documents.data ?? []} />}
             {view === 'course-intelligence' && <CourseIntelligence collectionId={scope} onOpenSources={() => setView('sources')} />}
+            {view === 'course-gallery' && <CourseGallery collectionId={scope} />}
             {view === 'retrieval-lab' && <RetrievalLab collectionId={scope} />}
             {view === 'observability' && <Observability onInspect={setSelectedRunId} />}
             {view === 'reviews' && <Reviews proposals={proposals.data ?? []} onChanged={refresh} />}
@@ -828,6 +832,6 @@ function EventTimeline({ events, runId }: { events: CrawlEvent[]; runId: string 
 function describeEvent(event: CrawlEvent) { if (event.stage === 'run') return `Run ${event.outcome}`; if (event.stage === 'discovery') return 'Building the crawl frontier'; return `${event.stage} ${event.outcome}` }
 
 function RunTable({ runs, sourceMap, onSelect }: { runs: Run[]; sourceMap: Map<string, Source>; onSelect: (id: string) => void }) { if (!runs.length) return <p className="empty-row">Runs will appear here after you start a source.</p>; return <div className="table-wrap"><table><thead><tr><th>Source</th><th>Status</th><th>Progress</th><th>Documents</th><th>Exceptions</th><th>Started</th></tr></thead><tbody>{runs.map((run) => <tr className="clickable-row" key={run.id} onClick={() => onSelect(run.id)}><td><button className="row-link">{sourceMap.get(run.source_id)?.name ?? 'Source'}</button></td><td><Status status={run.status === 'queued' && !isLiveRun(run) ? 'worker_timeout' : run.status} warnings={run.issues_count} /></td><td><Meter value={run.pages_processed / Math.max(run.pages_discovered, 1) * 100} tone={run.status === 'failed' ? 'fail' : run.status === 'completed' ? 'done' : 'active'} label={`${run.pages_processed} of ${run.pages_discovered} pages checked`} /><small>{run.pages_processed} / {run.pages_discovered} checked</small></td><td>{run.documents_created}</td><td>{run.issues_count ? `${run.issues_count} error${run.issues_count === 1 ? '' : 's'}` : run.policy_skips_count ? `${run.policy_skips_count} skipped` : '—'}</td><td>{relativeDate(run.created_at)}</td></tr>)}</tbody></table></div> }
-function titleFor(view: View) { return { overview: 'Follow the knowledge thread', sources: 'Connected sources', knowledge: 'Search the evidence', 'course-intelligence': 'Turn course pages into trusted facts', 'retrieval-lab': 'Trace an answer back to evidence', observability: 'See where every crawl spends its time', reviews: 'Decisions waiting for you', settings: 'Workspace settings' }[view] }
+function titleFor(view: View) { return { overview: 'Follow the knowledge thread', sources: 'Connected sources', knowledge: 'Search the evidence', 'course-intelligence': 'Turn course pages into trusted facts', 'course-gallery': 'Browse courses with receipts', 'retrieval-lab': 'Trace an answer back to evidence', observability: 'See where every crawl spends its time', reviews: 'Decisions waiting for you', settings: 'Workspace settings' }[view] }
 
 export default App

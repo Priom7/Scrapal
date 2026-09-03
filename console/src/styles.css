@@ -800,3 +800,83 @@ td .meter { width: 110px; margin-bottom: .3rem; }
   .meter { border: 1px solid CanvasText; }
   .status i, .run-state span { border: 1px solid CanvasText; }
 }
+
+/* Course gallery: a quiet dossier grid whose one bold interaction is the source receipt. */
+.gallery-view { padding-bottom: 92px; }
+.gallery-search { position: relative; overflow: hidden; display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, .75fr); gap: 2rem; align-items: end; padding: clamp(1.4rem, 3vw, 2.3rem); color: white; border-radius: var(--radius); background: #102238; }
+.gallery-search::after { content: ''; position: absolute; right: 32%; bottom: -220px; width: 280px; height: 280px; border: 1px solid rgba(127, 226, 197, .35); border-radius: 45%; box-shadow: 0 0 0 34px rgba(127, 226, 197, .07), 0 0 0 68px rgba(127, 226, 197, .04); transform: rotate(18deg); }
+.gallery-search > * { position: relative; z-index: 1; }
+.gallery-search h2 { max-width: 620px; margin: .25rem 0 .5rem; font-size: clamp(1.5rem, 3vw, 2.5rem); }
+.gallery-search p:last-child { max-width: 660px; margin: 0; color: #c5d1dc; }
+.gallery-search label { min-height: 54px; display: flex; gap: .7rem; align-items: center; padding: 0 .95rem; border: 1px solid #526478; border-radius: 12px; color: #142132; background: white; }
+.gallery-search input { width: 100%; border: 0; outline: 0; background: transparent; font: inherit; }
+.country-rail { display: flex; gap: .65rem; overflow-x: auto; margin: 1rem 0; padding: .15rem 0 .5rem; scrollbar-width: thin; }
+.country-rail button { min-width: 118px; display: grid; grid-template-columns: auto 1fr; gap: .05rem .5rem; align-items: center; padding: .7rem .8rem; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); text-align: left; cursor: pointer; }
+.country-rail button.active { border-color: var(--cobalt); box-shadow: inset 0 -3px 0 var(--cobalt); }
+.country-rail button > span:last-child { grid-column: 1 / -1; overflow: hidden; color: var(--ink-soft); font-size: .73rem; text-overflow: ellipsis; white-space: nowrap; }
+.flag-code { min-width: 29px; padding: .15rem .25rem; border-radius: 4px; color: var(--cobalt-dark); background: color-mix(in srgb, var(--cobalt) 10%, var(--surface)); font: 600 .66rem 'IBM Plex Mono', monospace; text-align: center; }
+.gallery-filter-bar { display: flex; gap: .75rem; align-items: end; overflow-x: auto; padding: .9rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+.gallery-filter-bar > label, .gallery-filter-group { flex: 0 0 auto; display: grid; gap: .35rem; color: var(--ink-soft); font-size: .72rem; font-weight: 700; }
+.gallery-filter-bar select { min-height: 38px; border: 1px solid var(--line); border-radius: 8px; padding: 0 .7rem; color: var(--ink); background: var(--paper); font: inherit; }
+.gallery-filter-group > div { display: flex; gap: .35rem; }
+.gallery-filter-group button, .clear-gallery-filters { min-height: 38px; border: 1px solid var(--line); border-radius: 8px; padding: .45rem .65rem; color: var(--ink); background: var(--paper); white-space: nowrap; cursor: pointer; }
+.gallery-filter-group button.active { color: white; border-color: var(--cobalt-dark); background: var(--cobalt-dark); }
+.gallery-filter-group button b { margin-left: .25rem; color: var(--ink-soft); font-size: .68rem; }
+.gallery-filter-group button.active b { color: #d6e4ff; }
+.clear-gallery-filters { display: inline-flex; gap: .3rem; align-items: center; color: var(--coral); background: transparent; }
+.gallery-results-heading { display: flex; justify-content: space-between; align-items: end; margin: 1.35rem 0 .8rem; }
+.gallery-results-heading h3 { margin: 0; }
+.gallery-results-heading p, .gallery-results-heading > span { margin: .2rem 0 0; color: var(--ink-soft); font-size: .76rem; }
+.course-gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 1rem; }
+.course-dossier { --institution: var(--cobalt); position: relative; overflow: hidden; display: flex; flex-direction: column; min-height: 430px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); }
+.course-dossier::before { content: ''; position: absolute; inset: 0 auto 0 0; width: 4px; background: var(--institution); }
+.course-dossier > header { display: grid; grid-template-columns: 42px minmax(0, 1fr) 40px; gap: .7rem; align-items: center; padding: 1rem 1rem .6rem 1.15rem; }
+.institution-crest { width: 42px; height: 42px; display: grid; place-items: center; overflow: hidden; border: 1px solid color-mix(in srgb, var(--institution) 35%, var(--line)); border-radius: 50%; color: var(--institution); background: color-mix(in srgb, var(--institution) 8%, var(--surface)); font: 700 .78rem 'Sora', sans-serif; }
+.institution-crest img { width: 100%; height: 100%; object-fit: contain; padding: 4px; }
+.course-dossier > header p { overflow: hidden; margin: 0; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.course-dossier > header div > span { display: flex; gap: .25rem; align-items: center; margin-top: .15rem; color: var(--ink-soft); font-size: .7rem; }
+.course-dossier > header button { width: 38px; height: 38px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 9px; color: var(--ink-soft); background: transparent; cursor: pointer; }
+.course-dossier > header button.shortlisted { color: white; border-color: var(--institution); background: var(--institution); }
+.course-dossier-title { min-height: 112px; padding: .65rem 1.15rem 1rem; }
+.course-dossier-title > span { color: var(--institution); font: 700 .76rem 'Sora', sans-serif; }
+.course-dossier-title h3 { margin: .35rem 0 0; font-size: 1.18rem; line-height: 1.28; }
+.course-facts { display: grid; grid-template-columns: 1fr 1fr; border-block: 1px solid var(--line); }
+.course-facts button { min-width: 0; display: grid; grid-template-columns: 20px minmax(0, 1fr) 8px; gap: .45rem; align-items: center; padding: .75rem; border: 0; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); color: var(--ink); background: var(--paper); text-align: left; cursor: pointer; }
+.course-facts button:nth-child(even) { border-right: 0; }
+.course-facts button:nth-last-child(-n + 2) { border-bottom: 0; }
+.course-facts svg { color: var(--ink-soft); }
+.course-facts span { min-width: 0; display: grid; gap: .08rem; }
+.course-facts small { color: var(--ink-soft); }
+.course-facts strong { overflow: hidden; font-size: .78rem; text-overflow: ellipsis; white-space: nowrap; }
+.course-facts i { width: 7px; height: 7px; border-radius: 50%; background: var(--amber); }
+.course-facts i.evidenced { background: var(--mint); box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 18%, transparent); }
+.fact-receipt { padding: .8rem 1rem; border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--mint) 6%, var(--surface)); }
+.fact-receipt > p { display: flex; gap: .35rem; align-items: center; margin: 0 0 .45rem; color: var(--cobalt-dark); font-weight: 700; font-size: .72rem; }
+.fact-receipt blockquote { margin: .35rem 0; padding-left: .65rem; border-left: 2px solid var(--mint); color: var(--ink-soft); font-size: .74rem; line-height: 1.45; }
+.fact-receipt cite { display: block; margin-top: .25rem; color: var(--ink-soft); font: .62rem 'IBM Plex Mono', monospace; }
+.course-dossier > footer { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-top: auto; padding: .9rem 1rem 1rem 1.15rem; }
+.course-dossier > footer > span { width: min(160px, 48%); display: grid; gap: .25rem; }
+.course-dossier > footer small { color: var(--ink-soft); }
+.course-dossier > footer a { display: inline-flex; gap: .3rem; align-items: center; color: var(--cobalt); font-size: .75rem; font-weight: 700; }
+.course-dossier > footer a svg { width: 14px; }
+.shortlist-tray { position: fixed; z-index: 10; right: clamp(1rem, 3vw, 2.6rem); bottom: max(1rem, env(safe-area-inset-bottom)); left: calc(var(--nav-width) + clamp(1rem, 3vw, 2.6rem)); display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: .7rem .9rem; color: white; border: 1px solid #405268; border-radius: 13px; background: #102238; box-shadow: 0 16px 48px rgba(5, 14, 24, .28); }
+.sidebar-collapsed .shortlist-tray { left: calc(var(--nav-collapsed) + clamp(1rem, 3vw, 2.6rem)); }
+.shortlist-tray > div { display: flex; gap: .55rem; align-items: center; }
+.shortlist-tray small { display: block; color: #aebdca; }
+.shortlist-tray > div:last-child > span { display: inline-flex; gap: .35rem; align-items: center; padding: .35rem .5rem; border: 1px solid #405268; border-radius: 7px; font-size: .7rem; }
+.shortlist-tray button { width: 20px; height: 20px; display: grid; place-items: center; padding: 0; color: white; border: 0; background: transparent; cursor: pointer; }
+.shortlist-tray button svg { width: 13px; }
+
+@media (max-width: 760px) {
+  .gallery-search { grid-template-columns: 1fr; gap: 1rem; padding: 1.2rem; }
+  .gallery-filter-bar { margin-inline: -1rem; padding-inline: 1rem; border-inline: 0; border-radius: 0; }
+  .gallery-results-heading { align-items: start; flex-direction: column; gap: .3rem; }
+  .shortlist-tray, .sidebar-collapsed .shortlist-tray { right: 1rem; bottom: max(.75rem, env(safe-area-inset-bottom)); left: 1rem; }
+  .shortlist-tray > div:last-child { display: none; }
+}
+
+@media (max-width: 400px) {
+  .course-facts { grid-template-columns: 1fr; }
+  .course-facts button, .course-facts button:nth-child(even), .course-facts button:nth-last-child(-n + 2) { border-right: 0; border-bottom: 1px solid var(--line); }
+  .course-facts button:last-child { border-bottom: 0; }
+}
