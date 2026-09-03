@@ -14,6 +14,7 @@ from typing import Any
 from bs4 import BeautifulSoup, Tag
 
 from scrapal.domain.university.schemas import (
+    REQUIRED_COURSE_FIELDS,
     CourseFee,
     CourseIntake,
     CourseIntelligenceRecord,
@@ -25,7 +26,8 @@ MONTHS = (
     "July", "August", "September", "October", "November", "December",
 )
 AWARD_PATTERN = re.compile(
-    r"\b(BA|BSc|BEng|BEd|LLB|MA|MSc|MEng|MBA|MPH|MRes|LLM|PhD|MPhil|PGCert|PGDip)"
+    r"\b(BA|BSc|BEng|BEd|BN|LLB|MA|MSc|MEng|MBA|MPH|MRes|MArch|MMus|LLM|PhD|MPhil|EdD|DBA"
+    r"|PGCE|PGCert|PGDip|FdA|FdSc|HND)"
     r"(?:\s*\(Hons\))?\b",
     re.I,
 )
@@ -248,8 +250,11 @@ class GenericUniversityExtractor:
             if not match:
                 continue
             residency = residency_of(label)
+            # "student" alone is too loose — a cost-of-living row says "student"
+            # too, and a bogus fee is the one error that can reach a published
+            # record looking legitimate.
             if residency == "unknown" and not any(
-                word in label.lower() for word in ("fee", "tuition", "student")
+                word in label.lower() for word in ("fee", "tuition", "cost of the course")
             ):
                 continue
             fees.append(
@@ -326,6 +331,13 @@ class GenericUniversityExtractor:
             ).model_dump()
             for month in fields.get("intake_months", [])
         ]
+        if fields.get("intakes"):
+            remember(
+                "intakes",
+                "; ".join(fields.get("intake_months", [])),
+                "derived-from-intake-months",
+                0.85,
+            )
 
     # ------------------------------------------------------------ assembling
 
@@ -341,6 +353,20 @@ class GenericUniversityExtractor:
         payload["source_url"] = url
         model = CourseIntelligenceRecord.model_validate(payload)
         coverage, missing = course_coverage(model)
+        # course_coverage only asks whether a value is present. A value can be
+        # present without having been read from the page — `level` is defaulted
+        # below so the model validates at all. Coverage has to mean evidenced,
+        # or the publish gate is guarding a number that already lied.
+        unevidenced = [
+            field
+            for field in REQUIRED_COURSE_FIELDS
+            if field not in missing and not evidence.get(field)
+        ]
+        if unevidenced:
+            missing = sorted(missing + unevidenced, key=REQUIRED_COURSE_FIELDS.index)
+            coverage = round(
+                (len(REQUIRED_COURSE_FIELDS) - len(missing)) / len(REQUIRED_COURSE_FIELDS), 3
+            )
         contradictions = [
             f"No numeric amount was found for {fee.label} fees"
             for fee in model.fees
@@ -358,7 +384,7 @@ class GenericUniversityExtractor:
             "extractor_version": self.version,
             "validation": {
                 "coverage": coverage,
-                "required_fields": 8,
+                "required_fields": len(REQUIRED_COURSE_FIELDS),
                 "missing_fields": missing,
                 "contradictions": contradictions,
                 "review_reasons": reasons,
