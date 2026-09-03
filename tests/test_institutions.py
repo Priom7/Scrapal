@@ -4,13 +4,76 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from scrapal.db import Base
 from scrapal.domain.university.institutions import (
+    branding_from_html,
     country_for_domain,
     institution_name_from_domain,
     registrable_domain,
     slugify,
 )
 from scrapal.models import Institution, Organization, Source, SourceKind, StructuredRecord
+from scrapal.services.ingestion import fill_institution_branding
 from scrapal.services.institutions import resolve_institution
+
+BRANDED = (
+    b"<html><head>"
+    b'<meta property="og:image" content="/img/law-banner.jpg">'
+    b'<meta name="theme-color" content="#7c2529">'
+    b'<link rel="icon" href="https://www.buckingham.ac.uk/favicon.png">'
+    b"</head><body><h1>Course</h1></body></html>"
+)
+
+
+def test_branding_is_read_from_the_page_and_resolved_to_absolute_urls() -> None:
+    found = branding_from_html(BRANDED, "https://www.buckingham.ac.uk/courses/llm")
+    assert found["banner_url"] == "https://www.buckingham.ac.uk/img/law-banner.jpg"
+    assert found["logo_url"] == "https://www.buckingham.ac.uk/favicon.png"
+    assert found["brand_color"] == "#7c2529"
+
+
+def test_branding_returns_nothing_for_a_page_that_declares_none() -> None:
+    assert branding_from_html(b"<html><body>x</body></html>", "https://x.ac.uk/a") == {}
+
+
+def test_branding_ignores_a_theme_colour_that_is_not_a_hex_value() -> None:
+    html = b'<html><head><meta name="theme-color" content="rebeccapurple"></head></html>'
+    assert "brand_color" not in branding_from_html(html, "https://x.ac.uk/a")
+
+
+async def test_branding_fill_preserves_an_administrator_override() -> None:
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    async with sessions() as session:
+        organization = Organization(name="Test")
+        session.add(organization)
+        await session.flush()
+        institution = Institution(
+            organization_id=organization.id,
+            name="University of Buckingham",
+            slug="university-of-buckingham",
+            domain="buckingham.ac.uk",
+            logo_url="https://assets.example/admin-logo.svg",
+        )
+        session.add(institution)
+        await session.flush()
+        source = Source(
+            collection_id="c1",
+            institution_id=institution.id,
+            name="Buckingham",
+            kind=SourceKind.sitemap,
+        )
+        await fill_institution_branding(
+            session,
+            source,
+            "https://www.buckingham.ac.uk/courses/llm",
+            BRANDED,
+        )
+        await session.flush()
+    assert institution.logo_url == "https://assets.example/admin-logo.svg"
+    assert institution.banner_url == "https://www.buckingham.ac.uk/img/law-banner.jpg"
+    assert institution.brand_color == "#7c2529"
+    await engine.dispose()
 
 
 @pytest.mark.parametrize(

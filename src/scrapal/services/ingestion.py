@@ -25,11 +25,12 @@ from scrapal.db import SessionLocal
 from scrapal.domain.university.extractors.generic import GenericUniversityExtractor
 from scrapal.domain.university.extractors.registry import resolve_extractor
 from scrapal.domain.university.greenwich import GreenwichConfig, GreenwichConnector
-from scrapal.domain.university.institutions import registrable_domain
+from scrapal.domain.university.institutions import branding_from_html, registrable_domain
 from scrapal.models import (
     Collection,
     Document,
     DocumentVersion,
+    Institution,
     RecordStatus,
     Run,
     RunIssue,
@@ -511,6 +512,8 @@ async def persist_extraction(
     *,
     use_model: bool = True,
 ) -> bool:
+    if content_type.startswith("text/html"):
+        await fill_institution_branding(session, source, url, raw)
     if not extracted.get("structured_records") and content_type.startswith("text/html"):
         # The model pass is the slowest stage of a large crawl, so the caller
         # decides whether this page still has budget for it. Without it the
@@ -562,6 +565,25 @@ async def persist_extraction(
         await index_document_version(session, document, version)
     await persist_structured_records(session, source, document, extracted)
     return created
+
+
+async def fill_institution_branding(
+    session: AsyncSession,
+    source: Source,
+    url: str,
+    html: bytes,
+) -> None:
+    """Fill absent branding fields without overwriting an administrator's values."""
+    if not source.institution_id:
+        return
+    institution = await session.get(Institution, source.institution_id)
+    if not institution:
+        return
+    if institution.logo_url and institution.banner_url and institution.brand_color:
+        return
+    for column, value in branding_from_html(html, url).items():
+        if getattr(institution, column) is None:
+            setattr(institution, column, value)
 
 
 async def extract_course_records(

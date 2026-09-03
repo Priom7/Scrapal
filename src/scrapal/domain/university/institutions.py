@@ -7,7 +7,9 @@ shares.
 """
 
 import re
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
+
+from bs4 import BeautifulSoup
 
 # Second-level suffixes that are part of the public suffix, not the name.
 # Deliberately a short explicit list rather than a public-suffix dependency:
@@ -48,6 +50,8 @@ COUNTRY_BY_SUFFIX: dict[str, str] = {
     "edu": "US",
 }
 
+HEX_COLOR = re.compile(r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")
+
 
 def registrable_domain(url: str) -> str | None:
     """The domain that identifies an institution, with subdomains removed."""
@@ -84,3 +88,21 @@ def slugify(name: str) -> str:
     # slugs as "st-marys" and not "st-mary-s".
     bare = name.lower().replace("'", "").replace("’", "")
     return re.sub(r"-+", "-", re.sub(r"[^a-z0-9]+", "-", bare)).strip("-")
+
+
+def branding_from_html(html: bytes, url: str) -> dict[str, str]:
+    """Read the logo, banner, and brand colour a university publishes."""
+    soup = BeautifulSoup(html, "html.parser")
+    found: dict[str, str] = {}
+    banner = soup.find("meta", attrs={"property": "og:image"})
+    if banner and banner.get("content"):
+        found["banner_url"] = urljoin(url, str(banner["content"]).strip())
+    icon = soup.find("link", rel=lambda value: value and "icon" in value.lower())
+    if icon and icon.get("href"):
+        found["logo_url"] = urljoin(url, str(icon["href"]).strip())
+    color = soup.find("meta", attrs={"name": "theme-color"})
+    if color and color.get("content"):
+        value = str(color["content"]).strip()
+        if HEX_COLOR.match(value):
+            found["brand_color"] = value
+    return found
