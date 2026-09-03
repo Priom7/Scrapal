@@ -1,4 +1,5 @@
 from pathlib import Path
+from unittest.mock import AsyncMock
 
 import pytest
 from sqlalchemy import func, select
@@ -246,7 +247,11 @@ async def test_persist_extraction_runs_course_extraction_for_a_university_page()
     await engine.dispose()
 
 
-async def test_persist_extraction_leaves_a_non_html_page_alone() -> None:
+async def test_persist_extraction_leaves_a_non_html_page_alone(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    extractor = AsyncMock()
+    monkeypatch.setattr("scrapal.services.ingestion.extract_course_records", extractor)
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
@@ -274,5 +279,6 @@ async def test_persist_extraction_leaves_a_non_html_page_alone() -> None:
         )
         await session.commit()
         stored = await session.scalar(select(StructuredRecord))
+    extractor.assert_not_awaited()
     assert stored is None
     await engine.dispose()
