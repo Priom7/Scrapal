@@ -1,8 +1,10 @@
 import asyncio
+import logging
 import mimetypes
 import time
 from collections import deque
 from pathlib import Path
+from typing import Any
 from urllib.parse import urljoin, urlparse
 from xml.etree import ElementTree
 
@@ -20,11 +22,15 @@ from scrapal.connectors.website import (
     validate_public_url,
 )
 from scrapal.db import SessionLocal
+from scrapal.domain.university.extractors.generic import GenericUniversityExtractor
+from scrapal.domain.university.extractors.registry import resolve_extractor
 from scrapal.domain.university.greenwich import GreenwichConfig, GreenwichConnector
+from scrapal.domain.university.institutions import branding_from_html, registrable_domain
 from scrapal.models import (
     Collection,
     Document,
     DocumentVersion,
+    Institution,
     RecordStatus,
     Run,
     RunIssue,
@@ -43,7 +49,10 @@ from scrapal.services.crawl_events import (
     upsert_incident,
 )
 from scrapal.services.indexing import index_document_version
+from scrapal.services.ollama import OllamaService
 from scrapal.telemetry import ACTIVE_RUNS, FETCH_BYTES, OUTPUT_TOTAL, RUNS_TOTAL, trace_ids, tracer
+
+logger = logging.getLogger(__name__)
 
 
 class FetchFailure(RuntimeError):
@@ -206,14 +215,27 @@ async def mark_run_terminal(run_id: str, status: RunStatus, error: str | None) -
 
 async def _ingest_source(session: AsyncSession, source: Source, run: Run) -> None:
     settings = get_settings()
+    # The connector fetches and cleans; course extraction is chosen separately
+    # by the registry, so a university is no longer tied to a connector class.
     if source.kind == SourceKind.greenwich:
         connector: WebsiteConnector = GreenwichConnector()
-        config: WebsiteConfig = GreenwichConfig(**source.config)
+        config: WebsiteConfig = GreenwichConfig(
+            **{key: value for key, value in (source.config or {}).items() if key != "domain_pack"}
+        )
     else:
         connector = WebsiteConnector()
-        config_data = {**source.config, "start_url": source.url}
-        connector_config = WebsiteConfig(**config_data)
-        config = connector_config
+        # One dict, so a stored start_url cannot collide with the keyword and
+        # the source's url column keeps the precedence it had before.
+        config = WebsiteConfig(
+            **{
+                **{
+                    key: value
+                    for key, value in (source.config or {}).items()
+                    if key != "domain_pack"
+                },
+                "start_url": source.url,
+            }
+        )
     discovery_started = time.perf_counter()
     with tracer.start_as_current_span("crawl.discovery"):
         await record_crawl_event(session, run, source, "discovery", "started")
@@ -243,6 +265,7 @@ async def _ingest_source(session: AsyncSession, source: Source, run: Run) -> Non
     else:
         queue = deque([(str(source.url or config.start_url), 0)])
     seen: set[str] = set()
+    llm_pages = 0
     run.pages_discovered = len(queue)
     await record_crawl_event(
         session,
@@ -384,6 +407,21 @@ async def _ingest_source(session: AsyncSession, source: Source, run: Run) -> Non
                 )
                 persist_started = time.perf_counter()
                 with tracer.start_as_current_span("document.persist"):
+                    within_budget = llm_pages < config.max_llm_pages
+                    if content_type.startswith("text/html"):
+                        if within_budget:
+                            llm_pages += 1
+                        elif llm_pages == config.max_llm_pages:
+                            llm_pages += 1
+                            await record_run_issue(
+                                session,
+                                run,
+                                url,
+                                "extraction",
+                                "llm_budget_exhausted",
+                                "Model-assisted extraction budget spent; later pages are "
+                                "read structurally only.",
+                            )
                     created = await persist_extraction(
                         session,
                         source,
@@ -392,6 +430,7 @@ async def _ingest_source(session: AsyncSession, source: Source, run: Run) -> Non
                         response.content,
                         content_type,
                         extracted,
+                        use_model=within_budget,
                     )
                 chunks_count = len(chunk_text(extracted.get("text", "")))
                 await record_crawl_event(
@@ -470,7 +509,21 @@ async def persist_extraction(
     raw: bytes,
     content_type: str,
     extracted: dict,
+    *,
+    use_model: bool = True,
 ) -> bool:
+    if content_type.startswith("text/html"):
+        await fill_institution_branding(session, source, url, raw)
+    if not extracted.get("structured_records") and content_type.startswith("text/html"):
+        # The model pass is the slowest stage of a large crawl, so the caller
+        # decides whether this page still has budget for it. Without it the
+        # structural pass still runs and the record still reaches review with
+        # its missing fields named.
+        course_records = await extract_course_records(
+            source, url, raw, ollama=OllamaService() if use_model else None
+        )
+        if course_records:
+            extracted = {**extracted, "structured_records": course_records}
     suffix = mimetypes.guess_extension(content_type) or Path(urlparse(url).path).suffix or ".bin"
     with tracer.start_as_current_span("artifact.store"):
         digest, artifact_path = store_artifact(raw, suffix)
@@ -514,6 +567,56 @@ async def persist_extraction(
     return created
 
 
+async def fill_institution_branding(
+    session: AsyncSession,
+    source: Source,
+    url: str,
+    html: bytes,
+) -> None:
+    """Fill absent branding fields without overwriting an administrator's values."""
+    if not source.institution_id:
+        return
+    institution = await session.get(Institution, source.institution_id)
+    if not institution:
+        return
+    if institution.logo_url and institution.banner_url and institution.brand_color:
+        return
+    for column, value in branding_from_html(html, url).items():
+        if getattr(institution, column) is None:
+            setattr(institution, column, value)
+
+
+async def extract_course_records(
+    source: Source,
+    url: str,
+    html: bytes,
+    ollama: Any | None = None,
+    extractor_override: str | None = None,
+) -> list[dict[str, Any]]:
+    """Course records for a university source, whichever university it is.
+
+    Extraction used to be selected by the literal hostname "gre.ac.uk", which
+    is why every other university crawled cleanly and produced nothing. The
+    domain pack decides that a source is a university; the registry decides
+    how to read it.
+    """
+    # default=dict fires at INSERT, not at Python construction, so a Source
+    # built in a test has config None until it is persisted.
+    if (source.config or {}).get("domain_pack") != "university":
+        return []
+    domain = registrable_domain(str(source.url or url))
+    extractor = resolve_extractor(domain, extractor_override)
+    if isinstance(extractor, GenericUniversityExtractor):
+        extractor.ollama = ollama
+    try:
+        return await extractor.extract_records(url, html)
+    except Exception:
+        # One unreadable page must not end a 500-page crawl, but a silent
+        # failure must not look like a page that simply had no course on it.
+        logger.exception("Course extraction failed for %s", url)
+        return []
+
+
 async def persist_structured_records(
     session: AsyncSession,
     source: Source,
@@ -533,6 +636,12 @@ async def persist_structured_records(
             )
         )
         if record:
+            # An institution is not content: it must stay current on every
+            # revisit, including one where nothing else changed, or a record
+            # whose page never changes again keeps a stale or null
+            # institution forever and silently drops out of institution
+            # joins.
+            record.institution_id = source.institution_id
             changed = (
                 record.data != item["data"]
                 or record.evidence != item.get("evidence", {})
@@ -567,6 +676,7 @@ async def persist_structured_records(
                 published=status == RecordStatus.published,
                 validation_json=validation,
                 extractor_version=extractor_version,
+                institution_id=source.institution_id,
                 published_at=now() if status == RecordStatus.published else None,
                 **item,
             )

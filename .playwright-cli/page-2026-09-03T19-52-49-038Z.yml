@@ -1,0 +1,165 @@
+- generic [ref=f2e3]:
+  - link "Skip to workspace" [ref=f2e4] [cursor=pointer]:
+    - /url: "#workspace"
+  - complementary "Primary navigation" [ref=f2e5]:
+    - generic [ref=f2e6]:
+      - img "Scrapal" [ref=f2e8]
+      - button "Collapse navigation" [ref=f2e9] [cursor=pointer]
+    - paragraph [ref=f2e13]: Workspace
+    - navigation [ref=f2e14]:
+      - button "Overview" [ref=f2e15] [cursor=pointer]
+      - button "Sources" [ref=f2e19] [cursor=pointer]
+      - button "Knowledge" [ref=f2e26] [cursor=pointer]
+      - button "Course intelligence" [ref=f2e30] [cursor=pointer]
+      - button "Course gallery" [ref=f2e35] [cursor=pointer]
+      - button "Retrieval Lab" [ref=f2e40] [cursor=pointer]
+      - button "Observability" [ref=f2e46] [cursor=pointer]
+      - button "Reviews" [ref=f2e53] [cursor=pointer]
+      - button "Settings" [ref=f2e58] [cursor=pointer]
+    - generic [ref=f2e63]:
+      - generic [ref=f2e66]:
+        - generic [ref=f2e67]: Local AI
+        - strong [ref=f2e68]: Status unknown · API unreachable
+      - button "Use dark theme" [ref=f2e69] [cursor=pointer]:
+        - generic [ref=f2e72]: Dark theme
+  - main [ref=f2e73]:
+    - generic [ref=f2e74]:
+      - generic [ref=f2e75]:
+        - paragraph [ref=f2e76]: Scrapal / course-gallery
+        - heading "Browse courses with receipts" [level=1] [ref=f2e287]
+      - generic [ref=f2e78]:
+        - button "Ask Scrapal" [active] [ref=f2e485] [cursor=pointer]
+        - button "Add source" [ref=f2e84] [cursor=pointer]
+    - alert [ref=f2e486]:
+      - generic [ref=f2e489]:
+        - strong [ref=f2e490]: Scrapal could not reach its API
+        - generic [ref=f2e491]: Unexpected token '<', "<!doctype "... is not valid JSON. Check the API service, then try again.
+      - button "Retry" [ref=f2e492] [cursor=pointer]
+    - generic [ref=f2e289]:
+      - generic [ref=f2e290]:
+        - generic [ref=f2e291]:
+          - paragraph [ref=f2e292]: AI course discovery · evidence first
+          - heading "Find the course that fits your life—not just your keywords." [level=2] [ref=f2e295]
+          - paragraph [ref=f2e296]: Describe your ideal course naturally. Scrapal turns it into editable filters and keeps every result tied to university evidence.
+        - generic [ref=f2e297]:
+          - generic [ref=f2e298]:
+            - generic [ref=f2e299]: What are you looking for?
+            - textbox "What are you looking for?" [ref=f2e300]:
+              - /placeholder: A part-time postgraduate computing course in the UK, September intake, under £20,000…
+          - button "Search with AI" [disabled] [ref=f2e301]
+      - region "Popular study destinations" [ref=f2e304]:
+        - button "Worldwide 161 Everywhere" [ref=f2e305] [cursor=pointer]:
+          - img "Worldwide" [ref=f2e306]: 🌐
+          - generic [ref=f2e307]:
+            - strong [ref=f2e308]: "161"
+            - generic [ref=f2e309]: Everywhere
+        - button "United Kingdom flag 161 United Kingdom" [ref=f2e310] [cursor=pointer]:
+          - img "United Kingdom flag" [ref=f2e311]: 🇬🇧
+          - generic [ref=f2e312]:
+            - strong [ref=f2e313]: "161"
+            - generic [ref=f2e314]: United Kingdom
+      - generic [ref=f2e315]:
+        - complementary "Course filters" [ref=f2e316]:
+          - generic [ref=f2e318]:
+            - paragraph [ref=f2e319]: Refine results
+            - heading "Filters" [level=3] [ref=f2e320]
+          - generic [ref=f2e321]:
+            - textbox "Search course title" [ref=f2e325]:
+              - /placeholder: Course or subject
+            - generic [ref=f2e326]: Search course title
+          - group [ref=f2e327]:
+            - generic "Study level" [ref=f2e328] [cursor=pointer]
+            - generic [ref=f2e336]:
+              - generic [ref=f2e337] [cursor=pointer]:
+                - checkbox "Undergraduate 140"
+                - generic [ref=f2e341]: Undergraduate
+                - generic [ref=f2e342]: "140"
+              - generic [ref=f2e343] [cursor=pointer]:
+                - checkbox "Postgraduate 21"
+                - generic [ref=f2e347]: Postgraduate
+                - generic [ref=f2e348]: "21"
+          - group [ref=f2e349]:
+            - generic "University" [ref=f2e350] [cursor=pointer]
+            - generic [ref=f2e360] [cursor=pointer]:
+              - checkbox "University of Greenwich 161"
+              - generic [ref=f2e364]: University of Greenwich
+              - generic [ref=f2e365]: "161"
+          - group [ref=f2e366]:
+            - generic "Study mode" [ref=f2e367] [cursor=pointer]
+          - group [ref=f2e374]:
+            - generic "Duration" [ref=f2e375] [cursor=pointer]
+          - group [ref=f2e382]:
+            - generic "Intake" [ref=f2e383] [cursor=pointer]
+          - group [ref=f2e389]:
+            - generic "Maximum tuition" [ref=f2e390] [cursor=pointer]
+        - main [ref=f2e397]:
+          - generic [ref=f2e398]:
+            - generic [ref=f2e399]:
+              - paragraph [ref=f2e400]: Verified catalogue
+              - heading "161 published courses" [level=3] [ref=f2e401]
+              - paragraph [ref=f2e402]: Only evidence-gated records are shown.
+            - generic [ref=f2e403]:
+              - text: Sort by
+              - combobox "Sort by" [ref=f2e404]:
+                - option "Recently updated" [selected]
+                - option "Best evidenced"
+                - option "Course title"
+          - generic [ref=f2e405]:
+            - article [ref=f2e406]:
+              - generic [ref=f2e407]:
+                - generic [ref=f2e408]: UG
+                - generic [ref=f2e409]:
+                  - strong [ref=f2e410]: University of Greenwich
+                  - generic [ref=f2e411]:
+                    - img "United Kingdom flag" [ref=f2e412]: 🇬🇧
+                    - text: London
+                - button "Shortlist Software Engineering, BEng Hons" [ref=f2e413] [cursor=pointer]
+              - generic [ref=f2e416]:
+                - paragraph [ref=f2e417]: Undergraduate · BEng Hons
+                - heading "Software Engineering, BEng Hons" [level=3] [ref=f2e418]
+                - paragraph [ref=f2e419]: Design resilient software systems through practical studio projects, modern cloud platforms and responsible AI engineering.
+                - generic [ref=f2e420]:
+                  - generic [ref=f2e421]: BEng Hons
+                  - generic [ref=f2e422]: full-time
+                  - generic [ref=f2e423]: part-time
+                  - generic [ref=f2e424]: Greenwich Campus
+              - generic [ref=f2e425]:
+                - generic [ref=f2e426]:
+                  - generic [ref=f2e427]: Duration
+                  - strong [ref=f2e428]: 3 years full-time
+                - generic [ref=f2e429]:
+                  - generic [ref=f2e430]: Tuition from
+                  - strong [ref=f2e431]: £9,790
+                - button "Open course dossier" [ref=f2e432] [cursor=pointer]
+              - generic [ref=f2e435]:
+                - img "92% evidence coverage" [ref=f2e436]
+                - generic [ref=f2e438]: 92% source coverage
+            - article [ref=f2e442]:
+              - generic [ref=f2e443]:
+                - generic [ref=f2e444]: UG
+                - generic [ref=f2e445]:
+                  - strong [ref=f2e446]: University of Greenwich
+                  - generic [ref=f2e447]:
+                    - img "United Kingdom flag" [ref=f2e448]: 🇬🇧
+                    - text: London
+                - button "Shortlist Human Nutrition & Health, BSc Hons" [ref=f2e449] [cursor=pointer]
+              - generic [ref=f2e452]:
+                - paragraph [ref=f2e453]: Undergraduate · BSc Hons
+                - heading "Human Nutrition & Health, BSc Hons" [level=3] [ref=f2e454]
+                - paragraph [ref=f2e455]: Design resilient software systems through practical studio projects, modern cloud platforms and responsible AI engineering.
+                - generic [ref=f2e456]:
+                  - generic [ref=f2e457]: BSc Hons
+                  - generic [ref=f2e458]: full-time
+                  - generic [ref=f2e459]: part-time
+                  - generic [ref=f2e460]: Greenwich Campus
+              - generic [ref=f2e461]:
+                - generic [ref=f2e462]:
+                  - generic [ref=f2e463]: Duration
+                  - strong [ref=f2e464]: 3 years full-time
+                - generic [ref=f2e465]:
+                  - generic [ref=f2e466]: Tuition from
+                  - strong [ref=f2e467]: £9,790
+                - button "Open course dossier" [ref=f2e468] [cursor=pointer]
+              - generic [ref=f2e471]:
+                - img "88% evidence coverage" [ref=f2e472]
+                - generic [ref=f2e474]: 88% source coverage

@@ -4,6 +4,18 @@ const baseUrl = (import.meta.env.VITE_API_URL ?? '/api').replace(/\/$/, '')
 const apiKey = import.meta.env.VITE_API_KEY ?? 'scrapal-local-dev-key'
 
 export type Collection = { id: string; name: string; description: string }
+export type Institution = {
+  id: string
+  name: string
+  slug: string
+  domain: string
+  country_code: string | null
+  city: string | null
+  website_url: string | null
+  logo_url: string | null
+  banner_url: string | null
+  brand_color: string | null
+}
 export type Source = {
   id: string
   collection_id: string
@@ -12,6 +24,38 @@ export type Source = {
   url: string | null
   enabled: boolean
   last_run_at: string | null
+}
+export type CrawlBlueprint = {
+  id: string
+  collection_id: string
+  source_id: string | null
+  name: string
+  start_url: string
+  objective: string
+  domain_pack: 'generic' | 'university'
+  required_fields: string[]
+  suggested_config: {
+    start_url?: string
+    include_patterns?: string[]
+    exclude_patterns?: string[]
+    max_pages?: number
+    max_depth?: number
+  }
+  discovery_json: {
+    title?: string
+    sampled_pages?: number
+    links_observed?: number
+    page_type_counts?: Record<string, number>
+    candidate_pages?: { url: string; page_type: string; reason: string }[]
+    sample_results?: { url: string; title?: string; page_type: string; status: string; fields: string[]; coverage?: number; error?: string }[]
+    coverage_projection?: { overall: number; field_rates: Record<string, number>; basis: string; pages: number; confidence: string }
+    sitemaps?: string[]
+    robots_status?: number | null
+    robots_accessible?: boolean
+    warnings?: string[]
+  }
+  status: 'draft' | 'approved'
+  version: number
 }
 export type Run = {
   id: string
@@ -200,7 +244,107 @@ export type CourseIntelligenceOverview = {
   review: number
   rejected: number
   average_coverage: number
+  by_institution: {
+    institution_id: string | null
+    name: string
+    country_code: string | null
+    total: number
+    published: number
+    review: number
+    rejected: number
+    average_coverage: number
+  }[]
   missing_fields: { field: string; count: number }[]
+}
+export type GalleryInstitution = {
+  id: string
+  name: string
+  country_code: string | null
+  city: string | null
+  logo_url: string | null
+  banner_url: string | null
+  brand_color: string | null
+  published_courses?: number
+}
+export type GalleryCourse = {
+  id: string
+  institution_id: string
+  institution: GalleryInstitution
+  title: string
+  award: string | null
+  level: string | null
+  campuses: string[]
+  study_modes: string[]
+  durations: string[]
+  intake_months: string[]
+  fees: { residency?: string; label?: string; amount?: number; currency?: string; study_mode?: string }[]
+  entry_requirements: string | null
+  english_requirements: string | null
+  modules: string[]
+  scholarships: string[]
+  course_content: string | null
+  careers: string | null
+  source_url: string
+  coverage: number
+  evidence: CourseRecord['evidence']
+  updated_at: string
+}
+export type GalleryFacets = {
+  institution: { value: string; count: number }[]
+  country: { value: string; count: number }[]
+  level: { value: string; count: number }[]
+  study_mode: { value: string; count: number }[]
+  campus: { value: string; count: number }[]
+  intake_month: { value: string; count: number }[]
+  duration: { value: string; count: number }[]
+  fee: { min: number | null; max: number | null }
+}
+export type GalleryFilterParams = {
+  q?: string
+  collectionId?: string
+  level?: string
+  institutionIds?: string[]
+  countries?: string[]
+  intakeMonths?: string[]
+  studyModes?: string[]
+  durations?: string[]
+  feeMax?: number
+  sort?: 'updated' | 'title' | 'coverage'
+}
+export type GalleryInterpretation = {
+  source: 'model' | 'fallback'
+  filters: {
+    q: string | null
+    level: string | null
+    countries: string[]
+    institution_ids: string[]
+    study_modes: string[]
+    intake_months: string[]
+    durations: string[]
+    fee_max: number | null
+    explanation: string
+  }
+}
+export type ShortlistEntry = {
+  id: string
+  record_id: string
+  note: string | null
+  course: GalleryCourse
+}
+
+function galleryParams(filters: GalleryFilterParams): URLSearchParams {
+  const params = new URLSearchParams()
+  if (filters.q) params.set('q', filters.q)
+  if (filters.collectionId) params.set('collection_id', filters.collectionId)
+  if (filters.level) params.set('level', filters.level)
+  filters.institutionIds?.forEach((value) => params.append('institution_id', value))
+  filters.countries?.forEach((value) => params.append('country', value))
+  filters.intakeMonths?.forEach((value) => params.append('intake_month', value))
+  filters.studyModes?.forEach((value) => params.append('study_mode', value))
+  filters.durations?.forEach((value) => params.append('duration', value))
+  if (filters.feeMax != null) params.set('fee_max', String(filters.feeMax))
+  if (filters.sort) params.set('sort', filters.sort)
+  return params
 }
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
@@ -217,11 +361,35 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     const detail = body.detail
     throw new Error(typeof detail === 'string' ? detail : detail?.message ?? 'Request failed')
   }
+  if (response.status === 204) return undefined as T
   return response.json()
 }
 
 export const api = {
   collections: () => request<Collection[]>('/v1/collections'),
+  institutions: () => request<Institution[]>('/v1/admin/course-intelligence/institutions'),
+  galleryInstitutions: (collectionId?: string) => request<GalleryInstitution[]>(
+    `/v1/admin/course-gallery/institutions${collectionId ? `?collection_id=${collectionId}` : ''}`,
+  ),
+  galleryCourses: (filters: GalleryFilterParams) => request<{ items: GalleryCourse[]; total: number; next_cursor: number | null }>(
+    `/v1/admin/course-gallery/courses?${galleryParams(filters)}`,
+  ),
+  galleryFacets: (filters: GalleryFilterParams) => request<GalleryFacets>(
+    `/v1/admin/course-gallery/facets?${galleryParams(filters)}`,
+  ),
+  galleryShortlist: () => request<ShortlistEntry[]>('/v1/admin/course-gallery/shortlist'),
+  interpretGalleryQuery: (query: string) => request<GalleryInterpretation>(
+    '/v1/admin/course-gallery/interpret',
+    { method: 'POST', body: JSON.stringify({ query }) },
+  ),
+  addGalleryShortlist: (recordId: string) => request<{ id: string; record_id: string; note: null }>(
+    '/v1/admin/course-gallery/shortlist',
+    { method: 'POST', body: JSON.stringify({ record_id: recordId }) },
+  ),
+  removeGalleryShortlist: (recordId: string) => request<void>(
+    `/v1/admin/course-gallery/shortlist/${recordId}`,
+    { method: 'DELETE' },
+  ),
   sources: () => request<Source[]>('/v1/sources'),
   runs: () => request<Run[]>('/v1/runs'),
   run: (id: string) => request<RunDetail>(`/v1/runs/${id}`),
@@ -239,6 +407,18 @@ export const api = {
   grafanaLink: (runId?: string, traceId?: string) => request<{ url: string }>(`/v1/admin/observability/grafana-link?${traceId ? `trace_id=${traceId}` : runId ? `run_id=${runId}` : ''}`),
   createSource: (data: Record<string, unknown>) =>
     request<Source>('/v1/sources', { method: 'POST', body: JSON.stringify(data) }),
+  previewBlueprint: (data: Record<string, unknown>) =>
+    request<CrawlBlueprint>('/v1/crawl-blueprints/preview', {
+      method: 'POST', body: JSON.stringify(data),
+    }),
+  approveBlueprint: (id: string) =>
+    request<CrawlBlueprint>(`/v1/crawl-blueprints/${id}/approve`, { method: 'POST' }),
+  updateBlueprint: (id: string, data: Record<string, unknown>) =>
+    request<CrawlBlueprint>(`/v1/crawl-blueprints/${id}`, {
+      method: 'PATCH', body: JSON.stringify(data),
+    }),
+  runBlueprint: (id: string) =>
+    request<Run>(`/v1/crawl-blueprints/${id}/run`, { method: 'POST' }),
   startRun: (sourceId: string) =>
     request<Run>('/v1/runs', {
       method: 'POST',
@@ -316,6 +496,9 @@ export const api = {
     let lastEventId: string | undefined
     let terminal = false
     let reconnects = 0
+    // A handler that throws is reporting the answer, not a broken connection.
+    // Reconnecting on it would reopen a stream that has nothing left to send.
+    let handlerError: unknown
     while (!terminal) {
       try {
         const response = await fetch(
@@ -339,8 +522,13 @@ export const api = {
             const raw = lines.find((line) => line.startsWith('data:'))?.slice(5).trim()
             if (id) lastEventId = id
             if (type && raw) {
-              onEvent({ type, id, data: JSON.parse(raw) as Record<string, unknown> })
               terminal = ['completed', 'failed'].includes(type)
+              try {
+                onEvent({ type, id, data: JSON.parse(raw) as Record<string, unknown> })
+              } catch (error) {
+                handlerError = error
+                terminal = true
+              }
             }
           }
           if (done || terminal) break
@@ -352,5 +540,6 @@ export const api = {
         await new Promise((resolve) => window.setTimeout(resolve, reconnects * 500))
       }
     }
+    if (handlerError) throw handlerError
   },
 }

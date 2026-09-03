@@ -16,6 +16,7 @@ import {
   FileSearch,
   Globe2,
   GraduationCap,
+  LibraryBig,
   Menu,
   Network,
   MessageSquareText,
@@ -36,20 +37,25 @@ import {
   X,
 } from 'lucide-react'
 import { AnimatePresence, motion, MotionConfig } from 'motion/react'
-import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { api, CourseRecord, CrawlEvent, Incident, ObservabilityRun, RetrievalRun, Run, RunDetail, SearchHit, Source } from './api'
+import { FormEvent, KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { api, CourseRecord, CrawlBlueprint, CrawlEvent, Incident, ObservabilityRun, RetrievalRun, Run, RunDetail, SearchHit, Source } from './api'
+import { CollectionPicker } from './CollectionPicker'
+import { useCollectionScope } from './CollectionScope'
+import { CourseGallery } from './CourseGallery'
+import { InterpretedQuery } from './QueryPlan'
 import { RunPath } from './RunPath'
-import { formatDuration, ICON, isLiveRun, relativeDate, useDialog, useMediaQuery } from './lib'
+import { formatDuration, ICON, isLiveRun, QueryPlanData, readPlan, relativeDate, Tone, useDialog, useMediaQuery, uuid } from './lib'
 import { Empty, Meter, Status } from './ui'
 
-type View = 'overview' | 'sources' | 'knowledge' | 'course-intelligence' | 'retrieval-lab' | 'observability' | 'reviews' | 'settings'
-type AgentMessage = { id: string; role: string; content: string; citations?: { number: number; title: string; url?: string }[] }
+type View = 'overview' | 'sources' | 'knowledge' | 'course-intelligence' | 'course-gallery' | 'retrieval-lab' | 'observability' | 'reviews' | 'settings'
+type AgentMessage = { id: string; role: string; content: string; citations?: { number: number; title: string; url?: string }[]; withheld?: string[] }
 
 const nav: { id: View; label: string; icon: typeof Activity }[] = [
   { id: 'overview', label: 'Overview', icon: Activity },
   { id: 'sources', label: 'Sources', icon: Globe2 },
   { id: 'knowledge', label: 'Knowledge', icon: BookOpen },
   { id: 'course-intelligence', label: 'Course intelligence', icon: GraduationCap },
+  { id: 'course-gallery', label: 'Course gallery', icon: LibraryBig },
   { id: 'retrieval-lab', label: 'Retrieval Lab', icon: Microscope },
   { id: 'observability', label: 'Observability', icon: Network },
   { id: 'reviews', label: 'Reviews', icon: ShieldCheck },
@@ -71,6 +77,7 @@ function App() {
   const [newSource, setNewSource] = useState(false)
   const [selectedRunId, setSelectedRunId] = useState<string>()
   const collections = useQuery({ queryKey: ['collections'], queryFn: api.collections })
+  const { scope, setScope } = useCollectionScope()
   const sources = useQuery({ queryKey: ['sources'], queryFn: api.sources })
   const runs = useQuery({ queryKey: ['runs'], queryFn: api.runs })
   const documents = useQuery({ queryKey: ['documents'], queryFn: api.documents })
@@ -91,6 +98,13 @@ function App() {
     () => runs.data?.find(isLiveRun) ?? runs.data?.find((run) => run.status !== 'queued' || isLiveRun(run)),
     [runs.data],
   )
+  // An unreachable API is not an Ollama outage. Reporting one as the other sent
+  // us hunting a healthy model server while nginx was the thing that was broken.
+  const localAi: { tone: Tone; label: string } = system.isPending ? { tone: 'idle', label: 'Checking local AI' }
+    : system.error ? { tone: 'idle', label: 'Status unknown · API unreachable' }
+    : system.data?.ollama.status === 'ok' ? { tone: 'done', label: 'Ollama ready' }
+    : system.data?.ollama.status === 'degraded' ? { tone: 'wait', label: 'Chat needs attention' }
+    : { tone: 'fail', label: 'Ollama unavailable' }
   const sourceMap = new Map(sources.data?.map((source) => [source.id, source]))
   const refresh = () => queryClient.invalidateQueries()
   const closeRunMonitor = useCallback(() => setSelectedRunId(undefined), [])
@@ -123,8 +137,8 @@ function App() {
         </nav>
         <div className="sidebar-foot">
           <div className="model-health">
-            <span className={system.data?.ollama.status === 'ok' ? 'healthy' : system.data?.ollama.status === 'degraded' ? 'degraded' : 'unhealthy'} />
-            <div className="health-copy"><small>Local AI</small><strong>{system.data?.ollama.status === 'ok' ? 'Ollama ready' : system.data?.ollama.status === 'degraded' ? 'Chat needs attention' : 'Unavailable'}</strong></div>
+            <span className={`tone-${localAi.tone}`} />
+            <div className="health-copy"><small>Local AI</small><strong>{localAi.label}</strong></div>
           </div>
           <button className="theme-toggle" onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} aria-label={theme === 'light' ? 'Use dark theme' : 'Use light theme'} title={sidebarCollapsed ? (theme === 'light' ? 'Use dark theme' : 'Use light theme') : undefined}>
             {theme === 'light' ? <Moon size={ICON.md} /> : <Sun size={ICON.md} />}
@@ -141,6 +155,7 @@ function App() {
             <h1>{titleFor(view)}</h1>
           </div>
           <div className="top-actions">
+            <CollectionPicker collections={collections.data ?? []} scope={scope} onChange={setScope} />
             <button className="button secondary agent-trigger" onClick={() => setAgentOpen(!agentOpen)} aria-label={agentOpen ? 'Hide Scrapal agent' : 'Ask Scrapal'} title={agentOpen ? 'Hide Scrapal agent' : 'Ask Scrapal'}><Bot size={ICON.md} aria-hidden="true" /> <span>{agentOpen ? 'Hide agent' : 'Ask Scrapal'}</span></button>
             <button className="button primary add-source-trigger" onClick={() => setNewSource(true)} aria-label="Add source" title="Add source"><Plus size={ICON.md} aria-hidden="true" /> <span>Add source</span></button>
           </div>
@@ -152,9 +167,10 @@ function App() {
           <motion.div key={view} className="view" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: .18 }}>
             {view === 'overview' && <Overview activeRun={activeRun} sources={sources.data ?? []} runs={runs.data ?? []} documents={documents.data ?? []} sourceMap={sourceMap} onInspect={setSelectedRunId} />}
             {view === 'sources' && <Sources sources={sources.data ?? []} runs={runs.data ?? []} onRun={(run) => { refresh(); setSelectedRunId(run.id) }} onInspect={setSelectedRunId} onAdd={() => setNewSource(true)} />}
-            {view === 'knowledge' && <Knowledge collectionId={collections.data?.[0]?.id} documents={documents.data ?? []} />}
-            {view === 'course-intelligence' && <CourseIntelligence collectionId={collections.data?.[0]?.id} onOpenSources={() => setView('sources')} />}
-            {view === 'retrieval-lab' && <RetrievalLab collectionId={collections.data?.[0]?.id} />}
+            {view === 'knowledge' && <Knowledge collectionId={scope} documents={documents.data ?? []} />}
+            {view === 'course-intelligence' && <CourseIntelligence collectionId={scope} onOpenSources={() => setView('sources')} />}
+            {view === 'course-gallery' && <CourseGallery collectionId={scope} />}
+            {view === 'retrieval-lab' && <RetrievalLab collectionId={scope} />}
             {view === 'observability' && <Observability onInspect={setSelectedRunId} />}
             {view === 'reviews' && <Reviews proposals={proposals.data ?? []} onChanged={refresh} />}
             {view === 'settings' && <Settings system={system.data} />}
@@ -163,12 +179,12 @@ function App() {
       </main>
 
       <AnimatePresence>
-        {agentOpen && <AgentPanel collectionId={collections.data?.[0]?.id} onClose={() => setAgentOpen(false)} />}
+        {agentOpen && <AgentPanel collectionId={scope} onClose={() => setAgentOpen(false)} />}
       </AnimatePresence>
       {agentOpen && <button className="agent-backdrop" onClick={() => setAgentOpen(false)} aria-hidden="true" tabIndex={-1} />}
 
       <AnimatePresence>
-        {newSource && <AddSource collectionId={collections.data?.[0]?.id} onClose={() => setNewSource(false)} onCreated={() => { setNewSource(false); refresh(); setView('sources') }} />}
+        {newSource && <AddSource collectionId={scope ?? collections.data?.[0]?.id} onClose={() => setNewSource(false)} onCreated={() => { setNewSource(false); refresh(); setView('sources') }} />}
       </AnimatePresence>
       <AnimatePresence>
         {selectedRunId && <RunMonitor runId={selectedRunId} onClose={closeRunMonitor} />}
@@ -308,6 +324,23 @@ function CourseIntelligence({ collectionId, onOpenSources }: { collectionId?: st
       <button className={filter === 'review' ? 'active' : ''} onClick={() => setFilter('review')}><strong>{summary?.review ?? 0}</strong><span>Need review</span></button>
       <button className={filter === 'rejected' ? 'active' : ''} onClick={() => setFilter('rejected')}><strong>{summary?.rejected ?? 0}</strong><span>Rejected</span></button>
     </section>
+    <section className="institution-spine">
+      <h3>Coverage by university</h3>
+      <ul>
+        {overview.data?.by_institution.map((row) => (
+          <li key={row.institution_id ?? 'none'}>
+            <div>
+              <strong>{row.name}</strong>
+              {row.country_code && <span className="country">{row.country_code}</span>}
+            </div>
+            <Meter value={row.average_coverage * 100} />
+            <span className="counts">
+              {row.published} published · {row.review} in review
+            </span>
+          </li>
+        ))}
+      </ul>
+    </section>
     {!records.isLoading && !records.data?.length && <Empty icon={GraduationCap} title="No course records have been extracted" text="Open Sources and run a Greenwich connector. Course records appear here after pages reach the extraction stage." action="Open sources" onAction={onOpenSources} />}
     {records.isLoading && <div className="loading-line"><Radio /> Loading course evidence…</div>}
     {records.data?.length ? <div className="course-workbench">
@@ -433,11 +466,9 @@ function RetrievalTrace({ run }: { run: RetrievalRun }) {
     { accessorKey: 'included', header: 'Decision', cell: ({ getValue }) => getValue<boolean>() ? <span className="decision included"><Check /> Included</span> : <span className="decision excluded"><X /> Excluded</span> },
   ], [selectedId])
   const table = useReactTable({ data: visibleCandidates, columns, getCoreRowModel: getCoreRowModel() })
-  const plan = run.query_plan as Record<string, unknown>
-  const planFilters = [plan.level, plan.residency, plan.intake, plan.study_mode].filter(Boolean).map(String)
   return <div className="retrieval-trace">
     <section className="plan-strip">
-      <div className="query-plan-readable"><small>Interpreted request</small><strong>{String(plan.intent ?? 'Research')}</strong><p>{Array.isArray(plan.requested_fields) && plan.requested_fields.length ? plan.requested_fields.map(String).join(', ') : 'No exact fields detected'}</p><div>{planFilters.length ? planFilters.map((filter) => <span key={filter}>{filter}</span>) : <span>No additional filters</span>}</div><details><summary>View raw plan</summary><pre>{JSON.stringify(run.query_plan, null, 2)}</pre></details></div>
+      <InterpretedQuery plan={readPlan(run.query_plan)} />
       <dl aria-label="Retrieval timing">{Object.entries(run.timings_json).map(([name, value]) => <div key={name}><dt>{name.replace('_ms', '')}</dt><dd>{formatDuration(Number(value))}</dd></div>)}</dl>
     </section>
     <section className="ranking-workbench" aria-labelledby="ranking-title">
@@ -567,12 +598,25 @@ function HealthRow({ icon: Icon, label, status, detail }: { icon: typeof Server;
 
 function IncidentRow({ incident, onInspect, onAcknowledge, onResolve }: { incident: Incident; onInspect: (id: string) => void; onAcknowledge: () => void; onResolve: () => void }) { return <article className={`incident-row ${incident.severity}`}><AlertTriangle /><div><div><span>{incident.severity}</span><small>{incident.service} · {relativeDate(incident.last_seen_at)}</small></div><strong>{incident.summary}</strong><p>{incident.remediation}</p></div><div className="incident-actions">{incident.run_id && <button onClick={() => onInspect(incident.run_id!)}>Inspect run</button>}<button onClick={onAcknowledge}>Acknowledge</button><button onClick={onResolve}>Resolve</button></div></article> }
 
+const WITHHELD_REASONS: Record<string, string> = {
+  missing_citation: 'it cited no evidence',
+  unknown_citation: 'it cited evidence that was never retrieved',
+  insufficient_overlap: 'the evidence it cited did not support it',
+}
+
+function withheldNote(reasons: string[]) {
+  const distinct = [...new Set(reasons.map((reason) => WITHHELD_REASONS[reason] ?? 'it could not be verified'))]
+  const count = reasons.length === 1 ? '1 sentence was removed' : `${reasons.length} sentences were removed`
+  return `${count} from this answer because ${distinct.join(', and ')}.`
+}
+
 function AgentPanel({ collectionId, onClose }: { collectionId?: string; onClose: () => void }) {
   const panelRef = useRef<HTMLElement>(null)
   const mobile = useMediaQuery('(max-width: 760px)')
   const [conversation, setConversation] = useState<string>()
   const [input, setInput] = useState('')
   const [phase, setPhase] = useState('Searching your knowledge')
+  const [plan, setPlan] = useState<QueryPlanData>()
   const [messages, setMessages] = useState<AgentMessage[]>([])
   useDialog(panelRef, onClose, mobile)
   const updateAssistant = (id: string, update: (message: AgentMessage) => AgentMessage) => setMessages((items) => items.map((message) => message.id === id ? update(message) : message))
@@ -584,7 +628,10 @@ function AgentPanel({ collectionId, onClose }: { collectionId?: string; onClose:
     setMessages((items) => [...items, { id: assistantId, role: 'assistant', content: '' }])
     await api.watchGeneration(id, generation.id, (event) => {
       if (event.type === 'retrieval.started') setPhase('Planning the evidence search')
-      if (event.type === 'retrieval.completed') setPhase(`Retrieved ${String(event.data.passages ?? 0)} passages`)
+      if (event.type === 'retrieval.completed') {
+        setPhase(`Retrieved ${String(event.data.passages ?? 0)} passages`)
+        setPlan(readPlan(event.data.plan))
+      }
       if (event.type === 'generation.started') setPhase('Validating each answer sentence')
       if (event.type === 'answer.snapshot') updateAssistant(assistantId, (message) => ({ ...message, content: String(event.data.answer ?? message.content), citations: Array.isArray(event.data.citations) ? event.data.citations as AgentMessage['citations'] : message.citations }))
       if (event.type === 'answer.delta') updateAssistant(assistantId, (message) => ({ ...message, content: message.content + String(event.data.delta ?? '') }))
@@ -592,29 +639,73 @@ function AgentPanel({ collectionId, onClose }: { collectionId?: string; onClose:
         const citation = { number: Number(event.data.number), title: String(event.data.title ?? 'Evidence'), url: event.data.url ? String(event.data.url) : undefined }
         return { ...message, citations: [...(message.citations ?? []).filter((item) => item.number !== citation.number), citation] }
       })
+      // A sentence the validator dropped leaves a shorter answer that otherwise
+      // reads as complete. Say so instead of letting the gap pass unnoticed.
+      if (event.type === 'answer.withheld') updateAssistant(assistantId, (message) => ({ ...message, withheld: [...(message.withheld ?? []), String(event.data.reason ?? 'unsupported')] }))
       if (event.type === 'abstained') updateAssistant(assistantId, (message) => ({ ...message, content: String(event.data.answer ?? 'I cannot answer from the published evidence.') }))
       if (event.type === 'failed') throw new Error('Local answer generation failed. The crawl and indexed evidence remain available.')
     })
     return generation
   } })
-  const submit = (event: FormEvent) => { event.preventDefault(); if (send.isPending) return; const value = input.trim(); if (!value) return; const requestId = crypto.randomUUID(); setMessages((items) => [...items, { id: `user-${requestId}`, role: 'user', content: value }]); setInput(''); setPhase('Searching your knowledge'); send.mutate({ content: value, requestId }) }
-  return <motion.aside ref={panelRef} className="agent-panel" initial={{ x: 50, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 50, opacity: 0 }} role={mobile ? 'dialog' : undefined} aria-modal={mobile ? 'true' : undefined} aria-label="Scrapal agent"><header><div className="agent-avatar"><Sparkles /></div><div><p className="eyebrow">Grounded in your sources</p><h2>Ask Scrapal</h2></div><button className="icon-button" onClick={onClose} aria-label="Close agent"><X /></button></header><div className="messages" aria-live="polite">{messages.length === 0 && <div className="agent-empty"><MessageSquareText /><h3>Research with receipts.</h3><p>Ask across your collections. Every factual answer links back to its evidence.</p><button onClick={() => setInput('Which courses have a January intake?')}>Try “Which courses have a January intake?”</button></div>}{messages.map((message) => <div className={`message ${message.role}`} key={message.id}><p>{message.content}</p>{message.citations?.length ? <div className="citations">{message.citations.map((citation) => citation.url ? <a key={citation.number} href={citation.url} target="_blank" rel="noreferrer">[{citation.number}] {citation.title}</a> : <span key={citation.number}>[{citation.number}] {citation.title}</span>)}</div> : null}</div>)}{send.isPending && <div className="thinking"><span /><span /><span /><em>{phase}</em></div>}{send.error && <p className="inline-error">{send.error.message}</p>}</div><form className="agent-composer" onSubmit={submit}><label className="sr-only" htmlFor="agent-input">Ask Scrapal</label><textarea id="agent-input" value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask a cited question…" rows={3} /><button aria-label="Send message" disabled={send.isPending || !input.trim()}><ArrowRight /></button></form></motion.aside>
+  const dispatch = () => { if (send.isPending) return; const value = input.trim(); if (!value) return; const requestId = uuid(); setMessages((items) => [...items, { id: `user-${requestId}`, role: 'user', content: value }]); setInput(''); setPhase('Searching your knowledge'); setPlan(undefined); send.mutate({ content: value, requestId }) }
+  const submit = (event: FormEvent) => { event.preventDefault(); dispatch() }
+  // Enter sends, shift+enter starts a line. isComposing keeps an IME candidate
+  // list from being mistaken for a finished question.
+  const onKey = (event: KeyboardEvent<HTMLTextAreaElement>) => { if (event.key !== 'Enter' || event.shiftKey || event.nativeEvent.isComposing) return; event.preventDefault(); dispatch() }
+  return <motion.aside ref={panelRef} className="agent-panel" initial={{ x: 50, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 50, opacity: 0 }} role={mobile ? 'dialog' : undefined} aria-modal={mobile ? 'true' : undefined} aria-label="Scrapal agent"><header><div className="agent-avatar"><Sparkles /></div><div><p className="eyebrow">Grounded in your sources</p><h2>Ask Scrapal</h2></div><button className="icon-button" onClick={onClose} aria-label="Close agent"><X /></button></header><div className="messages" aria-live="polite">{messages.length === 0 && <div className="agent-empty"><MessageSquareText /><h3>Research with receipts.</h3><p>Ask across your collections. Every factual answer links back to its evidence.</p><button onClick={() => setInput('Which courses have a January intake?')}>Try “Which courses have a January intake?”</button></div>}{messages.map((message) => <div className={`message ${message.role}`} key={message.id}><p>{message.content}</p>{message.citations?.length ? <div className="citations">{message.citations.map((citation) => citation.url ? <a key={citation.number} href={citation.url} target="_blank" rel="noreferrer">[{citation.number}] {citation.title}</a> : <span key={citation.number}>[{citation.number}] {citation.title}</span>)}</div> : null}{message.withheld?.length ? <p className="withheld-note"><ShieldCheck size={ICON.xs} aria-hidden="true" />{withheldNote(message.withheld)}</p> : null}</div>)}{send.isPending && <div className="agent-progress"><div className="thinking"><span /><span /><span /><em>{phase}</em></div><InterpretedQuery plan={plan} compact /></div>}{send.error && <p className="inline-error">{send.error.message}</p>}</div><form className="agent-composer" onSubmit={submit}><label className="sr-only" htmlFor="agent-input">Ask Scrapal</label><textarea id="agent-input" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={onKey} placeholder="Ask a cited question…" rows={3} enterKeyHint="send" /><button type="submit" aria-label="Send message" onMouseDown={(e) => e.preventDefault()} disabled={send.isPending || !input.trim()}><ArrowRight /></button></form></motion.aside>
 }
 
 function AddSource({ collectionId, onClose, onCreated }: { collectionId?: string; onClose: () => void; onCreated: () => void }) {
   const dialogRef = useRef<HTMLDivElement>(null)
-  const [kind, setKind] = useState<'website' | 'sitemap' | 'document' | 'greenwich'>('greenwich')
+  const [kind, setKind] = useState<'university' | 'website' | 'sitemap' | 'document'>('university')
   const [name, setName] = useState('University of Greenwich')
-  const [url, setUrl] = useState('https://www.gre.ac.uk/sitemap.xml')
+  const [url, setUrl] = useState('https://www.gre.ac.uk/')
+  const [objective, setObjective] = useState('Find every course and the fees, intakes, entry requirements, English requirements, application documents, deadlines, campuses, and scholarships a prospective student needs.')
+  const [blueprint, setBlueprint] = useState<CrawlBlueprint>()
+  const fields = ['title', 'award', 'level', 'campuses', 'study_modes', 'durations', 'intake_months', 'fees', 'entry_requirements', 'english_requirements', 'application_documents', 'deadlines', 'scholarships']
+  const [requiredFields, setRequiredFields] = useState(fields)
   const create = useMutation({ mutationFn: api.createSource, onSuccess: onCreated })
+  const preview = useMutation({
+    mutationFn: () => api.previewBlueprint({ collection_id: collectionId, name, start_url: url, objective, domain_pack: kind === 'university' ? 'university' : 'generic', required_fields: kind === 'university' ? requiredFields : [], max_pages: 500 }),
+    onSuccess: setBlueprint,
+  })
+  const launch = useMutation({
+    mutationFn: async (scope: { include_patterns: string[]; exclude_patterns: string[]; max_pages: number; max_depth: number }) => {
+      if (!blueprint) throw new Error('Preview the crawl plan first.')
+      await api.updateBlueprint(blueprint.id, scope)
+      await api.approveBlueprint(blueprint.id)
+      return api.runBlueprint(blueprint.id)
+    },
+    onSuccess: onCreated,
+  })
   useDialog(dialogRef, onClose)
   useEffect(() => {
     const previousOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     return () => { document.body.style.overflow = previousOverflow }
   }, [])
-  const submit = (event: FormEvent) => { event.preventDefault(); if (!collectionId) return; create.mutate({ collection_id: collectionId, name, kind, url: kind === 'document' ? null : url, config: kind === 'greenwich' ? {} : { max_pages: 100, max_depth: 2 } }) }
-  return <><button className="backdrop" onClick={onClose} aria-label="Close add source dialog" /><motion.div ref={dialogRef} className="dialog" role="dialog" aria-modal="true" aria-labelledby="add-source-title" initial={{ opacity: 0, scale: .98, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }}><header><div><p className="eyebrow">New input</p><h2 id="add-source-title">Connect a source</h2><p>Choose what Scrapal should collect and keep current.</p></div><button className="icon-button" onClick={onClose} aria-label="Close"><X /></button></header><form onSubmit={submit}><div className="dialog-scroll"><fieldset><legend>Source type</legend><div className="choice-grid">{(['greenwich', 'website', 'sitemap', 'document'] as const).map((item) => <label className={kind === item ? 'selected' : ''} key={item}><input type="radio" name="kind" value={item} checked={kind === item} onChange={() => { setKind(item); if (item === 'greenwich') { setName('University of Greenwich'); setUrl('https://www.gre.ac.uk/sitemap.xml') } }} /><span>{item === 'greenwich' ? <Sparkles /> : item === 'document' ? <FileSearch /> : <Globe2 />}{item}</span></label>)}</div></fieldset><label>Name<input value={name} onChange={(e) => setName(e.target.value)} required /></label>{kind !== 'document' && <label>Starting URL<input type="url" value={url} onChange={(e) => setUrl(e.target.value)} required /></label>}<p className="form-help">Private network addresses are blocked. Scrapal checks robots rules before fetching public pages.</p>{!collectionId && <p className="inline-error">Create a collection before connecting a source.</p>}{create.error && <p className="inline-error">{create.error.message}</p>}</div><div className="dialog-actions"><button type="button" className="button secondary" onClick={onClose}>Cancel</button><button className="button primary" disabled={create.isPending || !collectionId}>{create.isPending ? 'Connecting…' : 'Connect source'}</button></div></form></motion.div></>
+  const submit = (event: FormEvent) => {
+    event.preventDefault()
+    if (!collectionId) return
+    if (kind === 'document') create.mutate({ collection_id: collectionId, name, kind: 'document', url: null, config: {} })
+    else preview.mutate()
+  }
+  const toggleField = (field: string) => setRequiredFields((current) => current.includes(field) ? current.filter((item) => item !== field) : [...current, field])
+  const error = create.error ?? preview.error ?? launch.error
+  return <><button className="backdrop" onClick={onClose} aria-label="Close add source dialog" /><motion.div ref={dialogRef} className="dialog blueprint-dialog" role="dialog" aria-modal="true" aria-labelledby="add-source-title" initial={{ opacity: 0, scale: .98, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }}><header><div><p className="eyebrow">{blueprint ? 'Crawl blueprint · preview' : 'New input · guided setup'}</p><h2 id="add-source-title">{blueprint ? 'Review before crawling' : 'Tell Scrapal what to find'}</h2><p>{blueprint ? 'Approve the proposed scope only when it matches your research objective.' : 'Start with a homepage and an outcome. Scrapal will propose a safe crawl plan.'}</p></div><button className="icon-button" onClick={onClose} aria-label="Close"><X /></button></header>{!blueprint ? <form onSubmit={submit}><div className="dialog-scroll"><fieldset><legend>Source type</legend><div className="choice-grid">{(['university', 'website', 'sitemap', 'document'] as const).map((item) => <label className={kind === item ? 'selected' : ''} key={item}><input type="radio" name="kind" value={item} checked={kind === item} onChange={() => { setKind(item); setBlueprint(undefined); if (item === 'university') { setName('University of Greenwich'); setUrl('https://www.gre.ac.uk/') } }} /><span>{item === 'university' ? <GraduationCap /> : item === 'document' ? <FileSearch /> : <Globe2 />}{item}</span></label>)}</div></fieldset><label>Name<input value={name} onChange={(e) => setName(e.target.value)} required /></label>{kind !== 'document' && <><label>Starting URL<input type="url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://university.example/" required /></label><label>Research objective<textarea value={objective} onChange={(e) => setObjective(e.target.value)} rows={3} required minLength={12} /></label>{kind === 'university' && <fieldset><legend>Required evidence</legend><div className="field-contract">{fields.map((field) => <label key={field}><input type="checkbox" checked={requiredFields.includes(field)} onChange={() => toggleField(field)} /><span>{field.replaceAll('_', ' ')}</span></label>)}</div></fieldset>}</>}<p className="form-help">Preview samples representative public pages and crawl-policy metadata. It does not start a bulk crawl.</p>{!collectionId && <p className="inline-error">Create a collection before connecting a source.</p>}{error && <p className="inline-error">{error.message}</p>}</div><div className="dialog-actions"><button type="button" className="button secondary" onClick={onClose}>Cancel</button><button className="button primary" disabled={preview.isPending || create.isPending || !collectionId || (kind !== 'document' && objective.trim().length < 12)}>{preview.isPending ? 'Sampling evidence…' : kind === 'document' ? 'Connect document source' : 'Preview crawl plan'}</button></div></form> : <BlueprintPreview blueprint={blueprint} onBack={() => setBlueprint(undefined)} onLaunch={(scope) => launch.mutate(scope)} busy={launch.isPending} error={error?.message} />}</motion.div></>
+}
+
+function BlueprintPreview({ blueprint, onBack, onLaunch, busy, error }: { blueprint: CrawlBlueprint; onBack: () => void; onLaunch: (scope: { include_patterns: string[]; exclude_patterns: string[]; max_pages: number; max_depth: number }) => void; busy: boolean; error?: string }) {
+  const discovery = blueprint.discovery_json
+  const typeCounts = Object.entries(discovery.page_type_counts ?? {}).sort((left, right) => right[1] - left[1])
+  const projection = discovery.coverage_projection
+  const fieldRates = Object.entries(projection?.field_rates ?? {}).sort((left, right) => left[1] - right[1])
+  const [includePatterns, setIncludePatterns] = useState((blueprint.suggested_config.include_patterns ?? []).join('\n'))
+  const [excludePatterns, setExcludePatterns] = useState((blueprint.suggested_config.exclude_patterns ?? []).join('\n'))
+  const [maxPages, setMaxPages] = useState(blueprint.suggested_config.max_pages ?? 500)
+  const [maxDepth, setMaxDepth] = useState(blueprint.suggested_config.max_depth ?? 2)
+  const scope = { include_patterns: includePatterns.split('\n').map((value) => value.trim()).filter(Boolean), exclude_patterns: excludePatterns.split('\n').map((value) => value.trim()).filter(Boolean), max_pages: maxPages, max_depth: maxDepth }
+  return <div className="blueprint-preview"><div className="dialog-scroll"><section className="blueprint-verdict"><span><CircleCheckBig /></span><div><small>Representative sample complete</small><strong>{discovery.sampled_pages ?? 0} pages sampled from {discovery.links_observed ?? 0} eligible links</strong><p>{discovery.sitemaps?.length ? `${discovery.sitemaps.length} sitemap${discovery.sitemaps.length === 1 ? '' : 's'} discovered.` : 'No sitemap advertised; Scrapal will follow eligible page links.'} Robots returned {discovery.robots_status ?? 'no response'}.</p></div><div className="projection-score" aria-label={`${Math.round((projection?.overall ?? 0) * 100)} percent projected field coverage`}><strong>{Math.round((projection?.overall ?? 0) * 100)}%</strong><span>projected</span></div></section><dl className="blueprint-metrics"><div><dt>Sample confidence</dt><dd>{projection?.confidence ?? 'low'}</dd></div><div><dt>Course samples</dt><dd>{projection?.pages ?? 0}</dd></div><div><dt>Required fields</dt><dd>{blueprint.required_fields.length}</dd></div><div><dt>Plan version</dt><dd>v{blueprint.version}</dd></div></dl><section className="blueprint-section"><header><div><small>Coverage projection</small><strong>Likely evidence gaps before a full crawl</strong></div><span>{projection?.basis?.replaceAll('_', ' ') ?? 'representative pages'}</span></header><div className="coverage-ledger">{fieldRates.map(([field, rate]) => <div key={field}><span>{field.replaceAll('_', ' ')}</span><Meter value={rate * 100} tone={rate >= .75 ? 'done' : rate >= .35 ? 'wait' : 'fail'} label={`${field.replaceAll('_', ' ')} found on ${Math.round(rate * 100)} percent of sampled pages`} /><strong>{Math.round(rate * 100)}%</strong></div>)}</div></section><section className="blueprint-section"><header><div><small>Discovery signals</small><strong>Page families available to the crawl</strong></div></header>{typeCounts.length ? <div className="page-type-grid">{typeCounts.slice(0, 8).map(([type, count]) => <div key={type}><strong>{count}</strong><span>{type.replaceAll('-', ' ')}</span></div>)}</div> : <p className="form-help">No classifiable navigation links were found in the planning sample.</p>}</section><section className="blueprint-section scope-editor"><header><div><small>Approved scope</small><strong>Edit the rules Scrapal will enforce</strong></div><span>Literal path fragments</span></header><div className="scope-fields"><label>Include paths<textarea rows={4} value={includePatterns} onChange={(event) => setIncludePatterns(event.target.value)} aria-describedby="scope-help" /></label><label>Exclude paths<textarea rows={4} value={excludePatterns} onChange={(event) => setExcludePatterns(event.target.value)} aria-describedby="scope-help" /></label></div><div className="scope-limits"><label>Maximum pages<input type="number" min={1} max={10000} value={maxPages} onChange={(event) => setMaxPages(Number(event.target.value))} /></label><label>Link depth<input type="number" min={0} max={10} value={maxDepth} onChange={(event) => setMaxDepth(Number(event.target.value))} /></label></div><p className="form-help" id="scope-help">One literal path fragment per line. These rules cannot execute code.</p></section>{discovery.warnings?.map((warning) => <p className="blueprint-warning" key={warning}><AlertTriangle /> {warning}</p>)}{error && <p className="inline-error">{error}</p>}</div><div className="dialog-actions"><button type="button" className="button secondary" onClick={onBack}>Edit objective</button><button type="button" className="button primary" onClick={() => onLaunch(scope)} disabled={busy || maxPages < 1 || maxPages > 10000 || maxDepth < 0 || maxDepth > 10}><Play /> {busy ? 'Saving scope…' : 'Approve scope & start'}</button></div></div>
 }
 
 function RunMonitor({ runId, onClose }: { runId: string; onClose: () => void }) {
@@ -741,6 +832,6 @@ function EventTimeline({ events, runId }: { events: CrawlEvent[]; runId: string 
 function describeEvent(event: CrawlEvent) { if (event.stage === 'run') return `Run ${event.outcome}`; if (event.stage === 'discovery') return 'Building the crawl frontier'; return `${event.stage} ${event.outcome}` }
 
 function RunTable({ runs, sourceMap, onSelect }: { runs: Run[]; sourceMap: Map<string, Source>; onSelect: (id: string) => void }) { if (!runs.length) return <p className="empty-row">Runs will appear here after you start a source.</p>; return <div className="table-wrap"><table><thead><tr><th>Source</th><th>Status</th><th>Progress</th><th>Documents</th><th>Exceptions</th><th>Started</th></tr></thead><tbody>{runs.map((run) => <tr className="clickable-row" key={run.id} onClick={() => onSelect(run.id)}><td><button className="row-link">{sourceMap.get(run.source_id)?.name ?? 'Source'}</button></td><td><Status status={run.status === 'queued' && !isLiveRun(run) ? 'worker_timeout' : run.status} warnings={run.issues_count} /></td><td><Meter value={run.pages_processed / Math.max(run.pages_discovered, 1) * 100} tone={run.status === 'failed' ? 'fail' : run.status === 'completed' ? 'done' : 'active'} label={`${run.pages_processed} of ${run.pages_discovered} pages checked`} /><small>{run.pages_processed} / {run.pages_discovered} checked</small></td><td>{run.documents_created}</td><td>{run.issues_count ? `${run.issues_count} error${run.issues_count === 1 ? '' : 's'}` : run.policy_skips_count ? `${run.policy_skips_count} skipped` : '—'}</td><td>{relativeDate(run.created_at)}</td></tr>)}</tbody></table></div> }
-function titleFor(view: View) { return { overview: 'Follow the knowledge thread', sources: 'Connected sources', knowledge: 'Search the evidence', 'course-intelligence': 'Turn course pages into trusted facts', 'retrieval-lab': 'Trace an answer back to evidence', observability: 'See where every crawl spends its time', reviews: 'Decisions waiting for you', settings: 'Workspace settings' }[view] }
+function titleFor(view: View) { return { overview: 'Follow the knowledge thread', sources: 'Connected sources', knowledge: 'Search the evidence', 'course-intelligence': 'Turn course pages into trusted facts', 'course-gallery': 'Browse courses with receipts', 'retrieval-lab': 'Trace an answer back to evidence', observability: 'See where every crawl spends its time', reviews: 'Decisions waiting for you', settings: 'Workspace settings' }[view] }
 
 export default App

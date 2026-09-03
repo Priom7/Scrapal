@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import re
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime
@@ -29,12 +30,24 @@ from scrapal.telemetry import (
     tracer,
 )
 
+logger = logging.getLogger(__name__)
+
 _SENTENCE = re.compile(r".+?(?:[.!?](?=\s|$)|\n+|$)", re.S)
 _CITATION = re.compile(r"\[(\d+)]")
 _ABSTENTION = (
     "I cannot answer that from the currently published evidence. "
     "No fee, deadline, intake, or requirement should be inferred when the source is missing."
 )
+# Retrieving nothing and retrieving evidence that supports nothing are different
+# failures. Saying "no evidence" when passages were read sends the reader looking
+# for a source that is already indexed.
+_ABSTENTIONS = {
+    "no_published_evidence": _ABSTENTION,
+    "no_supported_sentences": (
+        "I found related evidence but could not tie a single sentence of the answer to it. "
+        "Nothing is shown rather than an uncited claim. Try naming the course or field you mean."
+    ),
+}
 
 
 async def append_generation_event(
@@ -135,11 +148,18 @@ def validate_sentence_support(
         return True, sorted(supported), None
 
 
-def _messages(query: str, evidence: list[dict[str, Any]]) -> list[dict[str, str]]:
+def _messages(
+    query: str, evidence: list[dict[str, Any]], resolved: str = ""
+) -> list[dict[str, str]]:
     sources = "\n\n".join(
         f"[{index}] {item['title']}\n{item['text']}"
         for index, item in enumerate(evidence, start=1)
     )
+    # The question is kept verbatim so the answer addresses what was asked; the
+    # resolved phrasing follows it so a follow-up's referent is not ambiguous.
+    question = f"Question: {query}"
+    if resolved and resolved.strip().lower() != query.strip().lower():
+        question += f"\nThe question refers to: {resolved}"
     return [
         {
             "role": "system",
@@ -150,20 +170,39 @@ def _messages(query: str, evidence: list[dict[str, Any]]) -> list[dict[str, str]
                 "If evidence is insufficient or contradictory, explicitly abstain. Keep the answer concise."
             ),
         },
-        {"role": "user", "content": f"Question: {query}\n\nEvidence:\n{sources}"},
+        {"role": "user", "content": f"{question}\n\nEvidence:\n{sources}"},
     ]
+
+
+async def conversation_history(
+    session: AsyncSession, conversation_id: str, before: Message, *, turns: int = 6
+) -> list[tuple[str, str]]:
+    """The recent turns a follow-up question needs to be understood at all."""
+    rows = list(
+        await session.scalars(
+            select(Message)
+            .where(
+                Message.conversation_id == conversation_id,
+                Message.id != before.id,
+                Message.created_at <= before.created_at,
+            )
+            .order_by(Message.created_at.desc(), Message.id.desc())
+            .limit(turns)
+        )
+    )
+    return [(message.role, message.content) for message in reversed(rows)]
 
 
 async def _finish_abstention(
     session: AsyncSession, generation: MessageGeneration, reason: str
 ) -> None:
     generation.status = GenerationStatus.abstained
-    generation.answer = _ABSTENTION
+    generation.answer = _ABSTENTIONS.get(reason, _ABSTENTION)
     generation.finished_at = datetime.now(UTC)
     assistant = Message(
         conversation_id=generation.conversation_id,
         role="assistant",
-        content=_ABSTENTION,
+        content=generation.answer,
         citations=[],
     )
     session.add(assistant)
@@ -172,7 +211,7 @@ async def _finish_abstention(
     await session.commit()
     RAG_QUERIES.labels("abstained").inc()
     await append_generation_event(
-        session, generation.id, "abstained", {"reason": reason, "answer": _ABSTENTION}
+        session, generation.id, "abstained", {"reason": reason, "answer": generation.answer}
     )
     await append_generation_event(session, generation.id, "completed", {"status": "abstained"})
 
@@ -197,14 +236,24 @@ async def generate_answer(generation_id: str) -> None:
         await session.commit()
         await append_generation_event(session, generation.id, "retrieval.started")
 
+        # Retrieval resets the session transaction, which expires every loaded
+        # row. Read what the answer needs while these objects are still usable.
+        question = user_message.content
+        organization_id = conversation.organization_id
+        collection_id = conversation.collection_id
+
         ollama = OllamaService()
         try:
             async with ollama.workload():
+                history = await conversation_history(
+                    session, generation.conversation_id, user_message
+                )
                 result = await retrieve_knowledge(
                     session,
-                    user_message.content,
-                    organization_id=conversation.organization_id,
-                    collection_id=conversation.collection_id,
+                    question,
+                    history=history,
+                    organization_id=organization_id,
+                    collection_id=collection_id,
                     mode="hybrid",
                     limit=10,
                     ollama_service=ollama,
@@ -223,6 +272,9 @@ async def generate_answer(generation_id: str) -> None:
                         "structured": len(result.structured_matches),
                         "passages": len(result.hits),
                         "timings": result.timings,
+                        # The interpreted question, so the console can show what
+                        # was actually searched for instead of a generic phase.
+                        "plan": {**result.query_plan.model_dump(), "source": result.plan_source},
                     },
                 )
                 evidence = evidence_catalog(result)
@@ -241,7 +293,12 @@ async def generate_answer(generation_id: str) -> None:
                 )
                 with tracer.start_as_current_span("rag.generate"):
                     await _stream_validated_answer(
-                        session, generation, user_message.content, evidence, ollama
+                        session,
+                        generation,
+                        question,
+                        evidence,
+                        ollama,
+                        resolved=result.query_plan.search_query,
                     )
         except OllamaUnavailable as exc:
             generation.status = GenerationStatus.failed
@@ -253,6 +310,7 @@ async def generate_answer(generation_id: str) -> None:
                 session, generation.id, "failed", {"code": "ollama_unavailable", "retryable": True}
             )
         except Exception as exc:
+            logger.exception("Generation %s failed", generation_id)
             generation.status = GenerationStatus.failed
             generation.error = f"{type(exc).__name__}: generation failed"[:500]
             generation.finished_at = datetime.now(UTC)
@@ -263,12 +321,29 @@ async def generate_answer(generation_id: str) -> None:
             )
 
 
+async def _withhold(
+    session: AsyncSession, generation: MessageGeneration, sentence: str, reason: str | None
+) -> None:
+    """Announce a sentence dropped for want of citable evidence.
+
+    The sentence itself stays out of the payload: it may carry the invented fee
+    that failed validation in the first place.
+    """
+    await append_generation_event(
+        session,
+        generation.id,
+        "answer.withheld",
+        {"reason": reason or "unsupported", "characters": len(sentence)},
+    )
+
+
 async def _stream_validated_answer(
     session: AsyncSession,
     generation: MessageGeneration,
     query: str,
     evidence: list[dict[str, Any]],
     ollama: OllamaService,
+    resolved: str = "",
 ) -> None:
     started = monotonic()
     buffer = ""
@@ -276,7 +351,9 @@ async def _stream_validated_answer(
     unsupported: list[str] = []
     citations: dict[int, dict[str, Any]] = {}
     try:
-        async for token in _answer_tokens(session, generation, query, evidence, ollama):
+        async for token in _answer_tokens(
+            session, generation, query, evidence, ollama, resolved
+        ):
             buffer += token
             matches = list(_SENTENCE.finditer(buffer))
             complete = [match for match in matches if match.end() < len(buffer) or buffer.endswith((".", "!", "?", "\n"))]
@@ -292,6 +369,7 @@ async def _stream_validated_answer(
                 if not valid:
                     unsupported.append(sentence)
                     RAG_CITATIONS.labels(reason or "unsupported").inc()
+                    await _withhold(session, generation, sentence, reason)
                     continue
                 delta = sentence + " "
                 answer_parts.append(delta)
@@ -324,6 +402,7 @@ async def _stream_validated_answer(
             else:
                 unsupported.append(buffer.strip())
                 RAG_CITATIONS.labels(reason or "unsupported").inc()
+                await _withhold(session, generation, buffer.strip(), reason)
 
         if not answer_parts:
             generation.unsupported_sentences = unsupported
@@ -363,6 +442,7 @@ async def _answer_tokens(
     query: str,
     evidence: list[dict[str, Any]],
     ollama: OllamaService,
+    resolved: str = "",
 ) -> AsyncIterator[str]:
     settings = get_settings()
     models = [settings.ollama_chat_model]
@@ -374,7 +454,7 @@ async def _answer_tokens(
         await session.commit()
         try:
             async for token in ollama.chat_stream(
-                _messages(query, evidence), locked=True, model=model
+                _messages(query, evidence, resolved), locked=True, model=model
             ):
                 emitted = True
                 yield token
