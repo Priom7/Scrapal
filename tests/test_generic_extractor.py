@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Any
 
 from scrapal.domain.university.extractors.base import normalise, verify_excerpt
 from scrapal.domain.university.extractors.generic import GenericUniversityExtractor
@@ -160,3 +161,78 @@ async def test_a_cost_of_living_row_is_not_read_as_tuition() -> None:
     assert "fees" in record["validation"]["missing_fields"]
     assert record["status"] == "review"
 
+
+
+class FakeOllama:
+    """Stands in for the local model. Tests never reach a real one."""
+
+    def __init__(self, reply: dict[str, Any]) -> None:
+        self.reply = reply
+        self.calls = 0
+
+    async def structured(
+        self, messages: list[dict[str, str]], schema: dict[str, Any], **kwargs: Any
+    ) -> dict[str, Any]:
+        self.calls += 1
+        self.last_prompt = messages[-1]["content"]
+        return self.reply
+
+
+BARE_FEE_PAGE = (
+    b"<html><body><h1>Data Science, MSc</h1>"
+    b"<p>Tuition for international students is 15,400 pounds for the full course.</p>"
+    b"<p>The course runs for one year.</p></body></html>"
+)
+
+
+async def test_model_fills_a_field_the_structure_missed_when_it_can_quote_the_page() -> None:
+    ollama = FakeOllama(
+        {
+            "fees": {
+                "value": "£15,400",
+                "excerpt": "Tuition for international students is 15,400 pounds for the full course.",
+            }
+        }
+    )
+    records = await GenericUniversityExtractor(ollama=ollama).extract_records(
+        "https://www.example.ac.uk/courses/data-science-msc", BARE_FEE_PAGE
+    )
+    record = records[0]
+    assert ollama.calls == 1
+    assert record["data"]["fees"][0]["amount"] == 15400
+    assert record["evidence"]["fields"]["fees"][0]["method"] == "llm-verified"
+    assert record["evidence"]["fields"]["fees"][0]["confidence"] == 0.7
+
+
+async def test_model_field_is_dropped_when_its_quote_is_not_on_the_page() -> None:
+    ollama = FakeOllama(
+        {"fees": {"value": "£22,000", "excerpt": "International tuition is £22,000 per year."}}
+    )
+    records = await GenericUniversityExtractor(ollama=ollama).extract_records(
+        "https://www.example.ac.uk/courses/data-science-msc", BARE_FEE_PAGE
+    )
+    record = records[0]
+    assert record["data"]["fees"] == []
+    assert "fees" in record["validation"]["missing_fields"]
+    assert record["status"] == "review"
+
+
+async def test_the_model_is_not_called_when_the_structure_already_filled_everything() -> None:
+    ollama = FakeOllama({})
+    html = Path("tests/fixtures/buckingham_course.html").read_bytes()
+    await GenericUniversityExtractor(ollama=ollama).extract_records(
+        "https://www.buckingham.ac.uk/courses/llm-international-commercial-law", html
+    )
+    assert ollama.calls == 0
+
+
+async def test_a_model_outage_leaves_a_reviewable_record_rather_than_failing_the_crawl() -> None:
+    class Broken:
+        async def structured(self, messages: Any, schema: Any, **kwargs: Any) -> dict[str, Any]:
+            raise RuntimeError("ollama unavailable")
+
+    records = await GenericUniversityExtractor(ollama=Broken()).extract_records(
+        "https://www.example.ac.uk/courses/data-science-msc", BARE_FEE_PAGE
+    )
+    assert records[0]["status"] == "review"
+    assert "fees" in records[0]["validation"]["missing_fields"]

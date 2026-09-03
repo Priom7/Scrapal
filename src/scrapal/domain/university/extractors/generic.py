@@ -13,6 +13,7 @@ from typing import Any
 
 from bs4 import BeautifulSoup, Tag
 
+from scrapal.domain.university.extractors.base import verify_excerpt
 from scrapal.domain.university.schemas import (
     REQUIRED_COURSE_FIELDS,
     CourseFee,
@@ -59,6 +60,17 @@ LIST_SECTION_SIGNALS: tuple[tuple[str, tuple[str, ...]], ...] = (
 )
 COURSE_URL_HINTS = ("/course", "/courses/", "/programme", "/program", "/degree", "/study/")
 
+# What the model is asked for, and how its answer is folded back in.
+LLM_FIELD_PROMPTS: dict[str, str] = {
+    "award": "the qualification abbreviation, such as MSc, BEng (Hons) or LLM",
+    "campuses": "the campus or campuses where the course is taught",
+    "durations": "how long the course takes, as written",
+    "intake_months": "the months the course starts, as full month names",
+    "fees": "the tuition fee, including its currency symbol",
+    "entry_requirements": "the academic entry requirements",
+    "english_requirements": "the English language requirements",
+}
+
 
 def clean(value: str) -> str:
     return re.sub(r"\s+", " ", value).strip()
@@ -84,10 +96,15 @@ def residency_of(label: str) -> str:
 class GenericUniversityExtractor:
     version = "generic-university-v1"
 
+    def __init__(self, ollama: Any | None = None, max_llm_fields: int = 8) -> None:
+        self.ollama = ollama
+        self.max_llm_fields = max_llm_fields
+
     async def extract_records(self, url: str, html: bytes) -> list[dict[str, Any]]:
         fields, evidence, page_text = self.structural(url, html)
         if not fields.get("title"):
             return []
+        await self.model_pass(fields, evidence, page_text, url)
         return [self.build_record(url, fields, evidence, page_text)]
 
     # ---------------------------------------------------------------- passes
@@ -338,6 +355,101 @@ class GenericUniversityExtractor:
                 "derived-from-intake-months",
                 0.85,
             )
+
+    async def model_pass(
+        self,
+        fields: dict[str, Any],
+        evidence: dict[str, list[dict[str, Any]]],
+        page_text: str,
+        url: str,
+    ) -> None:
+        """Ask the local model only for required fields the structure missed.
+
+        A returned field is kept only when its excerpt is verbatim on the page.
+        Anything the model cannot point at is discarded, so a record can never
+        publish on a fact that has no evidence behind it.
+        """
+        if self.ollama is None:
+            return
+        wanted = [
+            field
+            for field in REQUIRED_COURSE_FIELDS
+            if field in LLM_FIELD_PROMPTS and not fields.get(field)
+        ][: self.max_llm_fields]
+        if not wanted:
+            return
+        schema = {
+            "type": "object",
+            "properties": {
+                field: {
+                    "type": "object",
+                    "properties": {
+                        "value": {"type": "string"},
+                        "excerpt": {"type": "string"},
+                    },
+                    "required": ["value", "excerpt"],
+                }
+                for field in wanted
+            },
+        }
+        asked = "\n".join(f"- {field}: {LLM_FIELD_PROMPTS[field]}" for field in wanted)
+        prompt = (
+            "Read this university course page and report only the fields listed.\n"
+            "For each field give the value and, in 'excerpt', the exact sentence from "
+            "the page that states it, copied word for word. If the page does not state "
+            "a field, omit that field entirely. Never guess.\n\n"
+            f"Fields:\n{asked}\n\nPage:\n{page_text[:12000]}"
+        )
+        try:
+            answer = await self.ollama.structured([{"role": "user", "content": prompt}], schema)
+        except Exception:
+            # A model outage is not a crawl failure. The record simply stays
+            # in review with its missing fields named.
+            return
+        for field in wanted:
+            entry = answer.get(field)
+            if not isinstance(entry, dict):
+                continue
+            value, excerpt = str(entry.get("value", "")), str(entry.get("excerpt", ""))
+            if not value or not verify_excerpt(excerpt, page_text):
+                continue
+            parsed = self._coerce(field, value)
+            if parsed in (None, [], ""):
+                continue
+            fields[field] = parsed
+            evidence.setdefault(field, []).append(
+                {
+                    "source_url": url,
+                    "field": field,
+                    "method": "llm-verified",
+                    "excerpt": clean(excerpt)[:400],
+                    "section": None,
+                    "selector": None,
+                    "confidence": 0.7,
+                }
+            )
+        self._derive(fields, lambda *args, **kwargs: None)
+
+    def _coerce(self, field: str, value: str) -> Any:
+        """Turn the model's string into the shape the schema expects."""
+        if field == "fees":
+            match = MONEY_PATTERN.search(value)
+            if not match:
+                return None
+            return [
+                CourseFee(
+                    residency="international",
+                    label="Tuition",
+                    amount=int(match.group(2).replace(",", "")),
+                    currency=CURRENCY.get(match.group(1)),
+                    raw_values=[value],
+                ).model_dump()
+            ]
+        if field == "intake_months":
+            return [month for month in MONTHS if month.lower() in value.lower()]
+        if field in {"campuses", "durations"}:
+            return [clean(part) for part in re.split(r"[;,]", value) if clean(part)]
+        return clean(value)
 
     # ------------------------------------------------------------ assembling
 
