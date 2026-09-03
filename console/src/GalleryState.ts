@@ -4,6 +4,10 @@ export type GalleryFilters = {
   institutionIds: string[]
   countries: string[]
   intakeMonths: string[]
+  studyModes: string[]
+  durations: string[]
+  feeMax?: number
+  sort: 'updated' | 'title' | 'coverage'
 }
 
 export type GalleryFilterState = {
@@ -17,11 +21,16 @@ export type GalleryFilterAction =
   | { type: 'toggle-institution'; value: string }
   | { type: 'toggle-country'; value: string }
   | { type: 'toggle-intake'; value: string }
+  | { type: 'toggle-study-mode'; value: string }
+  | { type: 'toggle-duration'; value: string }
+  | { type: 'set-fee-max'; value?: number }
+  | { type: 'set-sort'; value: GalleryFilters['sort'] }
+  | { type: 'clear-country' }
   | { type: 'apply-ai'; values: Partial<GalleryFilters> }
   | { type: 'clear' }
 
 export const initialGalleryFilters: GalleryFilterState = {
-  filters: { q: '', institutionIds: [], countries: [], intakeMonths: [] },
+  filters: { q: '', institutionIds: [], countries: [], intakeMonths: [], studyModes: [], durations: [], sort: 'updated' },
   aiSet: [],
 }
 
@@ -47,8 +56,13 @@ export function galleryFilterReducer(
   if (action.type === 'set-level') {
     return { filters: { ...state.filters, level: action.value }, aiSet: state.aiSet.filter((x) => x !== 'level') }
   }
+  if (action.type === 'set-fee-max') return { filters: { ...state.filters, feeMax: action.value }, aiSet: state.aiSet.filter((x) => x !== 'feeMax') }
+  if (action.type === 'set-sort') return { ...state, filters: { ...state.filters, sort: action.value } }
+  if (action.type === 'clear-country') return { filters: { ...state.filters, countries: [] }, aiSet: state.aiSet.filter((x) => x !== 'countries') }
   const field = action.type === 'toggle-institution' ? 'institutionIds'
-    : action.type === 'toggle-country' ? 'countries' : 'intakeMonths'
+    : action.type === 'toggle-country' ? 'countries'
+      : action.type === 'toggle-intake' ? 'intakeMonths'
+        : action.type === 'toggle-study-mode' ? 'studyModes' : 'durations'
   return {
     filters: { ...state.filters, [field]: toggle(state.filters[field], action.value) },
     aiSet: state.aiSet.filter((item) => item !== field),

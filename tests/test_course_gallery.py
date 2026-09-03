@@ -1,6 +1,12 @@
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-from scrapal.course_gallery_api import gallery_facets, principal_key, shortlist
+from scrapal.course_gallery_api import (
+    GalleryInterpretation,
+    _guard_interpretation,
+    gallery_facets,
+    principal_key,
+    shortlist,
+)
 from scrapal.db import Base
 from scrapal.models import (
     Collection,
@@ -62,6 +68,36 @@ def test_facet_counts_exclude_the_facet_being_counted() -> None:
     country_counts = {item["value"]: item["count"] for item in facets["country"]}
     assert institution_counts == {"buckingham": 1, "greenwich": 1}
     assert country_counts == {"GB": 1}
+
+
+def test_ai_gallery_slots_must_be_grounded_in_the_request() -> None:
+    clean = _guard_interpretation(
+        GalleryInterpretation(
+            q="computing",
+            level="postgraduate",
+            countries=["GB"],
+            study_modes=["part-time"],
+            intake_months=["January"],
+            durations=["2 years part-time"],
+            fee_max=20000,
+        ),
+        "A part-time postgraduate computing course in the UK under £20,000",
+        {
+            "countries": ["GB"],
+            "study_modes": ["part-time"],
+            "intake_months": ["January", "September"],
+            "durations": ["2 years part-time"],
+            "levels": ["undergraduate", "postgraduate"],
+        },
+        {},
+    )
+    assert clean["q"] == "computing"
+    assert clean["level"] == "postgraduate"
+    assert clean["countries"] == ["GB"]
+    assert clean["study_modes"] == ["part-time"]
+    assert clean["fee_max"] == 20000
+    assert clean["intake_months"] == []
+    assert clean["durations"] == []
 
 
 async def test_shortlists_are_isolated_by_api_key_principal() -> None:

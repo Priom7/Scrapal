@@ -1,0 +1,98 @@
+- generic [ref=e3]:
+  - link "Skip to workspace" [ref=e4] [cursor=pointer]:
+    - /url: "#workspace"
+  - complementary "Primary navigation" [ref=e5]:
+    - generic [ref=e6]:
+      - img "Scrapal" [ref=e8]
+      - button "Collapse navigation" [ref=e9] [cursor=pointer]
+    - paragraph [ref=e13]: Workspace
+    - navigation [ref=e14]:
+      - button "Overview" [ref=e15] [cursor=pointer]
+      - button "Sources" [ref=e19] [cursor=pointer]
+      - button "Knowledge" [ref=e26] [cursor=pointer]
+      - button "Course intelligence" [ref=e30] [cursor=pointer]
+      - button "Course gallery" [active] [ref=e35] [cursor=pointer]
+      - button "Retrieval Lab" [ref=e40] [cursor=pointer]
+      - button "Observability" [ref=e46] [cursor=pointer]
+      - button "Reviews" [ref=e53] [cursor=pointer]
+      - button "Settings" [ref=e58] [cursor=pointer]
+    - generic [ref=e63]:
+      - generic [ref=e66]:
+        - generic [ref=e67]: Local AI
+        - strong [ref=e68]: Checking local AI
+      - button "Use dark theme" [ref=e69] [cursor=pointer]:
+        - generic [ref=e72]: Dark theme
+  - main [ref=e73]:
+    - generic [ref=e74]:
+      - generic [ref=e75]:
+        - paragraph [ref=e76]: Scrapal / course-gallery
+        - heading "Browse courses with receipts" [level=1] [ref=e280]
+      - generic [ref=e78]:
+        - button "Hide Scrapal agent" [ref=e79] [cursor=pointer]:
+          - generic [ref=e83]: Hide agent
+        - button "Add source" [ref=e84] [cursor=pointer]
+    - generic [ref=e282]:
+      - generic [ref=e283]:
+        - generic [ref=e284]:
+          - paragraph [ref=e285]: AI course discovery · evidence first
+          - heading "Find the course that fits your life—not just your keywords." [level=2] [ref=e288]
+          - paragraph [ref=e289]: Describe your ideal course naturally. Scrapal turns it into editable filters and keeps every result tied to university evidence.
+        - generic [ref=e290]:
+          - generic [ref=e291]:
+            - generic [ref=e292]: What are you looking for?
+            - textbox "What are you looking for?" [ref=e293]:
+              - /placeholder: A part-time postgraduate computing course in the UK, September intake, under £20,000…
+          - button "Search with AI" [disabled] [ref=e294]
+      - region "Popular study destinations" [ref=e297]:
+        - button "Worldwide 0 Everywhere" [ref=e298] [cursor=pointer]:
+          - img "Worldwide" [ref=e299]: 🌐
+          - generic [ref=e300]:
+            - strong [ref=e301]: "0"
+            - generic [ref=e302]: Everywhere
+      - generic [ref=e303]:
+        - complementary "Course filters" [ref=e304]:
+          - generic [ref=e306]:
+            - paragraph [ref=e307]: Refine results
+            - heading "Filters" [level=3] [ref=e308]
+          - generic [ref=e309]:
+            - textbox "Search course title" [ref=e313]:
+              - /placeholder: Course or subject
+            - generic [ref=e314]: Search course title
+          - group [ref=e315]:
+            - generic "Study level" [ref=e316] [cursor=pointer]
+          - group [ref=e324]:
+            - generic "University" [ref=e325] [cursor=pointer]
+          - group [ref=e334]:
+            - generic "Study mode" [ref=e335] [cursor=pointer]
+          - group [ref=e342]:
+            - generic "Duration" [ref=e343] [cursor=pointer]
+          - group [ref=e350]:
+            - generic "Intake" [ref=e351] [cursor=pointer]
+        - main [ref=e357]:
+          - generic [ref=e358]:
+            - generic [ref=e359]:
+              - paragraph [ref=e360]: Verified catalogue
+              - heading "0 published courses" [level=3] [ref=e361]
+              - paragraph [ref=e362]: Only evidence-gated records are shown.
+            - generic [ref=e363]:
+              - text: Sort by
+              - combobox "Sort by" [ref=e364]:
+                - option "Recently updated" [selected]
+                - option "Best evidenced"
+                - option "Course title"
+          - generic [ref=e365]: Loading published course evidence…
+  - complementary "Scrapal agent" [ref=e255]:
+    - generic [ref=e256]:
+      - generic [ref=e260]:
+        - paragraph [ref=e261]: Grounded in your sources
+        - heading "Ask Scrapal" [level=2] [ref=e262]
+      - button "Close agent" [ref=e263] [cursor=pointer]
+    - generic [ref=e268]:
+      - heading "Research with receipts." [level=3] [ref=e271]
+      - paragraph [ref=e272]: Ask across your collections. Every factual answer links back to its evidence.
+      - button "Try “Which courses have a January intake?”" [ref=e273] [cursor=pointer]
+    - generic [ref=e274]:
+      - generic [ref=e275]: Ask Scrapal
+      - textbox "Ask Scrapal" [ref=e276]:
+        - /placeholder: Ask a cited question…
+      - button "Send message" [disabled] [ref=e277] [cursor=pointer]

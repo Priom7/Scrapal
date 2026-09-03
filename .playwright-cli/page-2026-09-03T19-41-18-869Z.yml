@@ -1,0 +1,170 @@
+- generic [ref=e3]:
+  - link "Skip to workspace" [ref=e4] [cursor=pointer]:
+    - /url: "#workspace"
+  - complementary "Primary navigation" [ref=e5]:
+    - generic [ref=e6]:
+      - img "Scrapal" [ref=e8]
+      - button "Collapse navigation" [ref=e9] [cursor=pointer]
+    - paragraph [ref=e13]: Workspace
+    - navigation [ref=e14]:
+      - button "Overview" [ref=e15] [cursor=pointer]
+      - button "Sources" [ref=e19] [cursor=pointer]
+      - button "Knowledge" [ref=e26] [cursor=pointer]
+      - button "Course intelligence" [ref=e30] [cursor=pointer]
+      - button "Course gallery" [ref=e35] [cursor=pointer]
+      - button "Retrieval Lab" [ref=e40] [cursor=pointer]
+      - button "Observability" [ref=e46] [cursor=pointer]
+      - button "Reviews" [ref=e53] [cursor=pointer]
+      - button "Settings" [ref=e58] [cursor=pointer]
+    - generic [ref=e63]:
+      - generic [ref=e66]:
+        - generic [ref=e67]: Local AI
+        - strong [ref=e68]: Checking local AI
+      - button "Use dark theme" [ref=e69] [cursor=pointer]:
+        - generic [ref=e72]: Dark theme
+  - main [ref=e73]:
+    - generic [ref=e74]:
+      - generic [ref=e75]:
+        - paragraph [ref=e76]: Scrapal / overview
+        - heading "Follow the knowledge thread" [level=1] [ref=e77]
+      - generic [ref=e78]:
+        - button "Hide Scrapal agent" [ref=e79] [cursor=pointer]:
+          - generic [ref=e83]: Hide agent
+        - button "Add source" [ref=e84] [cursor=pointer]
+    - generic [ref=e88]:
+      - generic [ref=e89]:
+        - region [ref=e90]:
+          - generic [ref=e91]:
+            - generic [ref=e92]:
+              - heading "Run path" [level=2] [ref=e93]
+              - paragraph [ref=e94]: Every count comes from durable crawler events—not an estimated animation.
+            - generic [ref=e95]:
+              - generic [ref=e96]: Ready
+              - strong [ref=e98]: 0%
+          - list "Crawler processing stages" [ref=e99]:
+            - listitem [ref=e100]:
+              - button "Inspect Discover stage, 0 percent complete" [pressed] [ref=e101] [cursor=pointer]:
+                - generic [aria-hidden] [ref=e102]: "1"
+                - generic [ref=e103]:
+                  - strong [ref=e104]: Discover
+                  - generic [ref=e105]: Finding eligible URLs
+                - 'img "Discover: 0% of discovered pages reached this stage" [ref=e107]'
+            - listitem [ref=e108]:
+              - button "Inspect Fetch stage, 0 percent complete" [ref=e109] [cursor=pointer]:
+                - generic [aria-hidden] [ref=e110]: "2"
+                - generic [ref=e111]:
+                  - strong [ref=e112]: Fetch
+                  - generic [ref=e113]: 0 pages checked
+                - 'img "Fetch: 0% of discovered pages reached this stage" [ref=e115]'
+            - listitem [ref=e116]:
+              - button "Inspect Extract stage, 0 percent complete" [ref=e117] [cursor=pointer]:
+                - generic [aria-hidden] [ref=e118]: "3"
+                - generic [ref=e119]:
+                  - strong [ref=e120]: Extract
+                  - generic [ref=e121]: 0 pages interpreted
+                - 'img "Extract: 0% of discovered pages reached this stage" [ref=e123]'
+            - listitem [ref=e124]:
+              - button "Inspect Save stage, 0 percent complete" [ref=e125] [cursor=pointer]:
+                - generic [aria-hidden] [ref=e126]: "4"
+                - generic [ref=e127]:
+                  - strong [ref=e128]: Save
+                  - generic [ref=e129]: 0 new documents
+                - 'img "Save: 0% of discovered pages reached this stage" [ref=e131]'
+            - listitem [ref=e132]:
+              - button "Inspect Complete stage, 0 percent complete" [ref=e133] [cursor=pointer]:
+                - generic [aria-hidden] [ref=e134]: "5"
+                - generic [ref=e135]:
+                  - strong [ref=e136]: Complete
+                  - generic [ref=e137]: Ready for a run
+                - 'img "Complete: 0% of discovered pages reached this stage" [ref=e139]'
+          - generic [ref=e140]:
+            - generic [ref=e149]:
+              - generic [ref=e150]: Selected stage
+              - strong [ref=e151]: Discover
+              - paragraph [ref=e152]: Connect a source or run an existing one
+            - generic [ref=e153]:
+              - generic [ref=e154]:
+                - term [ref=e155]: Reached
+                - definition [ref=e156]: 0%
+              - generic [ref=e157]:
+                - term [ref=e158]: Events
+                - definition [ref=e159]: "0"
+              - generic [ref=e160]:
+                - term [ref=e161]: Duration
+                - definition [ref=e162]: —
+              - generic [ref=e163]:
+                - term [ref=e164]: Failed
+                - definition [ref=e165]: "0"
+            - generic [ref=e167]:
+              - generic [ref=e168]: No page events yet
+              - generic [ref=e169]: Finding eligible URLs
+        - complementary [ref=e170]:
+          - generic [ref=e171]:
+            - paragraph [ref=e174]: Operations brief
+            - strong [ref=e175]: Quiet
+          - generic [ref=e180]:
+            - strong [ref=e181]: No blocked work
+            - generic [ref=e182]: Workers and recent runs have no unresolved exceptions.
+          - generic [ref=e183]:
+            - generic [ref=e184]:
+              - term [ref=e185]: Sources
+              - definition [ref=e186]: "0"
+            - generic [ref=e187]:
+              - term [ref=e188]: Evidence
+              - definition [ref=e189]: "0"
+            - generic [ref=e190]:
+              - term [ref=e191]: Exceptions
+              - definition [ref=e192]: "0"
+          - generic [ref=e193]:
+            - generic [ref=e194]: Priority queue
+            - paragraph [ref=e195]: New failures and policy exceptions will appear here.
+      - region "Workspace operating metrics" [ref=e196]:
+        - article [ref=e197]:
+          - generic [ref=e205]:
+            - generic [ref=e206]: Active workload
+            - strong [ref=e207]: "0"
+            - paragraph [ref=e208]: no runs in progress
+        - article [ref=e209]:
+          - generic [ref=e216]:
+            - generic [ref=e217]: Source estate
+            - strong [ref=e218]: "0"
+            - paragraph [ref=e219]: connected inputs
+        - article [ref=e220]:
+          - generic [ref=e225]:
+            - generic [ref=e226]: Searchable evidence
+            - strong [ref=e227]: "0"
+            - paragraph [ref=e228]: current documents
+        - article [ref=e229]:
+          - generic [ref=e233]:
+            - generic [ref=e234]: Recorded exceptions
+            - strong [ref=e235]: "0"
+            - paragraph [ref=e236]: across retained runs
+      - generic [ref=e237]:
+        - generic [ref=e238]:
+          - generic [ref=e239]:
+            - heading "Run activity" [level=2] [ref=e240]
+            - paragraph [ref=e241]: Open any run to inspect pages, retries, errors, and trace links.
+          - group "Filter run activity" [ref=e242]:
+            - button "All 0" [pressed] [ref=e243] [cursor=pointer]
+            - button "Live 0" [ref=e244] [cursor=pointer]
+            - button "Attention 0" [ref=e245] [cursor=pointer]
+            - button "Completed 0" [ref=e246] [cursor=pointer]
+        - paragraph [ref=e247]: Runs will appear here after you start a source.
+        - generic [ref=e252]:
+          - strong [ref=e253]: No runs in this view
+          - generic [ref=e254]: Choose another filter to inspect retained activity.
+  - complementary "Scrapal agent" [ref=e255]:
+    - generic [ref=e256]:
+      - generic [ref=e260]:
+        - paragraph [ref=e261]: Grounded in your sources
+        - heading "Ask Scrapal" [level=2] [ref=e262]
+      - button "Close agent" [ref=e263] [cursor=pointer]
+    - generic [ref=e268]:
+      - heading "Research with receipts." [level=3] [ref=e271]
+      - paragraph [ref=e272]: Ask across your collections. Every factual answer links back to its evidence.
+      - button "Try “Which courses have a January intake?”" [ref=e273] [cursor=pointer]
+    - generic [ref=e274]:
+      - generic [ref=e275]: Ask Scrapal
+      - textbox "Ask Scrapal" [ref=e276]:
+        - /placeholder: Ask a cited question…
+      - button "Send message" [disabled] [ref=e277] [cursor=pointer]

@@ -306,6 +306,24 @@ export type GalleryFilterParams = {
   institutionIds?: string[]
   countries?: string[]
   intakeMonths?: string[]
+  studyModes?: string[]
+  durations?: string[]
+  feeMax?: number
+  sort?: 'updated' | 'title' | 'coverage'
+}
+export type GalleryInterpretation = {
+  source: 'model' | 'fallback'
+  filters: {
+    q: string | null
+    level: string | null
+    countries: string[]
+    institution_ids: string[]
+    study_modes: string[]
+    intake_months: string[]
+    durations: string[]
+    fee_max: number | null
+    explanation: string
+  }
 }
 export type ShortlistEntry = {
   id: string
@@ -322,6 +340,10 @@ function galleryParams(filters: GalleryFilterParams): URLSearchParams {
   filters.institutionIds?.forEach((value) => params.append('institution_id', value))
   filters.countries?.forEach((value) => params.append('country', value))
   filters.intakeMonths?.forEach((value) => params.append('intake_month', value))
+  filters.studyModes?.forEach((value) => params.append('study_mode', value))
+  filters.durations?.forEach((value) => params.append('duration', value))
+  if (filters.feeMax != null) params.set('fee_max', String(filters.feeMax))
+  if (filters.sort) params.set('sort', filters.sort)
   return params
 }
 
@@ -356,6 +378,10 @@ export const api = {
     `/v1/admin/course-gallery/facets?${galleryParams(filters)}`,
   ),
   galleryShortlist: () => request<ShortlistEntry[]>('/v1/admin/course-gallery/shortlist'),
+  interpretGalleryQuery: (query: string) => request<GalleryInterpretation>(
+    '/v1/admin/course-gallery/interpret',
+    { method: 'POST', body: JSON.stringify({ query }) },
+  ),
   addGalleryShortlist: (recordId: string) => request<{ id: string; record_id: string; note: null }>(
     '/v1/admin/course-gallery/shortlist',
     { method: 'POST', body: JSON.stringify({ record_id: recordId }) },

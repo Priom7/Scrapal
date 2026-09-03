@@ -1,3 +1,4 @@
+import re
 from datetime import datetime
 from typing import Annotated, Any
 
@@ -17,6 +18,7 @@ from scrapal.models import (
     StructuredRecordRevision,
 )
 from scrapal.security import Principal, require_super_admin
+from scrapal.services.ollama import OllamaService, OllamaUnavailable
 
 router = APIRouter(prefix="/v1/admin/course-gallery", tags=["course-gallery"])
 Session = Annotated[AsyncSession, Depends(get_session)]
@@ -26,6 +28,84 @@ SuperAdmin = Annotated[Principal, Depends(require_super_admin)]
 class ShortlistCreate(BaseModel):
     record_id: str
     note: str | None = Field(default=None, max_length=1000)
+
+
+class GalleryInterpretRequest(BaseModel):
+    query: str = Field(min_length=3, max_length=500)
+
+
+class GalleryInterpretation(BaseModel):
+    q: str | None = None
+    level: str | None = None
+    countries: list[str] = Field(default_factory=list)
+    institution_ids: list[str] = Field(default_factory=list)
+    study_modes: list[str] = Field(default_factory=list)
+    intake_months: list[str] = Field(default_factory=list)
+    durations: list[str] = Field(default_factory=list)
+    fee_max: int | None = Field(default=None, ge=0)
+    explanation: str = ""
+
+
+_QUERY_STOPWORDS = {
+    "a", "an", "and", "course", "courses", "degree", "find", "for", "i", "in", "is",
+    "looking", "me", "of", "or", "that", "the", "to", "under", "up", "want", "with",
+    "uk", "united", "kingdom", "part", "full", "time", "postgraduate", "undergraduate",
+}
+
+
+def _query_keywords(query: str) -> str | None:
+    words = [
+        word for word in re.findall(r"[a-z][a-z+.-]+", query.lower())
+        if word not in _QUERY_STOPWORDS and not word.startswith("£")
+    ]
+    return " ".join(words[:4]) or None
+
+
+def _guard_interpretation(
+    interpretation: GalleryInterpretation,
+    query: str,
+    allowed: dict[str, list[str]],
+    institutions: dict[str, str],
+) -> dict[str, Any]:
+    """Discard model slots that are not grounded in the user's own words."""
+    text = " ".join(query.lower().replace("-", " ").split())
+    country_aliases = {"GB": ("uk", "united kingdom", "britain", "england", "scotland", "wales")}
+    countries = [
+        code for code in interpretation.countries
+        if code in allowed["countries"]
+        and any(alias in text for alias in country_aliases.get(code, (code.lower(),)))
+    ]
+    level = interpretation.level
+    level_terms = {
+        "postgraduate": ("postgraduate", "postgrad", "master", "msc", "mba"),
+        "undergraduate": ("undergraduate", "undergrad", "bachelor", "bsc", "ba ", "beng"),
+    }
+    if level not in allowed["levels"] or not any(term in text for term in level_terms.get(level or "", (str(level).lower(),))):
+        level = None
+    modes = [
+        value for value in interpretation.study_modes
+        if value in allowed["study_modes"] and value.lower().replace("-", " ") in text
+    ]
+    intakes = [value for value in interpretation.intake_months if value in allowed["intake_months"] and value.lower() in text]
+    durations = [
+        value for value in interpretation.durations
+        if value in allowed["durations"] and value.lower().replace("-", " ") in text
+    ]
+    institution_ids = [
+        identifier for name, identifier in institutions.items()
+        if identifier in interpretation.institution_ids and name.lower() in text
+    ]
+    numbers = {int(value.replace(",", "")) for value in re.findall(r"\d[\d,]*", text)}
+    fee_max = interpretation.fee_max if interpretation.fee_max in numbers and any(term in text for term in ("under", "maximum", "max", "budget", "up to", "less than", "£")) else None
+    proposed_q = interpretation.q or ""
+    q = proposed_q if proposed_q and all(word in text for word in proposed_q.lower().split()) else _query_keywords(query)
+    summary = [q and f"topic '{q}'", level, countries and ", ".join(countries), modes and ", ".join(modes), intakes and f"{', '.join(intakes)} intake", fee_max is not None and f"fees up to £{fee_max:,}"]
+    return {
+        "q": q, "level": level, "countries": countries, "institution_ids": institution_ids,
+        "study_modes": modes, "intake_months": intakes, "durations": durations,
+        "fee_max": fee_max,
+        "explanation": "Applied " + "; ".join(str(item) for item in summary if item) + ".",
+    }
 
 
 def principal_key(principal: Principal) -> str:
@@ -174,6 +254,51 @@ async def _published_courses(
         statement = statement.where(StructuredRecord.collection_id == collection_id)
     rows = (await session.execute(statement)).all()
     return [gallery_course(record, institution) for record, institution in rows]
+
+
+@router.post("/interpret")
+async def interpret_gallery_query(
+    body: GalleryInterpretRequest,
+    session: Session,
+    principal: SuperAdmin,
+) -> dict[str, Any]:
+    """Turn a natural-language course brief into visible, editable filters."""
+    courses = await _published_courses(session, principal.organization_id)
+    facet_data = gallery_facets(courses, _filters(None, None, None, None, None, None, None, None, None, None, 0))
+    institutions = {
+        course["institution"]["name"]: course["institution_id"] for course in courses
+    }
+    allowed = {
+        "countries": [item["value"] for item in facet_data["country"]],
+        "study_modes": [item["value"] for item in facet_data["study_mode"]],
+        "intake_months": [item["value"] for item in facet_data["intake_month"]],
+        "durations": [item["value"] for item in facet_data["duration"]],
+        "levels": [item["value"] for item in facet_data["level"]],
+    }
+    prompt = (
+        "Interpret the course-search request into the supplied schema. Use only exact values "
+        "from AVAILABLE. Put subject or course keywords in q. Never invent a filter. Give a "
+        "brief explanation of what was understood.\n"
+        f"AVAILABLE: {allowed}; institutions={institutions}\nREQUEST: {body.query}"
+    )
+    try:
+        ollama = OllamaService()
+        payload = await ollama.structured(
+            [{"role": "user", "content": prompt}],
+            GalleryInterpretation.model_json_schema(),
+            model=ollama.settings.ollama_chat_model,
+        )
+        interpretation = GalleryInterpretation.model_validate(payload)
+        source = "model"
+    except (OllamaUnavailable, ValueError):
+        interpretation = GalleryInterpretation(
+            q=body.query,
+            explanation="AI interpretation was unavailable, so the full brief is being used as a keyword search.",
+        )
+        source = "fallback"
+
+    clean = _guard_interpretation(interpretation, body.query, allowed, institutions)
+    return {"source": source, "filters": clean}
 
 
 def _filters(
