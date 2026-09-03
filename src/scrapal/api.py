@@ -68,6 +68,7 @@ from scrapal.schemas import (
 from scrapal.security import Principal, get_principal, require_editor
 from scrapal.services.generation import generate_answer
 from scrapal.services.ingestion import ingest_run, ingest_upload
+from scrapal.services.institutions import resolve_institution
 from scrapal.services.ollama import OllamaService
 from scrapal.services.search import hybrid_search
 
@@ -204,11 +205,16 @@ async def list_sources(
 
 @router.post("/sources", response_model=SourceOut, status_code=201, tags=["sources"])
 async def create_source(body: SourceCreate, session: Session, principal: Editor) -> Source:
-    await owned_collection(session, body.collection_id, principal)
+    collection = await owned_collection(session, body.collection_id, principal)
     if body.kind != SourceKind.document and body.url is None:
         raise HTTPException(422, "A starting URL is required for web sources")
+    institution = None
+    if body.config.get("domain_pack") == "university" and body.url:
+        institution = await resolve_institution(
+            session, collection.organization_id, str(body.url), body.name
+        )
     data = body.model_dump(mode="json")
-    source = Source(**data)
+    source = Source(**data, institution_id=institution.id if institution else None)
     session.add(source)
     await session.commit()
     await session.refresh(source)

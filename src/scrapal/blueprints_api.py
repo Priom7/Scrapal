@@ -26,6 +26,7 @@ from scrapal.schemas import (
 from scrapal.security import Principal, require_editor
 from scrapal.services.blueprints import preview_blueprint
 from scrapal.services.ingestion import ingest_run
+from scrapal.services.institutions import resolve_institution
 
 router = APIRouter(prefix="/v1/crawl-blueprints", tags=["crawl-blueprints"])
 Session = Annotated[AsyncSession, Depends(get_session)]
@@ -119,16 +120,19 @@ async def approve(
         return blueprint
     config = dict(blueprint.suggested_config)
     source_url = str(config.pop("start_url", blueprint.start_url))
-    hostname = source_url.lower()
     has_sitemap = bool(blueprint.discovery_json.get("sitemaps"))
-    if blueprint.domain_pack == "university" and "gre.ac.uk" in hostname and has_sitemap:
-        kind = SourceKind.greenwich
-    elif has_sitemap:
-        kind = SourceKind.sitemap
-    else:
-        kind = SourceKind.website
+    kind = SourceKind.sitemap if has_sitemap else SourceKind.website
+    institution = None
+    if blueprint.domain_pack == "university":
+        institution = await resolve_institution(
+            session, blueprint.organization_id, source_url, blueprint.name
+        )
+    # The domain pack decides which extractor runs. Approval knew this and
+    # used to throw it away, which is why only one hostname produced courses.
+    config["domain_pack"] = blueprint.domain_pack
     source = Source(
         collection_id=blueprint.collection_id,
+        institution_id=institution.id if institution else None,
         name=blueprint.name,
         kind=kind,
         url=source_url,

@@ -10,6 +10,7 @@ from scrapal.domain.university.institutions import (
     slugify,
 )
 from scrapal.models import Institution, Organization, Source, SourceKind, StructuredRecord
+from scrapal.services.institutions import resolve_institution
 
 
 @pytest.mark.parametrize(
@@ -100,3 +101,53 @@ def test_source_and_record_carry_a_nullable_institution_id() -> None:
     assert sa_inspect(Source).columns["institution_id"].nullable is True
     assert sa_inspect(StructuredRecord).columns["institution_id"].nullable is True
     assert SourceKind.greenwich.value == "greenwich"
+
+
+async def _org_session() -> tuple[async_sessionmaker, str]:
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    async with sessions() as session:
+        organization = Organization(name="Test")
+        session.add(organization)
+        await session.commit()
+        return sessions, organization.id
+
+
+async def test_resolve_institution_creates_once_and_returns_the_same_row() -> None:
+    sessions, org = await _org_session()
+    async with sessions() as session:
+        first = await resolve_institution(
+            session, org, "https://www.westminster.ac.uk/course-search", "University of Westminster"
+        )
+        await session.commit()
+        second = await resolve_institution(
+            session, org, "https://www.westminster.ac.uk/media-ma", "Westminster"
+        )
+        await session.commit()
+    assert first is not None and second is not None
+    assert first.id == second.id
+    assert first.domain == "westminster.ac.uk"
+    assert first.country_code == "GB"
+    assert first.name == "University of Westminster"
+
+
+async def test_resolve_institution_gives_a_second_university_its_own_row() -> None:
+    sessions, org = await _org_session()
+    async with sessions() as session:
+        gre = await resolve_institution(session, org, "https://www.gre.ac.uk/sitemap.xml", None)
+        buck = await resolve_institution(
+            session, org, "https://www.buckingham.ac.uk/course-page-sitemap.xml", None
+        )
+        await session.commit()
+    assert gre is not None and buck is not None
+    assert gre.id != buck.id
+    assert gre.name == "Gre"
+    assert buck.slug == "buckingham"
+
+
+async def test_resolve_institution_declines_an_address_it_cannot_read() -> None:
+    sessions, org = await _org_session()
+    async with sessions() as session:
+        assert await resolve_institution(session, org, "", "Nowhere") is None

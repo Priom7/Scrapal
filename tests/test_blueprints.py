@@ -131,7 +131,8 @@ async def test_approving_greenwich_blueprint_creates_versioned_source() -> None:
         assert approved.source_id is not None
         source = await session.get(Source, approved.source_id)
         assert source is not None
-        assert source.kind == SourceKind.greenwich
+        assert source.kind == SourceKind.sitemap
+        assert source.config["domain_pack"] == "university"
         assert source.url == "https://www.gre.ac.uk/sitemap.xml"
         assert source.config["max_pages"] == 250
     await engine.dispose()
