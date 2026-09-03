@@ -3,6 +3,7 @@ import mimetypes
 import time
 from collections import deque
 from pathlib import Path
+from typing import Any
 from urllib.parse import urljoin, urlparse
 from xml.etree import ElementTree
 
@@ -20,7 +21,10 @@ from scrapal.connectors.website import (
     validate_public_url,
 )
 from scrapal.db import SessionLocal
+from scrapal.domain.university.extractors.generic import GenericUniversityExtractor
+from scrapal.domain.university.extractors.registry import resolve_extractor
 from scrapal.domain.university.greenwich import GreenwichConfig, GreenwichConnector
+from scrapal.domain.university.institutions import registrable_domain
 from scrapal.models import (
     Collection,
     Document,
@@ -43,6 +47,7 @@ from scrapal.services.crawl_events import (
     upsert_incident,
 )
 from scrapal.services.indexing import index_document_version
+from scrapal.services.ollama import OllamaService
 from scrapal.telemetry import ACTIVE_RUNS, FETCH_BYTES, OUTPUT_TOTAL, RUNS_TOTAL, trace_ids, tracer
 
 
@@ -206,14 +211,27 @@ async def mark_run_terminal(run_id: str, status: RunStatus, error: str | None) -
 
 async def _ingest_source(session: AsyncSession, source: Source, run: Run) -> None:
     settings = get_settings()
+    # The connector fetches and cleans; course extraction is chosen separately
+    # by the registry, so a university is no longer tied to a connector class.
     if source.kind == SourceKind.greenwich:
         connector: WebsiteConnector = GreenwichConnector()
-        config: WebsiteConfig = GreenwichConfig(**source.config)
+        config: WebsiteConfig = GreenwichConfig(
+            **{key: value for key, value in (source.config or {}).items() if key != "domain_pack"}
+        )
     else:
         connector = WebsiteConnector()
-        config_data = {**source.config, "start_url": source.url}
-        connector_config = WebsiteConfig(**config_data)
-        config = connector_config
+        # One dict, so a stored start_url cannot collide with the keyword and
+        # the source's url column keeps the precedence it had before.
+        config = WebsiteConfig(
+            **{
+                **{
+                    key: value
+                    for key, value in (source.config or {}).items()
+                    if key != "domain_pack"
+                },
+                "start_url": source.url,
+            }
+        )
     discovery_started = time.perf_counter()
     with tracer.start_as_current_span("crawl.discovery"):
         await record_crawl_event(session, run, source, "discovery", "started")
@@ -471,6 +489,10 @@ async def persist_extraction(
     content_type: str,
     extracted: dict,
 ) -> bool:
+    if not extracted.get("structured_records") and content_type.startswith("text/html"):
+        course_records = await extract_course_records(source, url, raw, ollama=OllamaService())
+        if course_records:
+            extracted = {**extracted, "structured_records": course_records}
     suffix = mimetypes.guess_extension(content_type) or Path(urlparse(url).path).suffix or ".bin"
     with tracer.start_as_current_span("artifact.store"):
         digest, artifact_path = store_artifact(raw, suffix)
@@ -514,6 +536,35 @@ async def persist_extraction(
     return created
 
 
+async def extract_course_records(
+    source: Source,
+    url: str,
+    html: bytes,
+    ollama: Any | None = None,
+    extractor_override: str | None = None,
+) -> list[dict[str, Any]]:
+    """Course records for a university source, whichever university it is.
+
+    Extraction used to be selected by the literal hostname "gre.ac.uk", which
+    is why every other university crawled cleanly and produced nothing. The
+    domain pack decides that a source is a university; the registry decides
+    how to read it.
+    """
+    # default=dict fires at INSERT, not at Python construction, so a Source
+    # built in a test has config None until it is persisted.
+    if (source.config or {}).get("domain_pack") != "university":
+        return []
+    domain = registrable_domain(str(source.url or url))
+    extractor = resolve_extractor(domain, extractor_override)
+    if isinstance(extractor, GenericUniversityExtractor):
+        extractor.ollama = ollama
+    try:
+        return await extractor.extract_records(url, html)
+    except Exception:
+        # One unreadable page must not end a 500-page crawl.
+        return []
+
+
 async def persist_structured_records(
     session: AsyncSession,
     source: Source,
@@ -546,6 +597,7 @@ async def persist_structured_records(
                 record.published = status == RecordStatus.published
                 record.validation_json = validation
                 record.extractor_version = extractor_version
+                record.institution_id = source.institution_id
                 record.revision += 1
                 session.add(
                     StructuredRecordRevision(
@@ -567,6 +619,7 @@ async def persist_structured_records(
                 published=status == RecordStatus.published,
                 validation_json=validation,
                 extractor_version=extractor_version,
+                institution_id=source.institution_id,
                 published_at=now() if status == RecordStatus.published else None,
                 **item,
             )

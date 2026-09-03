@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -6,6 +8,7 @@ from scrapal.db import Base
 from scrapal.models import (
     Collection,
     Document,
+    Institution,
     Organization,
     RecordStatus,
     Source,
@@ -13,7 +16,7 @@ from scrapal.models import (
     StructuredRecord,
     StructuredRecordRevision,
 )
-from scrapal.services.ingestion import persist_structured_records
+from scrapal.services.ingestion import extract_course_records, persist_structured_records
 
 
 @pytest.mark.asyncio
@@ -85,4 +88,112 @@ async def test_extractor_upgrade_revises_record_without_duplicate() -> None:
         assert record.extractor_version == "course-intelligence-v2"
         assert await session.scalar(select(func.count(StructuredRecord.id))) == 1
         assert await session.scalar(select(func.count(StructuredRecordRevision.id))) == 2
+    await engine.dispose()
+
+
+async def test_a_non_greenwich_university_source_produces_course_records() -> None:
+    html = Path("tests/fixtures/buckingham_course.html").read_bytes()
+    records = await extract_course_records(
+        Source(
+            collection_id="c1",
+            name="University of Buckingham",
+            kind=SourceKind.sitemap,
+            url="https://www.buckingham.ac.uk/course-page-sitemap.xml",
+            config={"domain_pack": "university"},
+        ),
+        "https://www.buckingham.ac.uk/courses/llm-international-commercial-law",
+        html,
+        ollama=None,
+    )
+    assert len(records) == 1
+    assert records[0]["schema_name"] == "university.course"
+    assert records[0]["extractor_version"] == "generic-university-v1"
+
+
+async def test_a_greenwich_source_still_uses_the_greenwich_extractor() -> None:
+    html = Path("tests/fixtures/greenwich_course.html").read_bytes()
+    records = await extract_course_records(
+        Source(
+            collection_id="c1",
+            name="Greenwich",
+            kind=SourceKind.greenwich,
+            url="https://www.gre.ac.uk/sitemap.xml",
+            config={"domain_pack": "university"},
+        ),
+        "https://www.gre.ac.uk/postgraduate-courses/eduhea/ed",
+        html,
+        ollama=None,
+    )
+    assert records[0]["extractor_version"] == "greenwich-course-intelligence-v2"
+
+
+async def test_a_source_that_is_not_a_university_extracts_no_course_records() -> None:
+    records = await extract_course_records(
+        Source(collection_id="c1", name="Blog", kind=SourceKind.website, url="https://x.com/a"),
+        "https://x.com/a",
+        b"<html><body><h1>Hello</h1></body></html>",
+        ollama=None,
+    )
+    assert records == []
+
+
+async def test_persisted_records_carry_the_institution_of_their_source() -> None:
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    async with sessions() as session:
+        organization = Organization(name="Test")
+        session.add(organization)
+        await session.flush()
+        collection = Collection(organization_id=organization.id, name="Courses")
+        session.add(collection)
+        await session.flush()
+        institution = Institution(
+            organization_id=organization.id,
+            name="University of Buckingham",
+            slug="university-of-buckingham",
+            domain="buckingham.ac.uk",
+            country_code="GB",
+        )
+        session.add(institution)
+        await session.flush()
+        source = Source(
+            collection_id=collection.id,
+            institution_id=institution.id,
+            name="Buckingham",
+            kind=SourceKind.sitemap,
+        )
+        session.add(source)
+        await session.flush()
+        document = Document(
+            collection_id=collection.id,
+            source_id=source.id,
+            canonical_url="https://www.buckingham.ac.uk/courses/llm",
+            title="LLM",
+        )
+        session.add(document)
+        await session.flush()
+        await persist_structured_records(
+            session,
+            source,
+            document,
+            {
+                "structured_records": [
+                    {
+                        "schema_name": "university.course",
+                        "external_id": "https://www.buckingham.ac.uk/courses/llm",
+                        "data": {"title": "LLM", "level": "postgraduate", "source_url": "x"},
+                        "evidence": {},
+                        "status": "review",
+                        "extractor_version": "generic-university-v1",
+                        "validation": {"coverage": 0.5, "missing_fields": ["fees"]},
+                    }
+                ]
+            },
+        )
+        await session.commit()
+        stored = await session.scalar(select(StructuredRecord))
+    assert stored is not None
+    assert stored.institution_id == institution.id
     await engine.dispose()
