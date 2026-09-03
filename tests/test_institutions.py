@@ -1,11 +1,15 @@
 import pytest
+from sqlalchemy import inspect as sa_inspect
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
+from scrapal.db import Base
 from scrapal.domain.university.institutions import (
     country_for_domain,
     institution_name_from_domain,
     registrable_domain,
     slugify,
 )
+from scrapal.models import Institution, Organization, Source, SourceKind, StructuredRecord
 
 
 @pytest.mark.parametrize(
@@ -62,3 +66,37 @@ def test_institution_name_from_domain_is_a_readable_placeholder() -> None:
 def test_slugify_is_url_safe_and_collapses_punctuation() -> None:
     assert slugify("University of Greenwich") == "university-of-greenwich"
     assert slugify("St Mary's  College, London") == "st-marys-college-london"
+
+
+async def test_institution_row_round_trips_with_its_optional_branding() -> None:
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    async with sessions() as session:
+        organization = Organization(name="Test")
+        session.add(organization)
+        await session.flush()
+        institution = Institution(
+            organization_id=organization.id,
+            name="University of Westminster",
+            slug="university-of-westminster",
+            domain="westminster.ac.uk",
+            country_code="GB",
+        )
+        session.add(institution)
+        await session.commit()
+        await session.refresh(institution)
+    assert institution.city is None
+    assert institution.logo_url is None
+    assert institution.brand_color is None
+    assert institution.settings == {}
+    await engine.dispose()
+
+
+def test_source_and_record_carry_a_nullable_institution_id() -> None:
+    # Nullable because this database already holds sources and records that
+    # predate institutions; a NOT NULL column here would fail to migrate.
+    assert sa_inspect(Source).columns["institution_id"].nullable is True
+    assert sa_inspect(StructuredRecord).columns["institution_id"].nullable is True
+    assert SourceKind.greenwich.value == "greenwich"

@@ -125,10 +125,35 @@ class Collection(Base):
     sources: Mapped[list["Source"]] = relationship(back_populates="collection")
 
 
+class Institution(Base):
+    __tablename__ = "institutions"
+    __table_args__ = (
+        Index("ix_institutions_org_domain", "organization_id", "domain", unique=True),
+        Index("ix_institutions_org_slug", "organization_id", "slug", unique=True),
+    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    organization_id: Mapped[str] = mapped_column(ForeignKey("organizations.id"), index=True)
+    name: Mapped[str] = mapped_column(String(200))
+    slug: Mapped[str] = mapped_column(String(200))
+    domain: Mapped[str] = mapped_column(String(255))
+    country_code: Mapped[str | None] = mapped_column(String(2), nullable=True, index=True)
+    city: Mapped[str | None] = mapped_column(String(180), nullable=True)
+    website_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    logo_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    banner_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    brand_color: Mapped[str | None] = mapped_column(String(9), nullable=True)
+    settings: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, onupdate=now)
+
+
 class Source(Base):
     __tablename__ = "sources"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
     collection_id: Mapped[str] = mapped_column(ForeignKey("collections.id"), index=True)
+    institution_id: Mapped[str | None] = mapped_column(
+        ForeignKey("institutions.id"), nullable=True, index=True
+    )
     name: Mapped[str] = mapped_column(String(180))
     kind: Mapped[SourceKind] = mapped_column(Enum(SourceKind))
     url: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -361,6 +386,9 @@ class StructuredRecord(Base):
     __table_args__ = (Index("ix_records_schema_external", "schema_name", "external_id"),)
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
     collection_id: Mapped[str] = mapped_column(ForeignKey("collections.id"), index=True)
+    institution_id: Mapped[str | None] = mapped_column(
+        ForeignKey("institutions.id"), nullable=True, index=True
+    )
     document_id: Mapped[str] = mapped_column(ForeignKey("documents.id"), index=True)
     schema_name: Mapped[str] = mapped_column(String(120), index=True)
     external_id: Mapped[str] = mapped_column(String(300))
