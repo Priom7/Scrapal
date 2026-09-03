@@ -198,11 +198,11 @@ class GenericUniversityExtractor:
         for definition in soup.find_all("dl"):
             terms = definition.find_all("dt")
             for term in terms:
-                value = term.find_next_sibling("dd")
-                if value is not None:
+                definition_value = term.find_next_sibling("dd")
+                if definition_value is not None:
                     pairs.append(
                         (clean(term.get_text(" ", strip=True)),
-                         clean(value.get_text(" ", strip=True)), "dl-pair")
+                         clean(definition_value.get_text(" ", strip=True)), "dl-pair")
                     )
         for row in soup.select("table tr"):
             cells = row.find_all(["th", "td"])
