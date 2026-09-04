@@ -1,0 +1,30 @@
+flowchart TB
+    Operator["Operator / reviewer"] --> Console["React operator console"]
+    Console --> API["FastAPI application"]
+    Partner["Future student / partner clients"] -. "not public yet" .-> API
+
+    API --> Auth["API-key authentication<br/>organization + role"]
+    Auth --> Core["Collections, sources, runs,<br/>records, conversations"]
+    Core --> Queue["RabbitMQ / Celery"]
+    Queue --> Workers["Ingestion and AI workers"]
+    Workers --> Web["Public websites and documents"]
+    Workers --> Ollama["Host Ollama<br/>chat + embedding models"]
+    API --> Ollama
+
+    Core --> Postgres["PostgreSQL + pgvector"]
+    Workers --> Postgres
+    Workers --> Artifacts["Artifact volume"]
+    API --> Redis["Redis event stream"]
+    Workers --> Redis
+
+    API --> OTel["OpenTelemetry collector"]
+    Workers --> OTel
+    OTel --> Prometheus["Prometheus"]
+    OTel --> Loki["Loki"]
+    OTel --> Tempo["Tempo"]
+    Prometheus --> Grafana["Grafana"]
+    Loki --> Grafana
+    Tempo --> Grafana
+
+    classDef future stroke-dasharray: 5 5,fill:#f6f7f9,color:#68707d;
+    class Partner future;

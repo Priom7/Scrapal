@@ -1,0 +1,28 @@
+flowchart LR
+    Browser["Browser :3000"] --> Nginx["Console container<br/>Nginx + React build"]
+    Nginx --> API["API container :8000"]
+    API --> PG["PostgreSQL 16<br/>pgvector"]
+    API --> Redis["Redis 7"]
+    API --> Rabbit["RabbitMQ 4"]
+    API --> Ollama["Host Ollama :11434"]
+
+    Rabbit --> Worker["Celery worker<br/>ingest / ai / default"]
+    Rabbit --> Beat["Celery beat scheduler"]
+    Worker --> PG
+    Worker --> Redis
+    Worker --> Ollama
+    Worker --> Volume["artifacts volume"]
+
+    subgraph Optional["Optional observability profile"]
+        Collector["OTel Collector"] --> Prom["Prometheus"]
+        Collector --> Loki
+        Collector --> Tempo
+        Prom --> Grafana
+        Loki --> Grafana
+        Tempo --> Grafana
+        Flower["Flower"] --> Rabbit
+        Alert["Alertmanager"] --> Prom
+    end
+
+    API -. telemetry .-> Collector
+    Worker -. telemetry .-> Collector

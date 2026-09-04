@@ -1,0 +1,30 @@
+flowchart TD
+    Start["Homepage, sitemap, URL or document"] --> Preview["Preview crawl blueprint"]
+    Preview --> Sample["Sample representative pages,<br/>robots and sitemap signals"]
+    Sample --> Scope["Operator edits paths,<br/>depth and page limit"]
+    Scope --> Approve{"Operator approves?"}
+    Approve -- no --> Draft["Remain draft"]
+    Approve -- yes --> Source["Create/update source and queue run"]
+    Source --> Discover["Discover eligible URLs"]
+    Discover --> Policy{"Public URL + robots<br/>+ scope allowed?"}
+    Policy -- no --> Skip["Record policy skip / event"]
+    Policy -- yes --> Fetch["Fetch with bounded retry<br/>and redirect validation"]
+    Fetch --> Normalize["Clean HTML/PDF/DOCX<br/>and persist artifact"]
+    Normalize --> Version{"Content hash changed?"}
+    Version -- no --> Unchanged["Retain current version"]
+    Version -- yes --> Document["Create document version"]
+    Document --> Extractor["Resolve domain override,<br/>registered or generic extractor"]
+    Extractor --> Evidence["Structural extraction first;<br/>bounded model fill for missing fields"]
+    Evidence --> Validate["Validate required fields and<br/>verify evidence excerpts"]
+    Validate --> Review{"Publication gate"}
+    Review -- incomplete / changed --> QueueReview["Review queue"]
+    Review -- approved --> Publish["Published structured record<br/>+ immutable revision"]
+    Document --> Chunk["Structure-aware chunks"]
+    Chunk --> Embed["Active embedding profile"]
+    Embed --> Index["Lexical + pgvector indexes"]
+    Index --> Search["Search / grounded generation"]
+    Skip --> Finish["Run counters, events,<br/>incidents and terminal state"]
+    Unchanged --> Finish
+    QueueReview --> Finish
+    Publish --> Finish
+    Search --> Finish
