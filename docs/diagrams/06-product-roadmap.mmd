@@ -1,0 +1,19 @@
+flowchart LR
+    P0["Phase 0<br/>Trusted knowledge engine<br/>CURRENT: advanced alpha"] --> Gate0{"Coverage and reliability<br/>proven across 5–10 sites"}
+    Gate0 --> P1["Phase 1<br/>Zero-cost student research beta<br/>CURRENT: gallery slice only"]
+    P1 --> Gate1{"Useful to 100 relevant students<br/>with safe public operations"}
+    Gate1 --> P2["Phase 2<br/>Evidence-based AI counsellor"]
+    P2 --> P3["Phase 3<br/>Application assistance agents"]
+    P3 --> P4["Phase 4<br/>Agency platform + data API"]
+    P4 --> P5["Phase 5<br/>AI student recruiter"]
+    P5 --> P6["Phase 6<br/>AI interviewer"]
+    P6 --> P7["Phase 7<br/>University partnerships"]
+    P7 --> P8["Phase 8<br/>Consent-gated match exchange"]
+    P8 --> P9["Phase 9<br/>Global education OS"]
+
+    classDef current fill:#dff7e8,stroke:#238a57,color:#163d2b;
+    classDef partial fill:#fff3ce,stroke:#bd7b00,color:#4b3500;
+    classDef future fill:#f2f4f7,stroke:#8b95a5,color:#344054;
+    class P0 current;
+    class P1 partial;
+    class P2,P3,P4,P5,P6,P7,P8,P9 future;

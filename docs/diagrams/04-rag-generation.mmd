@@ -1,0 +1,20 @@
+flowchart TD
+    Question["Question + collection scope"] --> Plan["Ollama query plan<br/>or deterministic fallback"]
+    History["Recent conversation turns"] --> Plan
+    Plan --> Structured["Published structured records"]
+    Plan --> Lexical["PostgreSQL lexical lane"]
+    Plan --> Vector["pgvector semantic lane"]
+    Structured --> Fusion["Weighted reciprocal-rank fusion"]
+    Lexical --> Fusion
+    Vector --> Fusion
+    Fusion --> Context["Deduplicate, enforce scope,<br/>assemble cited context"]
+    Context --> Enough{"Enough evidence?"}
+    Enough -- no --> Abstain["Abstain / explain missing evidence"]
+    Enough -- yes --> Generate["Local Ollama answer generation"]
+    Generate --> Verify["Sentence support and citation checks"]
+    Verify --> Supported["Supported sentences + citations"]
+    Verify --> Withheld["Unsupported sentences withheld"]
+    Supported --> Response["Persist result and stream events"]
+    Withheld --> Response
+    Abstain --> Response
+    Response --> Lab["Retrieval run diagnostics<br/>and offline evaluation"]
