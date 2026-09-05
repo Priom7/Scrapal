@@ -1,0 +1,35 @@
+sequenceDiagram
+    autonumber
+    participant C as Console
+    participant F as FastAPI
+    participant S as security.get_principal
+    participant DB as PostgreSQL
+    participant H as Route handler
+
+    C->>F: request + X-API-Key header
+    F->>S: resolve APIKeyHeader dependency
+    alt header absent
+        S-->>C: 401 Missing API key
+    else header present
+        S->>S: sha256(key)
+        S->>DB: select APIKey where key_hash = digest
+        DB-->>S: row or none
+        alt no row, or row.active is false
+            S-->>C: 401 Invalid API key
+        else active key
+            S-->>F: Principal(organization_id, role, scopes, key_id)
+            alt route requires editor
+                F->>F: role in super_admin, admin, editor
+            else route requires super admin
+                F->>F: role == super_admin
+            end
+            alt permission denied
+                F-->>C: 403
+            else allowed
+                F->>H: invoke with Principal + AsyncSession
+                H->>DB: query filtered by principal.organization_id
+                DB-->>H: tenant-scoped rows
+                H-->>C: 200 response model
+            end
+        end
+    end

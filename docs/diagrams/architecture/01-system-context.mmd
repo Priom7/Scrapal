@@ -1,0 +1,37 @@
+flowchart TB
+    subgraph people["People"]
+        Operator["Operator / reviewer<br/>super_admin, admin, editor, viewer"]
+        Student["Student / partner client<br/>NOT public yet"]
+    end
+
+    subgraph scrapal["Scrapal platform"]
+        Console["Operator console<br/>React + Vite, served by Nginx"]
+        API["FastAPI application<br/>6 routers, 62 endpoints"]
+        Worker["Celery workers<br/>ingest / ai / default queues"]
+        Store[("PostgreSQL 16 + pgvector<br/>26 tables")]
+        Cache[("Redis<br/>event stream + heartbeats")]
+        Broker[("RabbitMQ<br/>task broker")]
+        Files[("Artifact volume<br/>raw page bytes")]
+    end
+
+    subgraph external["Outside the trust boundary"]
+        Web["Public university websites,<br/>sitemaps, robots.txt, PDFs"]
+        Ollama["Host Ollama<br/>chat + fast + embedding models"]
+        Grafana["Grafana / Prometheus / Loki / Tempo"]
+    end
+
+    Operator --> Console
+    Student -. "planned" .-> API
+    Console -->|"X-API-Key"| API
+    API --> Store
+    API --> Cache
+    API -->|"enqueue"| Broker
+    Broker --> Worker
+    Worker --> Store
+    Worker --> Cache
+    Worker --> Files
+    Worker -->|"fetch, robots-gated"| Web
+    Worker --> Ollama
+    API --> Ollama
+    API -.->|"OTLP + /metrics"| Grafana
+    Worker -.->|"OTLP"| Grafana

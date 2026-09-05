@@ -1,0 +1,90 @@
+erDiagram
+    ORGANIZATIONS ||--o{ API_KEYS : "issues"
+    ORGANIZATIONS ||--o{ COLLECTIONS : "owns"
+    ORGANIZATIONS ||--o{ INSTITUTIONS : "owns"
+    ORGANIZATIONS ||--o{ CRAWL_BLUEPRINTS : "owns"
+    ORGANIZATIONS ||--o{ CONVERSATIONS : "owns"
+    ORGANIZATIONS ||--o{ CRAWL_EVENTS : "scopes"
+    ORGANIZATIONS ||--o{ INCIDENTS : "scopes"
+    ORGANIZATIONS ||--o{ RETRIEVAL_RUNS : "scopes"
+    ORGANIZATIONS ||--o{ EVALUATION_RUNS : "scopes"
+    ORGANIZATIONS ||--o{ ACTION_PROPOSALS : "scopes"
+
+    COLLECTIONS ||--o{ SOURCES : "contains"
+    COLLECTIONS ||--o{ DOCUMENTS : "contains"
+    COLLECTIONS ||--o{ STRUCTURED_RECORDS : "contains"
+    COLLECTIONS ||--o{ CRAWL_BLUEPRINTS : "planned for"
+    COLLECTIONS ||--o{ CONVERSATIONS : "scopes"
+    COLLECTIONS ||--o{ RETRIEVAL_RUNS : "scopes"
+    COLLECTIONS ||--o{ EVALUATION_RUNS : "scopes"
+
+    INSTITUTIONS ||--o{ SOURCES : "publishes"
+    INSTITUTIONS ||--o{ STRUCTURED_RECORDS : "attributed to"
+
+    SOURCES ||--o{ RUNS : "executes"
+    SOURCES ||--o{ DOCUMENTS : "produces"
+    SOURCES ||--o{ CRAWL_EVENTS : "emits"
+    SOURCES ||--o{ INCIDENTS : "raises"
+    SOURCES ||--o{ CRAWL_BLUEPRINTS : "approved into"
+
+    RUNS ||--o{ RUN_ISSUES : "records"
+    RUNS ||--o{ CRAWL_EVENTS : "times"
+    RUNS ||--o{ DOCUMENT_VERSIONS : "captures"
+    RUNS ||--o{ INCIDENTS : "triggers"
+    RUNS ||--o| RUNS : "retry_of"
+
+    DOCUMENTS ||--o{ DOCUMENT_VERSIONS : "versioned as"
+    DOCUMENTS ||--o{ CHUNKS : "split into"
+    DOCUMENTS ||--o{ DOCUMENT_INDEXES : "indexed by"
+    DOCUMENTS ||--o{ STRUCTURED_RECORDS : "evidences"
+
+    DOCUMENT_VERSIONS ||--o{ CHUNKS : "chunked into"
+    DOCUMENT_VERSIONS ||--o{ DOCUMENT_INDEXES : "index state"
+
+    CHUNKS ||--o{ CHUNK_EMBEDDINGS : "embedded as"
+    EMBEDDING_PROFILES ||--o{ CHUNK_EMBEDDINGS : "produced by"
+    EMBEDDING_PROFILES ||--o{ DOCUMENT_INDEXES : "governs"
+    EMBEDDING_PROFILES ||--o{ EVALUATION_RUNS : "measured"
+    EMBEDDING_PROFILES ||--o{ MESSAGE_GENERATIONS : "used by"
+
+    STRUCTURED_RECORDS ||--o{ STRUCTURED_RECORD_REVISIONS : "history"
+    STRUCTURED_RECORDS ||--o{ COURSE_SHORTLIST_ENTRIES : "shortlisted"
+
+    CONVERSATIONS ||--o{ MESSAGES : "holds"
+    CONVERSATIONS ||--o{ MESSAGE_GENERATIONS : "answers"
+    CONVERSATIONS ||--o{ ACTION_PROPOSALS : "proposes"
+    MESSAGES ||--o{ MESSAGE_GENERATIONS : "prompts"
+    MESSAGE_GENERATIONS ||--o{ GENERATION_EVENTS : "streams"
+    RETRIEVAL_RUNS ||--o{ MESSAGE_GENERATIONS : "grounds"
+
+    ORGANIZATIONS {
+        string id PK
+        string name
+    }
+    STRUCTURED_RECORDS {
+        string id PK
+        string collection_id FK
+        string institution_id FK
+        string document_id FK
+        string schema_name "university.course"
+        string external_id "canonical source URL"
+        json data "typed course facts"
+        json evidence "per-field excerpts"
+        json validation_json "coverage, missing_fields"
+        enum status "review | published | rejected"
+        int revision
+        string extractor_version
+    }
+    DOCUMENT_VERSIONS {
+        string id PK
+        string document_id FK
+        string content_hash "sha256 — dedupe key"
+        text text
+        string artifact_path
+    }
+    CHUNK_EMBEDDINGS {
+        string id PK
+        string chunk_id FK
+        string embedding_profile_id FK
+        vector embedding "pgvector, HNSW cosine"
+    }

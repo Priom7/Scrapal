@@ -1,0 +1,65 @@
+flowchart TD
+    Start(["ingest_task(run_id)"]) --> Iso["engine.dispose — fresh event loop<br/>asyncio.run isolation"]
+    Iso --> Load["load Run + Source"]
+    Load --> Missing{"source exists?"}
+    Missing -- no --> Failed(["status=failed<br/>'Source no longer exists'"])
+    Missing -- yes --> Running["status=running<br/>ACTIVE_RUNS.inc<br/>heartbeat"]
+    Running --> Pick{"source.kind"}
+
+    Pick -- greenwich --> GC["GreenwichConnector<br/>+ GreenwichConfig"]
+    Pick -- other --> WC["WebsiteConnector<br/>+ WebsiteConfig"]
+
+    GC --> Frontier
+    WC --> Frontier
+
+    Frontier{"how is the frontier built?"}
+    Frontier -- "retry_of_run_id set" --> FR["replay non-policy RunIssue URLs"]
+    Frontier -- "sitemap / greenwich / .xml" --> FS["parse sitemap locs<br/>apply include and exclude"]
+    Frontier -- "otherwise" --> FW["seed with start_url, depth 0"]
+
+    FR --> Queue[["queue: deque of (url, depth)"]]
+    FS --> Queue
+    FW --> Queue
+
+    Queue --> Loop{"queue non-empty AND<br/>seen < min(max_pages, 500)?"}
+    Loop -- no --> Done
+    Loop -- yes --> Pop["pop url, mark seen<br/>publish_worker_heartbeat"]
+    Pop --> Cancel{"run.cancel_requested?"}
+    Cancel -- yes --> Cancelled(["raise RunCancelled<br/>status=cancelled"])
+    Cancel -- no --> Robots{"respect_robots and<br/>robots allows this URL?"}
+
+    Robots -- denied --> Skip["RunIssue stage=policy<br/>CrawlEvent robots policy_skipped<br/>pages_processed += 1"]
+    Skip --> Loop
+
+    Robots -- allowed --> Fetch["safe_fetch — 3 attempts,<br/>backoff on 429/5xx"]
+    Fetch -- FetchFailure --> FetchErr["RunIssue stage=fetch<br/>CrawlEvent fetch failed<br/>retryable flag preserved"]
+    FetchErr --> Loop
+
+    Fetch -- ok --> Nested["open SAVEPOINT<br/>session.begin_nested"]
+    Nested --> Extract["connector.extract<br/>trafilatura text + title"]
+    Extract --> Budget{"HTML and<br/>llm_pages < max_llm_pages?"}
+    Budget -- yes --> WithLLM["use_model = True<br/>llm_pages += 1"]
+    Budget -- no --> NoLLM["use_model = False<br/>log llm_budget_exhausted once"]
+    WithLLM --> Persist
+    NoLLM --> Persist
+
+    Persist["persist_extraction — see diagram 11"]
+    Persist -- raises --> ExtErr["SAVEPOINT rolled back<br/>RunIssue stage=extract retryable<br/>created = False"]
+    ExtErr --> Tally
+    Persist -- ok --> Tally["pages_processed += 1<br/>documents_created += created<br/>CrawlEvent page completed"]
+
+    Tally --> Links{"text/html and depth < max_depth?"}
+    Links -- yes --> Enqueue["extract_links — same domain,<br/>include/exclude honoured<br/>append at depth + 1"]
+    Links -- no --> Commit
+    Enqueue --> Commit["session.commit"]
+    Commit --> Loop
+
+    Done(["status=completed"])
+    Done --> Terminal
+    Cancelled --> Terminal
+    Failed --> Terminal
+    Terminal["mark_run_terminal — 6 attempts, exponential backoff<br/>set finished_at, source.last_run_at,<br/>RUNS_TOTAL metric, CrawlEvent run outcome"]
+    Terminal --> Incident{"status == failed?"}
+    Incident -- yes --> Inc["upsert_incident<br/>rule_id=crawler_run_failed severity=critical"]
+    Incident -- no --> End(["ACTIVE_RUNS.dec"])
+    Inc --> End

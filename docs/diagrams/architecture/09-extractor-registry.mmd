@@ -1,0 +1,24 @@
+flowchart TD
+    A(["extract_course_records(source, url, html)"]) --> B{"source.config.domain_pack<br/>== 'university'?"}
+    B -- no --> Z(["return [] — connector output stands alone"])
+    B -- yes --> C["domain = registrable_domain(source.url or url)"]
+    C --> D{"explicit override<br/>in NAMED_EXTRACTORS?"}
+    D -- "'generic'" --> G
+    D -- "'greenwich'" --> H
+    D -- none --> E{"domain in<br/>DOMAIN_EXTRACTORS?"}
+    E -- "gre.ac.uk" --> H["GreenwichCourseExtractor<br/>stable anchor ids"]
+    E -- "any other domain" --> G["GenericUniversityExtractor<br/>structure first, model second"]
+
+    G --> I{"ollama injected?"}
+    I -- "yes, page within LLM budget" --> J["structural pass + bounded model pass"]
+    I -- "no, budget spent" --> K["structural pass only"]
+
+    H --> L
+    J --> L
+    K --> L
+    L["extractor.extract_records(url, html)"] --> M{"raised?"}
+    M -- yes --> N(["log exception, return []<br/>one bad page never ends the crawl"])
+    M -- no --> O(["list of course record dicts"])
+
+    note1["Adding a university needs no registry entry:<br/>the generic extractor is the default."]
+    E -.- note1

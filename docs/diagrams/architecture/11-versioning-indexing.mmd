@@ -1,0 +1,39 @@
+flowchart TD
+    A(["persist_extraction(source, run, url, raw, content_type, extracted)"]) --> B{"content is text/html?"}
+    B -- yes --> C["fill_institution_branding<br/>only fills columns that are still NULL —<br/>never overwrites an operator's value"]
+    B -- no --> D
+    C --> D{"connector produced<br/>structured_records?"}
+    D -- no, and html --> E["extract_course_records — see diagram 10"]
+    D -- yes --> F
+    E --> F["store_artifact(raw) -> sha256 digest + path"]
+
+    F --> G{"Document exists for<br/>(source_id, canonical_url)?"}
+    G -- no --> H["INSERT Document<br/>created = True"]
+    G -- yes --> I["reuse Document<br/>created = False"]
+    H --> J
+    I --> J{"DocumentVersion with this<br/>content_hash already present?"}
+
+    J -- "yes — page unchanged" --> K["persist_structured_records only<br/>return False: no new version, no re-embed"]
+    J -- no --> L["INSERT DocumentVersion<br/>text, metadata, artifact_path, run_id"]
+
+    L --> M["index_document_version"]
+    M --> N{"DocumentIndex ready with same<br/>content_hash and chunker_version?"}
+    N -- yes --> O["reuse — set document.current_version_id"]
+    N -- no --> P["status=indexing, attempts += 1<br/>DELETE old chunks for this version"]
+    P --> Q["chunk_text — target 600 tokens, overlap 80<br/>heading, section_path, stable anchor"]
+    Q --> R["ollama.embed(chunk contents)"]
+
+    R -- OllamaUnavailable --> S(["status=waiting<br/>chunks kept, 0 embeddings<br/>RAG_INDEX_FAILURES ollama_unavailable"])
+    R -- "wrong count or dimensions" --> T(["status=failed<br/>profile.healthy = False<br/>RAG_INDEX_FAILURES invalid_embedding"])
+    R -- ok --> U["INSERT ChunkEmbedding per chunk"]
+    U --> V["status=ready<br/>document.current_version_id = version.id<br/>older ready indexes -> stale"]
+
+    V --> W
+    O --> W
+    K --> W
+    W["persist_structured_records"] --> X{"record exists for<br/>(collection, schema_name, external_id)?"}
+    X -- no --> Y["INSERT StructuredRecord<br/>+ revision 1 'Initial crawler extraction'"]
+    X -- yes --> Z["always refresh institution_id"]
+    Z --> AA{"data, evidence or validation changed?"}
+    AA -- no --> AB(["no revision written"])
+    AA -- yes --> AC["update fields, revision += 1<br/>+ StructuredRecordRevision snapshot"]

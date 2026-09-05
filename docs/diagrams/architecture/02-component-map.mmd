@@ -1,0 +1,77 @@
+flowchart TB
+    subgraph L7["Layer 7 — Console (11 modules, 9 views)"]
+        direction LR
+        V1["App.tsx<br/>shell + 7 views"]
+        V2["CourseGallery.tsx<br/>gallery, dossier, compare"]
+        V3["api.ts<br/>typed HTTP client"]
+        V4["CollectionScope · GalleryState<br/>RunPath · QueryPlan · ui · lib"]
+    end
+
+    subgraph L2["Layer 2 — API routers (6 modules, 62 endpoints)"]
+        direction LR
+        R1["api.py · /v1<br/>25 endpoints"]
+        R2["blueprints_api.py<br/>5"]
+        R3["course_intelligence_api.py<br/>8"]
+        R4["course_gallery_api.py<br/>8"]
+        R5["retrieval_api.py<br/>6"]
+        R6["observability_api.py<br/>10"]
+    end
+
+    subgraph L3["Layer 3 — Platform core (9 modules)"]
+        direction LR
+        P1["security.py<br/>API key, Principal, RBAC"]
+        P2["config.py · db.py"]
+        P3["models.py · schemas.py"]
+        P4["jobs.py<br/>Celery app + 3 tasks"]
+        P5["telemetry.py · extensions.py · main.py"]
+    end
+
+    subgraph L4["Layer 4 — Domain services (11 modules)"]
+        direction LR
+        S1["ingestion"]
+        S2["blueprints"]
+        S3["indexing · chunking"]
+        S4["search · generation"]
+        S5["ollama"]
+        S6["institutions · artifacts"]
+        S7["crawl_events · evaluation"]
+    end
+
+    subgraph L5["Layer 5 — Connectors and extraction (6 units)"]
+        direction LR
+        C1["WebsiteConnector"]
+        C2["DocumentConnector"]
+        C3["GreenwichConnector"]
+        E1["registry.resolve_extractor"]
+        E2["GenericUniversityExtractor"]
+        E3["GreenwichCourseExtractor"]
+    end
+
+    subgraph L6["Layer 6 — Persistence (26 tables, 9 enums)"]
+        direction LR
+        D1[("Tenancy + catalogue")]
+        D2[("Crawl + telemetry")]
+        D3[("Documents + chunks + vectors")]
+        D4[("Records + revisions")]
+        D5[("Conversations + retrieval")]
+    end
+
+    subgraph L1["Layer 1 — Runtime (14 services + host Ollama)"]
+        direction LR
+        N1["api"]
+        N2["worker"]
+        N3["scheduler"]
+        N4["console"]
+        N5["postgres · redis · rabbitmq"]
+        N6["7 observability-profile services"]
+    end
+
+    L7 -->|"HTTPS + X-API-Key"| L2
+    L2 --> L3
+    L2 --> L4
+    L3 --> L4
+    L4 --> L5
+    L4 --> L6
+    L5 --> L6
+    L3 -.->|"hosted by"| L1
+    L4 -.->|"hosted by"| L1

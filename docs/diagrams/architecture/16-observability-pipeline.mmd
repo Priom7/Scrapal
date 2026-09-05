@@ -1,0 +1,33 @@
+flowchart TD
+    subgraph emit["Emission — inside every crawl stage"]
+        A["record_crawl_event(stage, outcome, ...)"]
+        A --> B["resolve organization_id from Collection"]
+        B --> C["sequence = max(sequence for run) + 1"]
+        C --> D["sanitize_url — strip query and credentials"]
+        D --> E["attach trace_id + span_id from the active span"]
+    end
+
+    E --> F[("CrawlEvent row<br/>durable, 90-day retention")]
+    E --> G["PAGES_TOTAL counter<br/>STAGE_DURATION histogram"]
+    E --> H["structlog 'crawl.stage'<br/>secrets redacted by SECRET_KEY regex"]
+    E --> I["Redis XADD scrapal:crawl-events<br/>maxlen 50000 — best effort"]
+
+    I -.->|"stream unavailable is logged,<br/>never fatal"| I2["warning only"]
+
+    J["publish_worker_heartbeat<br/>SETEX 90s per host:pid"] --> K[("Redis worker keys")]
+
+    F --> L["GET /observability/runs/{id}/timeline"]
+    I --> M["live run monitor in the console"]
+    K --> N["GET /observability/workers"]
+
+    O{"run finished with status=failed?"} -- yes --> P["upsert_incident<br/>fingerprint run-failed:{run_id}<br/>rule crawler_run_failed, severity critical"]
+    P --> Q[("Incident row<br/>occurrence_count deduplicated")]
+    Q --> R["GET /observability/incidents<br/>acknowledge / resolve"]
+
+    G --> S["/metrics — Prometheus scrape"]
+    H --> T["OTLP -> otel-collector -> Loki"]
+    E --> U["OTLP spans -> otel-collector -> Tempo"]
+    S --> V["Prometheus -> Alertmanager"]
+    T --> W["Grafana"]
+    U --> W
+    V --> W
