@@ -58,7 +58,17 @@ LIST_SECTION_SIGNALS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("deadlines", ("deadline", "closing date", "key dates")),
     ("accreditations", ("accreditation", "accredited by", "professional recognition")),
 )
-COURSE_URL_HINTS = ("/course", "/courses/", "/programme", "/program", "/degree", "/study/")
+# A course lives on its own page, under a path segment that names it. A section
+# prefix is not enough: Westminster files accommodation, open days and student
+# profiles under /study/, and every one of those pages has an h1.
+COURSE_URL_HINTS = ("/course/", "/courses/", "/programme/", "/program/", "/degree/")
+# Paths that name a course section but never a single course.
+NOT_A_COURSE_URL_HINTS = (
+    "/accommodation", "/student-life", "/student-profiles", "/open-days-and-events",
+    "/fees-and-funding", "/how-to-apply", "/after-you-apply", "/offer-holders",
+    "/prospectus", "/programme-specifications", "/research-areas", "/course-search",
+    "/subjects", "/chat-with-our-students", "/parents-and-supporters", "/faqs",
+)
 
 # What the model is asked for, and how its answer is folded back in.
 LLM_FIELD_PROMPTS: dict[str, str] = {
@@ -146,9 +156,14 @@ class GenericUniversityExtractor:
         """A campus page has an h1 too. Require a course signal before extracting."""
         if not fields.get("title"):
             return False
+        lowered = url.lower()
+        if any(hint in lowered for hint in NOT_A_COURSE_URL_HINTS):
+            return False
+        if str(fields["title"]).rstrip().endswith("?"):
+            return False  # "Thinking of doing a PhD?" mentions an award; it is not one.
         if fields.get("award"):
             return True
-        return any(hint in url.lower() for hint in COURSE_URL_HINTS)
+        return any(hint in lowered for hint in COURSE_URL_HINTS)
 
     def _from_json_ld(self, soup: BeautifulSoup, fields: dict[str, Any], remember: Any) -> None:
         for script in soup.find_all("script", attrs={"type": "application/ld+json"}):

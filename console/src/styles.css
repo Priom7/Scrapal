@@ -120,6 +120,12 @@ h2 { font-size: clamp(1.2rem, 1.7vw, 1.6rem); }
 .institution-spine li { display: grid; grid-template-columns: minmax(0, 1fr) 120px auto; gap: 14px; align-items: center; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
 .institution-spine .country { margin-left: 8px; border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; color: var(--ink-soft); font-size: 11px; }
 .institution-spine .counts { color: var(--ink-soft); font-size: 12.5px; white-space: nowrap; }
+.institution-spine .spine-heading { display: flex; gap: 1rem; justify-content: space-between; align-items: baseline; }
+.institution-spine li > button { display: flex; gap: 0; align-items: baseline; min-width: 0; padding: 0; border: 0; color: inherit; background: transparent; font: inherit; text-align: left; cursor: pointer; }
+.institution-spine li > button:disabled { cursor: default; }
+.institution-spine li.selected { border-color: var(--cobalt); background: color-mix(in srgb, var(--cobalt) 5%, var(--surface)); }
+.link-button { padding: 0; border: 0; color: var(--cobalt); background: transparent; font: inherit; font-size: .8rem; text-decoration: underline; cursor: pointer; }
+.truncation-note { margin: .3rem 0 0; color: var(--ink-soft); font-size: .78rem; }
 .icon-button { width: 44px; height: 44px; display: inline-grid; place-items: center; flex: 0 0 auto; padding: 0; border: 1px solid var(--line); border-radius: 11px; background: var(--surface); cursor: pointer; }
 .mobile-only { display: none; }
 

@@ -448,10 +448,17 @@ export const api = {
     }),
   courseIntelligenceOverview: (collectionId?: string) =>
     request<CourseIntelligenceOverview>(`/v1/admin/course-intelligence/overview${collectionId ? `?collection_id=${collectionId}` : ''}`),
-  courseRecords: (collectionId?: string, status?: CourseRecord['status']) => {
+  courseRecords: (
+    collectionId?: string,
+    status?: CourseRecord['status'],
+    institutionId?: string,
+    limit = 500,
+  ) => {
     const params = new URLSearchParams()
     if (collectionId) params.set('collection_id', collectionId)
     if (status) params.set('status', status)
+    if (institutionId) params.set('institution_id', institutionId)
+    params.set('limit', String(limit))
     return request<CourseRecord[]>(`/v1/admin/course-intelligence/records?${params}`)
   },
   publishCourseRecord: (id: string, note: string) =>

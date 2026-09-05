@@ -236,3 +236,35 @@ async def test_a_model_outage_leaves_a_reviewable_record_rather_than_failing_the
     )
     assert records[0]["status"] == "review"
     assert "fees" in records[0]["validation"]["missing_fields"]
+
+
+async def test_a_universitys_study_section_is_not_a_course_catalogue() -> None:
+    """Westminster files accommodation and open days under /study/, so the section
+    prefix alone cannot stand in for a course signal."""
+    extractor = GenericUniversityExtractor()
+    for url, heading in (
+        ("https://www.westminster.ac.uk/study/accommodation/harrow-hall", "Harrow Hall"),
+        ("https://www.westminster.ac.uk/study/student-life/cultural-london", "Cultural London"),
+        ("https://www.westminster.ac.uk/study/postgraduate/how-to-apply", "How to apply"),
+        ("https://www.westminster.ac.uk/study/fees-and-funding/fees", "Fees"),
+        ("https://www.westminster.ac.uk/study/student-profiles/usbah-aamir", "Usbah Aamir"),
+        (
+            "https://www.westminster.ac.uk/study/postgraduate/research-degrees/thinking-of-doing-a-phd",
+            "Thinking of doing a PhD?",
+        ),
+        ("https://www.westminster.ac.uk/course-search", "Course Search"),
+    ):
+        html = f"<html><body><h1>{heading}</h1><p>Some prose.</p></body></html>".encode()
+        assert await extractor.extract_records(url, html) == [], url
+
+
+async def test_a_real_course_page_under_a_study_section_still_extracts() -> None:
+    """Tightening the guard must not lock out course pages that live under /study/."""
+    html = (
+        b"<html><body><h1>Business Management BA (Hons)</h1>"
+        b"<dl><dt>Duration</dt><dd>3 years full-time</dd></dl></body></html>"
+    )
+    records = await GenericUniversityExtractor().extract_records(
+        "https://www.westminster.ac.uk/study/undergraduate/courses/business-management-ba", html
+    )
+    assert records and records[0]["data"]["title"] == "Business Management BA (Hons)"
