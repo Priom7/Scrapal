@@ -1,0 +1,22 @@
+flowchart LR
+    subgraph scoped["Tenant-scoped — every query joins organization_id"]
+        A1["api.py<br/>25 endpoints · 25 org references"]
+        A2["course_gallery_api.py<br/>8 endpoints · org-scoped via _published_courses"]
+        A3["blueprints_api.py<br/>5 endpoints · scoped on create and approve"]
+    end
+
+    subgraph partial["Partially scoped"]
+        B1["retrieval_api.py<br/>create_run passes organization_id to retrieval,<br/>but GET /runs/{id} fetches by primary key alone"]
+    end
+
+    subgraph unscoped["NOT tenant-scoped — 18 of 62 endpoints"]
+        C1["course_intelligence_api.py — 8 endpoints<br/>zero organization_id references.<br/>collection_id is caller-supplied and never validated.<br/>publish / review / reject fetch by record id alone."]
+        C2["observability_api.py — 10 endpoints<br/>zero organization_id filters.<br/>overview counts every org's runs, pages and incidents.<br/>/runs returns organization_id but never filters on it."]
+    end
+
+    G["require_super_admin"] --> C1
+    G --> C2
+    G --> B1
+
+    N["Not an active breach: one organization exists today,<br/>and every unscoped route is behind super_admin.<br/>It becomes a cross-tenant read and write the moment<br/>a second organization is created."]
+    unscoped -.- N

@@ -1,0 +1,17 @@
+flowchart LR
+    S0(["Start"]) --> S1
+
+    S1["1. Fix chunk_text to split inside a paragraph<br/>+ re-embed the corpus<br/>RISK low · IMPACT 36.8% of chunks stop truncating"]
+    S1 --> S2["2. Add a scoped-session dependency<br/>and apply it to the 18 unscoped endpoints<br/>RISK low · IMPACT closes the cross-tenant gap"]
+    S2 --> S3["3. Split the gallery list and detail projections;<br/>drop evidence from list responses<br/>RISK low · IMPACT 53% payload cut"]
+    S3 --> S4["4. Move gallery filtering and faceting into SQL<br/>RISK medium · IMPACT O(N) becomes O(page)"]
+    S4 --> S5["5. Pool the Ollama httpx client and Redis lock;<br/>move timeouts into Settings<br/>RISK low"]
+    S5 --> S6["6. Extract scrapal.rag — lanes, fusion, one answering path<br/>RISK medium · needs tests first"]
+    S6 --> S7["7. Extract scrapal.crawl from ingestion.py<br/>RISK high · 33% covered today"]
+    S7 --> S8["8. Split api.py into resource routers<br/>RISK medium · 0% covered today"]
+
+    T1["Test debt gate: raise ingestion.py and search.py<br/>above 70% BEFORE steps 6 and 7.<br/>Refactoring 33%-covered code is a rewrite with extra steps."]
+    S5 -.-> T1
+    T1 -.-> S6
+
+    S8 --> S9(["Then: per-query refetch intervals,<br/>drop the 4 unused dependencies,<br/>run CI against real PostgreSQL"])

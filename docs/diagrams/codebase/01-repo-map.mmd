@@ -1,0 +1,21 @@
+flowchart LR
+    Root["scrapal/"]
+
+    Root --> SRC["src/scrapal/ — 7,867 lines, 36 files"]
+    Root --> CON["console/ — 5,038 lines, 15 files"]
+    Root --> TST["tests/ — 1,816 lines, 16 files, 100 tests"]
+    Root --> MIG["migrations/ — 10 revisions, linear chain"]
+    Root --> OBS["observability/ — 10 config files"]
+    Root --> DOC["docs/ — master, architecture, codebase"]
+    Root --> INF["Dockerfile · docker-compose.yml<br/>pyproject.toml · .github/workflows/ci.yml"]
+
+    SRC --> S1["entry + platform (9)<br/>main config db models schemas<br/>security jobs telemetry extensions"]
+    SRC --> S2["routers (6)<br/>api blueprints_api observability_api<br/>retrieval_api course_intelligence_api<br/>course_gallery_api"]
+    SRC --> S3["services/ (11)<br/>ingestion search generation blueprints<br/>indexing chunking crawl_events<br/>ollama institutions evaluation artifacts"]
+    SRC --> S4["connectors/ (2)<br/>website document"]
+    SRC --> S5["domain/university/ (7)<br/>greenwich institutions schemas<br/>extractors: base registry generic greenwich"]
+
+    CON --> C1["App.tsx 854 · CourseGallery.tsx 1140"]
+    CON --> C2["api.ts 552 · styles.css 1650"]
+    CON --> C3["RunPath QueryPlan CollectionPicker<br/>CollectionScope GalleryState lib ui main"]
+    CON --> C4["3 test files, 10 tests"]

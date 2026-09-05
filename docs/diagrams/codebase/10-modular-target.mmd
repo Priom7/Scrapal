@@ -1,0 +1,38 @@
+flowchart TB
+    subgraph now["Today — services/ is a flat bag of 11 modules"]
+        N1["ingestion.py 719 — crawl loop, persistence,<br/>extraction dispatch, branding, records"]
+        N2["search.py 523 — planning, 3 lanes, fusion, persistence"]
+        N3["course_gallery_api.py 513 — routing, filtering,<br/>faceting, interpretation guard, shortlist"]
+        N4["api.py 774 — 9 unrelated resource groups"]
+    end
+
+    subgraph target["Proposed — packages with one reason to change each"]
+        subgraph crawl["scrapal.crawl"]
+            T1["frontier.py — the three frontier builders"]
+            T2["fetcher.py — safe_fetch, robots, SSRF"]
+            T3["pipeline.py — the per-page loop"]
+            T4["persistence.py — documents, versions, records"]
+        end
+        subgraph rag["scrapal.rag"]
+            T5["planning.py — plan_query"]
+            T6["lanes/structured.py · lexical.py · vector.py"]
+            T7["fusion.py — RRF, caps, exclusions"]
+            T8["answering.py — ONE grounded-answer path"]
+        end
+        subgraph catalog["scrapal.catalog"]
+            T9["queries.py — SQL-side filter, facet, paginate"]
+            T10["projection.py — list vs detail shapes"]
+        end
+        subgraph platform["scrapal.platform"]
+            T11["llm/ — one pooled Ollama client"]
+            T12["tenancy.py — a scoped-session dependency"]
+        end
+    end
+
+    N1 ==> crawl
+    N2 ==> rag
+    N3 ==> catalog
+    N4 ==> R["routers/ split by resource:<br/>collections, sources, runs,<br/>documents, conversations, proposals"]
+
+    G1["generation.py and retrieval_api._generate_lab_answer<br/>collapse into answering.py"] -.-> T8
+    G2["Every unscoped router inherits scoping<br/>from one dependency instead of 62 hand-written joins"] -.-> T12

@@ -1,0 +1,40 @@
+flowchart TB
+    subgraph untested["0% — 621 statements never executed by a test"]
+        U1["api.py — 339 stmts<br/>the largest router"]
+        U2["observability_api.py — 136"]
+        U3["retrieval_api.py — 100"]
+        U4["main.py — 48"]
+        U5["evaluation.py — 46"]
+    end
+
+    subgraph thin["Under 45% — the most complex code is the least covered"]
+        T1["ollama.py — 29%"]
+        T2["crawl_events.py — 33%"]
+        T3["ingestion.py — 33% · 326 stmts, 217 missed"]
+        T4["blueprints.py — 34%"]
+        T5["course_intelligence_api.py — 36%"]
+        T6["search.py — 43% · 244 stmts, 140 missed"]
+    end
+
+    subgraph fair["45-80%"]
+        F1["document.py 50% · db.py 50%"]
+        F2["website.py 57% · jobs.py 58%"]
+        F3["generation.py 60% · security.py 61%"]
+        F4["extensions.py 63% · course_gallery_api.py 63%"]
+        F5["blueprints_api.py 65% · indexing.py 79% · telemetry.py 79%"]
+    end
+
+    subgraph strong["Above 90%"]
+        S1["generic.py 93% · greenwich.py 96%"]
+        S2["schemas.py 98% · models.py 100%"]
+        S3["institutions.py 100% · registry.py 100%"]
+        S4["chunking.py 100%"]
+    end
+
+    W["chunking.py has 100% line coverage<br/>AND the 36.8% truncation defect.<br/>Coverage counts lines executed,<br/>never properties asserted."]
+    S4 -.- W
+
+    X["TOTAL 58% — 4,070 statements, 1,701 missed"]
+    Y["Every test runs on in-memory SQLite,<br/>so the PostgreSQL lanes — websearch_to_tsquery,<br/>ts_rank_cd, pgvector cosine_distance, HNSW and GIN —<br/>have no automated coverage at all."]
+    untested -.- X
+    thin -.- Y
