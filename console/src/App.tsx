@@ -40,7 +40,7 @@ import { AnimatePresence, motion, MotionConfig } from 'motion/react'
 import { FormEvent, KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api, CourseRecord, CrawlBlueprint, CrawlEvent, Incident, ObservabilityRun, RetrievalRun, Run, RunDetail, SearchHit, Source } from './api'
 import { CollectionPicker } from './CollectionPicker'
-import { useCollectionScope } from './CollectionScope'
+import { isStaleScope, useCollectionScope } from './CollectionScope'
 import { CourseGallery } from './CourseGallery'
 import { InterpretedQuery } from './QueryPlan'
 import { RunPath } from './RunPath'
@@ -84,6 +84,10 @@ function App() {
   const system = useQuery({ queryKey: ['system'], queryFn: api.system })
   const proposals = useQuery({ queryKey: ['proposals'], queryFn: api.proposals })
   const connectionError = [collections.error, sources.error, runs.error, documents.error, system.error].find((error) => error instanceof Error) as Error | undefined
+
+  useEffect(() => {
+    if (isStaleScope(scope, collections.data ?? [])) setScope(undefined)
+  }, [collections.data, scope, setScope])
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
@@ -294,6 +298,7 @@ const courseFields = [
 function CourseIntelligence({ collectionId, onOpenSources }: { collectionId?: string; onOpenSources: () => void }) {
   const queryClient = useQueryClient()
   const [filter, setFilter] = useState<'all' | CourseRecord['status']>('all')
+  const [institution, setInstitution] = useState<string>()
   const [selectedId, setSelectedId] = useState<string>()
   const [note, setNote] = useState('Reviewed against the captured source evidence.')
   const overview = useQuery({
@@ -301,14 +306,18 @@ function CourseIntelligence({ collectionId, onOpenSources }: { collectionId?: st
     queryFn: () => api.courseIntelligenceOverview(collectionId),
   })
   const records = useQuery({
-    queryKey: ['course-intelligence', 'records', collectionId, filter],
-    queryFn: () => api.courseRecords(collectionId, filter === 'all' ? undefined : filter),
+    queryKey: ['course-intelligence', 'records', collectionId, filter, institution],
+    queryFn: () => api.courseRecords(collectionId, filter === 'all' ? undefined : filter, institution),
   })
   const selected = records.data?.find((record) => record.id === selectedId) ?? records.data?.[0]
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['course-intelligence'] })
   const publish = useMutation({ mutationFn: (id: string) => api.publishCourseRecord(id, note), onSuccess: refresh })
   const reject = useMutation({ mutationFn: (id: string) => api.rejectCourseRecord(id, note), onSuccess: refresh })
   const summary = overview.data
+  const spine = summary?.by_institution ?? []
+  const scopedTo = institution ? spine.find((row) => row.institution_id === institution) : undefined
+  const counts = scopedTo ?? summary
+  const expected = counts ? (filter === 'all' ? counts.total : counts[filter]) : 0
 
   return <div className="course-intelligence">
     <section className="course-command">
@@ -325,27 +334,35 @@ function CourseIntelligence({ collectionId, onOpenSources }: { collectionId?: st
       <button className={filter === 'rejected' ? 'active' : ''} onClick={() => setFilter('rejected')}><strong>{summary?.rejected ?? 0}</strong><span>Rejected</span></button>
     </section>
     <section className="institution-spine">
-      <h3>Coverage by university</h3>
+      <div className="spine-heading">
+        <h3>Coverage by university</h3>
+        {institution && <button className="link-button" onClick={() => { setInstitution(undefined); setSelectedId(undefined) }}>Show all universities</button>}
+      </div>
       <ul>
-        {overview.data?.by_institution.map((row) => (
-          <li key={row.institution_id ?? 'none'}>
-            <div>
+        {spine.map((row) => {
+          const active = row.institution_id === institution
+          return <li key={row.institution_id ?? 'none'} className={active ? 'selected' : ''}>
+            <button
+              aria-pressed={active}
+              disabled={!row.institution_id}
+              onClick={() => { setInstitution(active ? undefined : row.institution_id ?? undefined); setSelectedId(undefined) }}
+            >
               <strong>{row.name}</strong>
               {row.country_code && <span className="country">{row.country_code}</span>}
-            </div>
+            </button>
             <Meter value={row.average_coverage * 100} />
             <span className="counts">
               {row.published} published · {row.review} in review
             </span>
           </li>
-        ))}
+        })}
       </ul>
     </section>
     {!records.isLoading && !records.data?.length && <Empty icon={GraduationCap} title="No course records have been extracted" text="Open Sources and run a Greenwich connector. Course records appear here after pages reach the extraction stage." action="Open sources" onAction={onOpenSources} />}
     {records.isLoading && <div className="loading-line"><Radio /> Loading course evidence…</div>}
     {records.data?.length ? <div className="course-workbench">
       <section className="course-index" aria-label="Extracted courses">
-        <header><div><p className="eyebrow">Coverage spine</p><h2>{records.data.length} course{records.data.length === 1 ? '' : 's'}</h2></div><small>Select a course to inspect its evidence</small></header>
+        <header><div><p className="eyebrow">{scopedTo ? scopedTo.name : 'Coverage spine'}</p><h2>{records.data.length} course{records.data.length === 1 ? '' : 's'}</h2>{records.data.length < expected && <p className="truncation-note">Showing the {records.data.length} most recently updated of {expected}. Narrow by university or status to see the rest.</p>}</div><small>Select a course to inspect its evidence</small></header>
         <div>{records.data.map((record) => {
           const coverage = Math.round((record.validation_json.coverage ?? 0) * 100)
           return <button className={selected?.id === record.id ? 'selected' : ''} key={record.id} onClick={() => setSelectedId(record.id)}>

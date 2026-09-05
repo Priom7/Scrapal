@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 
 const KEY = 'scrapal-collection-scope'
 
@@ -36,13 +36,25 @@ export function writeScope(
   }
 }
 
+/**
+ * A stored scope outlives the collection it names. The picker hides below two
+ * collections, so a scope pointing at a deleted one would filter every view
+ * down to nothing with no control left to clear it. An empty list means the
+ * collections have not loaded yet, which is not evidence of anything.
+ */
+export function isStaleScope(
+  scope: string | undefined,
+  collections: { id: string }[],
+): boolean {
+  if (!scope || !collections.length) return false
+  return !collections.some((collection) => collection.id === scope)
+}
+
 export function useCollectionScope() {
   const [scope, set] = useState<string | undefined>(() => readScope())
-  return {
-    scope,
-    setScope: (id: string | undefined) => {
-      writeScope(id)
-      set(id)
-    },
-  }
+  const setScope = useCallback((id: string | undefined) => {
+    writeScope(id)
+    set(id)
+  }, [])
+  return { scope, setScope }
 }
