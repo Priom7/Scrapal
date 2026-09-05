@@ -1,0 +1,27 @@
+stateDiagram-v2
+    direction LR
+    [*] --> review: crawler extraction, coverage < 1
+    [*] --> published: crawler extraction, coverage == 1 with full evidence
+
+    review --> published: POST /records/{id}/publish
+    review --> rejected: POST /records/{id}/reject
+    review --> review: POST /records/{id}/review — operator edits data
+
+    published --> review: re-opened for correction
+    published --> rejected: withdrawn
+    rejected --> review: re-opened
+
+    note right of published
+        The publish gate refuses unless ALL hold:
+        coverage == 1, no missing_fields,
+        no contradictions, and every one of the 8
+        REQUIRED_COURSE_FIELDS carries evidence.
+        Otherwise 409 with the exact gaps listed.
+    end note
+
+    note left of review
+        Every transition writes a
+        StructuredRecordRevision snapshot
+        and increments record.revision,
+        so history is never overwritten.
+    end note

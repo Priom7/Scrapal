@@ -1,0 +1,36 @@
+flowchart TD
+    A["Inbound request"] --> B["X-API-Key -> sha256 -> APIKey row"]
+    B --> C["Principal(organization_id, role, scopes)"]
+
+    C --> D{"role gate on the route"}
+    D -->|"get_principal — any active key"| E["read endpoints"]
+    D -->|"require_editor — super_admin, admin, editor"| F["create sources, runs, uploads"]
+    D -->|"require_super_admin"| G["course intelligence, course gallery,<br/>retrieval lab, observability"]
+
+    E --> H
+    F --> H
+    G --> H
+
+    H["Every query joins back to organization_id"]
+    H --> I[("Collection.organization_id")]
+    H --> J[("Institution.organization_id")]
+    H --> K[("Conversation.organization_id")]
+
+    I --> L["Documents, chunks, structured records<br/>reached only through their Collection"]
+    J --> M["Institutions and their records"]
+    K --> N["Messages, generations, proposals"]
+
+    subgraph egress["Outbound safety, enforced before any fetch"]
+        O["validate_public_url"]
+        O --> P{"scheme is http or https?"}
+        P -- no --> X1(["reject"])
+        P -- yes --> Q{"hostname is localhost or<br/>host.docker.internal?"}
+        Q -- yes --> X1
+        Q -- no --> R["getaddrinfo — resolve every address"]
+        R --> S{"any address private, loopback,<br/>link-local, multicast, reserved<br/>or unspecified?"}
+        S -- yes --> X1
+        S -- no --> T(["fetch allowed"])
+    end
+
+    F -.->|"before crawling"| O
+    G -.->|"blueprint preview"| O

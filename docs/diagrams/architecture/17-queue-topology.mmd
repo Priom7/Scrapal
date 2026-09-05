@@ -1,0 +1,40 @@
+flowchart LR
+    subgraph producers["Producers"]
+        API1["POST /v1/runs"]
+        API2["POST /crawl-blueprints/{id}/run"]
+        API3["POST /conversations/{id}/messages"]
+        API4["POST /course-intelligence/records/{id}/publish"]
+        Beat["celery beat scheduler"]
+    end
+
+    subgraph broker["RabbitMQ"]
+        Qi[["queue: ingest"]]
+        Qa[["queue: ai"]]
+        Qd[["queue: default"]]
+    end
+
+    subgraph worker["worker container — concurrency 2"]
+        T1["scrapal.ingest<br/>retry: ConnectionError, backoff, max 4"]
+        T2["scrapal.generate<br/>retry: ConnectionError, backoff, max 3"]
+        T3["scrapal.reindex<br/>retry: ConnectionError, backoff, max 3"]
+    end
+
+    API1 --> Qi
+    API2 --> Qi
+    API3 --> Qa
+    API4 -->|"republish changes the<br/>indexed content"| Qa
+    Beat --> Qd
+
+    Qi --> T1
+    Qa --> T2
+    Qa --> T3
+
+    T1 --> W1["ingest_run"]
+    T2 --> W2["generate_answer"]
+    T3 --> W3["reindex_document_version"]
+
+    note1["task_acks_late + task_reject_on_worker_lost:<br/>a killed worker returns the task to the queue.<br/>prefetch_multiplier 1 keeps long crawls<br/>from starving the AI queue."]
+    broker -.- note1
+
+    note2["Every task wraps its coroutine in<br/>engine.dispose() before and after:<br/>asyncpg connections belong to the loop<br/>that created them, and asyncio.run()<br/>makes a new loop per task."]
+    worker -.- note2

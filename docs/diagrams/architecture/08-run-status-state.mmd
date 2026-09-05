@@ -1,0 +1,22 @@
+stateDiagram-v2
+    direction LR
+    [*] --> queued: POST /v1/runs or blueprint run
+    queued --> running: worker picks the task up
+    queued --> failed: worker never claimed it — console shows worker_timeout
+
+    running --> completed: frontier drained
+    running --> cancelled: cancel_requested seen at page boundary
+    running --> failed: unhandled exception at the run boundary
+    running --> waiting_for_ai: model dependency unavailable
+
+    waiting_for_ai --> running: provider recovered
+    failed --> queued: POST /runs/{id}/retry-issues — replays only failed URLs
+
+    completed --> [*]
+    cancelled --> [*]
+    failed --> [*]
+
+    note right of cancelled
+        Cancellation is cooperative: the flag is
+        re-read once per page, never mid-fetch.
+    end note

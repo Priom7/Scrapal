@@ -1,0 +1,36 @@
+flowchart TD
+    A(["GenericUniversityExtractor.extract_records"]) --> B["structural(url, html)"]
+    B --> C["_from_json_ld — schema.org Course blocks<br/>confidence 0.95 to 0.99"]
+    C --> D["_from_heading — h1 and title, AWARD_PATTERN"]
+    D --> E{"_looks_like_a_course?"}
+
+    E --> E1{"title present?"}
+    E1 -- no --> X(["return [] — no record"])
+    E1 -- yes --> E2{"URL matches<br/>NOT_A_COURSE_URL_HINTS?"}
+    E2 -- "yes: /accommodation, /student-life,<br/>/open-days-and-events, /course-search, ..." --> X
+    E2 -- no --> E3{"title ends with '?'"}
+    E3 -- "yes: 'Thinking of doing a PhD?'" --> X
+    E3 -- no --> E4{"award recognised?"}
+    E4 -- yes --> F
+    E4 -- no --> E5{"URL contains<br/>/course/ /courses/ /programme/<br/>/program/ /degree/ ?"}
+    E5 -- no --> X
+    E5 -- yes --> F
+
+    F["_from_key_values — dl and 2-column tables"] --> G["_from_fee_tables — currency + amount + residency"]
+    G --> H["_from_sections — heading-word matching"]
+    H --> I["_derive — intakes, study modes, level"]
+    I --> J{"required field still empty<br/>AND ollama available?"}
+
+    J -- yes --> K["model_pass — at most max_llm_fields prompts"]
+    K --> L{"verify_excerpt: is the quote<br/>literally on the page?"}
+    L -- no --> M["drop the value — model invented it"]
+    L -- yes --> N["accept, record evidence method=model"]
+    M --> O
+    N --> O
+    J -- no --> O
+
+    O["build_record"] --> P["CourseIntelligenceRecord.model_validate"]
+    P --> Q["course_coverage — 8 REQUIRED_COURSE_FIELDS"]
+    Q --> R{"coverage == 1.0 and<br/>every required field has evidence?"}
+    R -- yes --> S(["status = published"])
+    R -- no --> T(["status = review<br/>validation.missing_fields + review_reasons"])

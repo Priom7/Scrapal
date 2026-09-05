@@ -1,0 +1,38 @@
+sequenceDiagram
+    autonumber
+    actor Op as Operator
+    participant UI as AddSource dialog
+    participant API as blueprints_api
+    participant BP as services.blueprints
+    participant Site as Target website
+    participant INS as services.institutions
+    participant Q as Celery ingest queue
+
+    Op->>UI: start URL + objective + required fields
+    UI->>API: POST /v1/crawl-blueprints/preview
+    API->>BP: preview_blueprint(...)
+    BP->>BP: validate_public_url — block private and reserved IPs
+    BP->>Site: GET /robots.txt and the start page
+    Site-->>BP: robots text + HTML or XML
+    BP->>BP: collect candidates from sitemap, else page links
+    BP->>BP: classify_page_type per URL
+    BP->>BP: representative_urls — up to 16
+    BP->>Site: sample those pages
+    Site-->>BP: HTML per sample
+    BP->>BP: detect_evidence_fields — per-field hit rates
+    BP-->>API: discovery + suggested_config + required_fields
+    API-->>UI: CrawlBlueprint status=draft, version=1
+
+    Op->>UI: edit include/exclude, max_pages, max_depth
+    UI->>API: PATCH /v1/crawl-blueprints/{id}
+    API-->>UI: version incremented
+
+    Op->>UI: Approve scope and start
+    UI->>API: POST /{id}/approve
+    API->>INS: resolve_institution(org, start_url, name)
+    INS-->>API: Institution — found or created
+    API->>API: create Source with approved config
+    API-->>UI: status=approved
+    UI->>API: POST /{id}/run
+    API->>Q: ingest_task.delay(run_id)
+    API-->>UI: 202 Run queued

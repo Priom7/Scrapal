@@ -1,0 +1,39 @@
+sequenceDiagram
+    autonumber
+    participant W as Celery ai queue
+    participant G as generate_answer
+    participant DB as PostgreSQL
+    participant R as retrieve_knowledge
+    participant O as Ollama
+    participant SSE as /conversations/{id}/events
+
+    W->>G: generate_task(generation_id)
+    G->>DB: load MessageGeneration, Conversation, Message
+    G->>DB: status = retrieving
+    G-->>SSE: retrieval.started
+    G->>O: acquire ollama.workload lock
+    G->>R: retrieve_knowledge(question, history, hybrid, limit 10)
+    R-->>G: RetrievalResult + retrieval_run_id
+    G-->>SSE: retrieval.completed (plan, timings, counts)
+
+    alt evidence_catalog is empty
+        G->>DB: status = abstained, reason no_published_evidence
+        G-->>SSE: abstained
+    else evidence present
+        G->>DB: status = generating, model recorded
+        G-->>SSE: generation.started
+        loop each streamed sentence
+            O-->>G: token stream
+            G->>G: split on sentence boundary
+            G->>G: validate_sentence_support — does a [n] citation<br/>point at a real evidence item?
+            alt sentence is supported
+                G-->>SSE: token / sentence emitted
+            else unsupported
+                G->>G: drop the sentence entirely
+                G-->>SSE: withheld (reason only, never the text)
+            end
+        end
+        G->>DB: status = completed, citations recorded
+    end
+
+    Note over G,O: OllamaUnavailable -> status failed, retryable true.<br/>Any other exception -> status failed, retryable false.

@@ -1,0 +1,29 @@
+flowchart TB
+    Shell["App.tsx shell<br/>sidebar, theme, CollectionPicker,<br/>connection banner, agent toggle"]
+    Scope["useCollectionScope<br/>localStorage 'scrapal-collection-scope'<br/>isStaleScope clears a deleted collection"]
+    Shell --- Scope
+
+    Shell --> V1["Overview<br/>active run, sources, runs, documents"]
+    Shell --> V2["Sources<br/>list, launch run, AddSource dialog"]
+    Shell --> V3["Knowledge<br/>hybrid search over documents"]
+    Shell --> V4["Course intelligence<br/>coverage orbit, status tally,<br/>university filter, evidence ledger"]
+    Shell --> V5["Course gallery<br/>FilterBar, Dossier, Compare, shortlist"]
+    Shell --> V6["Retrieval Lab<br/>QueryPlan, lane traces, candidate table"]
+    Shell --> V7["Observability<br/>fleet health, incidents, workers"]
+    Shell --> V8["Reviews<br/>approval-gated action proposals"]
+    Shell --> V9["Settings<br/>Ollama status and models"]
+
+    Shell -.-> AP["AgentPanel — cited Q&A, SSE stream"]
+    V2 --> AS["AddSource -> BlueprintPreview<br/>sampled coverage before any bulk crawl"]
+    V1 --> RM["RunMonitor — RunPath stages,<br/>EventTimeline, live SSE"]
+    V2 --> RM
+    V7 --> RM
+
+    subgraph scoped["Views bound to the collection scope"]
+        V3
+        V4
+        V5
+        V6
+    end
+
+    Scope -.->|"collection_id query param"| scoped

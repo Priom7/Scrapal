@@ -1,0 +1,26 @@
+flowchart TD
+    A(["Operator opens Course gallery"]) --> B["GET /course-gallery/institutions<br/>GET /facets<br/>GET /courses"]
+    B --> C[["_published_courses — org-scoped,<br/>status = published only"]]
+
+    A2(["Natural-language brief:<br/>'cheap January MSc data science in London'"]) --> D["POST /course-gallery/interpret"]
+    D --> E["build AVAILABLE from live facets:<br/>countries, study_modes, intake_months,<br/>durations, levels, institution names"]
+    E --> F["ollama.structured against<br/>GalleryInterpretation JSON schema"]
+    F --> G{"model reachable and<br/>output valid?"}
+    G -- no --> H["fallback: whole brief becomes q,<br/>source = 'fallback'"]
+    G -- yes --> I["_guard_interpretation —<br/>discard any value not in AVAILABLE"]
+    H --> J
+    I --> J["visible, editable filters returned<br/>with a plain-language explanation"]
+
+    J --> K["GET /courses with filters"]
+    C --> K
+    K --> L["FilterBar chips + facet counts + fee range"]
+    L --> M{"operator action"}
+    M -- "open a card" --> N["GET /courses/{record_id}<br/>CourseDossier: every fact with its excerpt,<br/>method, confidence and source URL"]
+    M -- "save" --> O["POST /shortlist<br/>CourseShortlistEntry"]
+    M -- "compare" --> P["Compare view — side-by-side facts,<br/>'Not stated' where evidence is absent"]
+    O --> Q["GET /shortlist"]
+    Q --> P
+    N --> O
+
+    note1["Nothing unpublished can appear here.<br/>The gallery reads only what passed<br/>the Course Intelligence publish gate."]
+    C -.- note1

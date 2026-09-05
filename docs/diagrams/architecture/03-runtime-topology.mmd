@@ -1,0 +1,50 @@
+flowchart LR
+    Browser["Browser<br/>:3000"]
+
+    subgraph core["Core profile — always running (7 services)"]
+        Console["console<br/>Nginx + React build<br/>:80 -> :3000"]
+        API["api<br/>alembic upgrade head<br/>uvicorn :8000"]
+        Worker["worker<br/>celery worker<br/>queues: ingest, ai, default<br/>concurrency 2"]
+        Beat["scheduler<br/>celery beat"]
+        PG[("postgres<br/>pgvector/pgvector:pg16")]
+        MQ[("rabbitmq<br/>4-management-alpine<br/>:15672")]
+        RD[("redis<br/>7-alpine")]
+    end
+
+    subgraph obs["observability profile — opt-in (7 services)"]
+        OTEL["otel-collector<br/>:4317 :4318"]
+        PROM["prometheus :9090"]
+        LOKI["loki :3100"]
+        TEMPO["tempo :3200"]
+        GRAF["grafana :3001"]
+        ALERT["alertmanager :9093"]
+        FLOWER["flower :5555"]
+    end
+
+    Host["Host Ollama :11434<br/>reached via host.docker.internal"]
+    Vol[("artifacts volume<br/>/data/artifacts")]
+
+    Browser --> Console
+    Console -->|"/api proxy"| API
+    API --> PG
+    API --> RD
+    API -->|"publish task"| MQ
+    MQ --> Worker
+    Beat -->|"schedule"| MQ
+    Worker --> PG
+    Worker --> RD
+    Worker --> Vol
+    API --> Vol
+    API --> Host
+    Worker --> Host
+
+    API -.->|"OTLP"| OTEL
+    Worker -.->|"OTLP"| OTEL
+    OTEL --> TEMPO
+    OTEL --> LOKI
+    PROM -->|"scrape /metrics"| API
+    PROM --> ALERT
+    GRAF --> PROM
+    GRAF --> LOKI
+    GRAF --> TEMPO
+    FLOWER --> MQ

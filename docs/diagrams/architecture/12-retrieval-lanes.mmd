@@ -1,0 +1,36 @@
+flowchart TD
+    Q(["retrieve_knowledge(query, org, collection, mode, limit)"]) --> RB["session.rollback — release the auth transaction<br/>before the model call"]
+    RB --> PL["plan_query via Ollama structured output"]
+    PL --> PLF{"model available?"}
+    PLF -- no --> PLD["deterministic fallback plan"]
+    PLF -- yes --> PLM["QueryPlan: search_query, slots, filters"]
+    PLD --> MERGE
+    PLM --> MERGE["merge caller filters,<br/>re-validated through the same slot vocabulary"]
+    MERGE --> RQ["resolved_query = plan.search_query or query<br/>query_terms, text_query"]
+
+    RQ --> L1
+    RQ --> L2
+    RQ --> L3
+
+    subgraph lanes["Three independent evidence lanes"]
+        L1["Lane 1 — structured<br/>StructuredRecord joined to Collection<br/>org-scoped, published only unless drafts allowed<br/>record_matches_plan score, top 50"]
+        L2["Lane 2 — lexical<br/>PostgreSQL to_tsvector + websearch_to_tsquery<br/>ts_rank_cd, top 50<br/>(SQLite: term counting fallback)"]
+        L3["Lane 3 — semantic<br/>active healthy EmbeddingProfile<br/>ollama.embed(resolved_query)<br/>pgvector cosine_distance, top 50"]
+    end
+
+    L3 --> DIM{"vector length ==<br/>profile.dimensions?"}
+    DIM -- no --> EX1["exclusion: provider_unavailable"]
+    DIM -- yes --> FUSE
+    L1 --> BRIDGE["structured hits -> up to 3 chunks<br/>per matched document"]
+    BRIDGE --> FUSE
+    L2 --> FUSE
+    EX1 --> FUSE
+
+    FUSE["reciprocal_rank_fusion<br/>weights: structured 1.35, lexical 1.0, vector 1.0"]
+    FUSE --> CAP{"per-document cap:<br/>already 3 chunks from this document?"}
+    CAP -- yes --> DROP["exclusion: document_cap"]
+    CAP -- no --> SEL["select until limit reached"]
+    DROP --> SEL
+    SEL --> OUT(["RetrievalResult:<br/>hits, structured_matches, candidates,<br/>exclusions, timings, plan + plan_source"])
+    OUT --> PERSIST{"persist requested?"}
+    PERSIST -- yes --> RR[("RetrievalRun row —<br/>the Retrieval Lab trace")]

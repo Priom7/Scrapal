@@ -1,0 +1,36 @@
+stateDiagram-v2
+    direction TB
+    [*] --> Queued: url appended to frontier
+    Queued --> Started: popped, marked seen, heartbeat published
+
+    Started --> PolicySkipped: robots.txt disallows
+    Started --> Fetching: robots allows or checks disabled
+
+    Fetching --> FetchFailed: FetchFailure after 3 attempts
+    Fetching --> Fetched: 2xx response
+
+    Fetched --> Extracting: content-type resolved
+    Extracting --> ExtractFailed: connector or extractor raised
+    Extracting --> Extracted: title, text, metadata produced
+
+    Extracted --> Persisting: SAVEPOINT open
+    Persisting --> Unchanged: content_hash already on this document
+    Persisting --> Versioned: new DocumentVersion written
+
+    Versioned --> Indexed: chunked and embedded
+    Unchanged --> RecordsRefreshed: structured records re-checked
+    Indexed --> RecordsRefreshed
+
+    RecordsRefreshed --> Expanded: html and depth < max_depth
+    RecordsRefreshed --> Complete: leaf page or depth budget spent
+    Expanded --> Complete: links appended at depth + 1
+
+    PolicySkipped --> [*]: counted in policy_skips_count
+    FetchFailed --> [*]: RunIssue retryable, replayable by retry-issues
+    ExtractFailed --> [*]: SAVEPOINT rolled back, run survives
+    Complete --> [*]: pages_processed incremented
+
+    note right of ExtractFailed
+        The savepoint is why one unreadable page
+        cannot abort a 500-page run.
+    end note
