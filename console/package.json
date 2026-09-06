@@ -7,7 +7,8 @@
     "dev": "vite --host 0.0.0.0",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "dev:mock": "VITE_MOCK=1 vite --host 0.0.0.0"
   },
   "dependencies": {
     "@fontsource/atkinson-hyperlegible": "^5.1.1",

@@ -1,0 +1,448 @@
+/* The student product. A different audience from the console — someone on a
+   phone deciding where to spend two years and £20,000 — so it gets its own
+   voice: cooler paper, a serif for authority, and one gesture carried over from
+   the console because it is the brand's actual signature: a figure with a
+   dotted underline is a figure you can trace to its source. */
+
+.student {
+  /* One product, one palette. These alias the console's tokens rather than
+     restating them, which is also why there is no dark block below: the
+     console's :root[data-theme='dark'] already redefines everything here. */
+  --s-ink: var(--ink);
+  --s-soft: var(--ink-soft);
+  --s-faint: color-mix(in srgb, var(--ink-soft) 74%, var(--surface));
+  --s-paper: var(--paper);
+  --s-surface: var(--surface);
+  --s-line: var(--line);
+  --s-line-soft: color-mix(in srgb, var(--line) 55%, var(--surface));
+  --s-accent: var(--cobalt);
+  --s-accent-soft: color-mix(in srgb, var(--cobalt) 10%, var(--surface));
+
+  /* Match states keep their meaning from the console's state law:
+     mint = done, amber = needs attention. Still no red. */
+  --s-met: var(--good-ink);
+  --s-met-soft: color-mix(in srgb, var(--mint) 16%, var(--surface));
+  --s-close: var(--warn-ink);
+  --s-close-soft: color-mix(in srgb, var(--amber) 16%, var(--surface));
+  --s-unmet: var(--ink-soft);
+  --s-unmet-soft: var(--surface-2);
+
+  --s-display: 'Sora', system-ui, sans-serif;
+  --s-body: 'Atkinson Hyperlegible', system-ui, sans-serif;
+  --s-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  color: var(--s-ink);
+  font-family: var(--s-body);
+  line-height: 1.6;
+}
+
+.student h1, .student h2 {
+  font-family: var(--s-display);
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+  margin: 0;
+}
+.student h1 { font-size: clamp(1.45rem, 2vw, 2.05rem); line-height: 1.15; }
+.student h2 { font-size: clamp(1.05rem, 1.4vw, 1.2rem); line-height: 1.25; }
+.student p { margin: 0; }
+
+/* ---------------------------------------------------------------- chrome */
+
+.student-bar {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; align-items: center; gap: 1.25rem;
+  padding: 0.85rem clamp(1rem, 4vw, 2.5rem);
+  background: color-mix(in srgb, var(--s-paper) 88%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--s-line);
+}
+
+/* The shared shell owns the page frame. Content keeps a measure so prose does
+   not stretch across a wide screen, but stays wide enough for panel rows. */
+.student { width: 100%; max-width: 1040px; padding-bottom: 3rem; }
+
+.student a:focus-visible, .student button:focus-visible,
+.student input:focus-visible, .student select:focus-visible {
+  outline: 3px solid var(--s-accent); outline-offset: 2px; border-radius: 4px;
+}
+
+
+/* ------------------------------------------------------------ find page */
+
+.find { display: grid; gap: 1.1rem; }
+.find-sub { max-width: 58ch; color: var(--s-soft); font-size: 0.94rem; }
+
+.profile-strip {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 1rem; flex-wrap: wrap;
+  padding: 0.75rem 0.95rem;
+  border: 1px solid var(--s-line); border-radius: 11px;
+  background: var(--s-surface);
+}
+.profile-strip.invite { border-style: dashed; border-color: var(--s-accent); background: var(--s-accent-soft); }
+.profile-strip strong { display: block; font-size: 0.9rem; }
+.profile-strip span { color: var(--s-soft); font-size: 0.85rem; }
+
+.find-controls { display: grid; gap: 0.6rem; }
+.find-search {
+  display: flex; align-items: center; gap: 0.55rem;
+  padding: 0 0.85rem; min-height: 46px;
+  border: 1px solid var(--s-line); border-radius: 11px;
+  background: var(--s-surface); color: var(--s-faint);
+}
+.find-search input {
+  flex: 1; min-width: 0; border: 0; outline: 0; background: transparent;
+  font: inherit; font-size: 1rem; color: var(--s-ink); padding: 0.6rem 0;
+}
+.find-filters { display: flex; align-items: center; gap: 0.5rem; color: var(--s-faint); flex-wrap: wrap; }
+.find-choice select {
+  min-height: 38px; padding: 0 0.6rem;
+  border: 1px solid var(--s-line); border-radius: 9px;
+  background: var(--s-surface); color: var(--s-ink); font: inherit; font-size: 0.88rem;
+}
+.find-count { color: var(--s-soft); font-size: 0.86rem; }
+
+/* ------------------------------------------------------------ the cards */
+
+.course-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.85rem; }
+.course-card {
+  display: grid; gap: 0.85rem;
+  padding: 1.05rem 1.15rem;
+  border: 1px solid var(--s-line); border-radius: 12px;
+  background: var(--s-surface);
+}
+.course-top { display: flex; align-items: flex-start; gap: 0.8rem; }
+.course-id { flex: 1; min-width: 0; }
+.course-id h2 { font-size: 1.16rem; }
+.course-id h2 a { color: inherit; text-decoration: none; }
+.course-id h2 a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.course-id p { color: var(--s-soft); font-size: 0.87rem; margin-top: 0.15rem; }
+.save-toggle {
+  flex: none; display: grid; place-items: center;
+  width: 38px; height: 38px; padding: 0;
+  border: 1px solid var(--s-line); border-radius: 10px;
+  background: transparent; color: var(--s-soft); cursor: pointer;
+}
+.save-toggle:hover { color: var(--s-accent); border-color: var(--s-accent); }
+.save-toggle.on { color: var(--s-accent); background: var(--s-accent-soft); border-color: var(--s-accent); }
+
+/* The match block is the centre of gravity of the whole product, so it is the
+   one element that gets a fill of its own. */
+.match {
+  display: grid; gap: 0.5rem;
+  padding: 0.8rem 0.9rem;
+  border-radius: 10px;
+  background: var(--s-paper);
+}
+.match-headline { font-family: var(--s-display); font-size: 1rem; font-weight: 600; }
+.match-unchecked { color: var(--s-faint); font-size: 0.8rem; margin-top: -0.15rem; }
+.match-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.3rem; }
+.match-row {
+  display: grid;
+  grid-template-columns: 20px 7.6rem minmax(0, 1fr);
+  gap: 0.15rem 0.5rem;
+  align-items: baseline;
+  font-size: 0.86rem;
+}
+.match-row .match-icon { align-self: start; }
+.match-icon {
+  display: grid; place-items: center;
+  width: 19px; height: 19px; border-radius: 50%;
+  color: var(--s-unmet); background: var(--s-unmet-soft);
+}
+.match-row.met .match-icon { color: var(--s-met); background: var(--s-met-soft); }
+.match-row.close .match-icon { color: var(--s-close); background: var(--s-close-soft); }
+.match-label { color: var(--s-soft); }
+.match-detail { min-width: 0; color: var(--s-ink); }
+.match-row.met .match-detail { color: var(--s-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.match-row.close .match-detail { color: var(--s-close); font-weight: 700; }
+.match-row.unmet .match-detail { color: var(--s-ink); }
+.match-asks {
+  grid-column: 3; color: var(--s-faint); font-size: 0.78rem;
+}
+.match.detailed { padding: 1rem 1.05rem; gap: 0.7rem; }
+.match.detailed .match-headline { font-size: 1.15rem; }
+.match-invite { font-size: 0.88rem; color: var(--s-soft); }
+.match-invite a { color: var(--s-accent); }
+
+/* Figures keep the console's citation gesture: mono, with a dotted rule that
+   means "this can be traced". */
+.course-figures {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
+  gap: 0.5rem 0.9rem; margin: 0;
+  padding-top: 0.75rem; border-top: 1px solid var(--s-line-soft);
+}
+.course-figures div { margin: 0; min-width: 0; }
+.course-figures dt { color: var(--s-faint); font-size: 0.74rem; }
+.course-figures dd {
+  margin: 0.1rem 0 0;
+  font-family: var(--s-mono); font-size: 0.9rem; font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* ---------------------------------------------------------- course page */
+
+.course-page { display: grid; gap: 1.3rem; max-width: 720px; }
+.student-back {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  color: var(--s-soft); font-size: 0.87rem; text-decoration: none;
+  justify-self: start;
+}
+.student-back:hover { color: var(--s-ink); }
+.course-head { display: grid; gap: 0.4rem; justify-items: start; }
+.course-inst { color: var(--s-soft); font-size: 0.92rem; }
+.course-award { color: var(--s-soft); font-size: 0.88rem; }
+
+.student-button {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  min-height: 42px; padding: 0 1rem;
+  color: var(--s-ink); font: inherit; font-size: 0.9rem; font-weight: 700;
+  text-decoration: none;
+  border: 1px solid var(--s-line); border-radius: 10px;
+  background: var(--s-surface); cursor: pointer;
+}
+.student-button:hover { border-color: var(--s-accent); color: var(--s-accent); }
+.student-button.primary { color: #fff; background: var(--s-accent); border-color: var(--s-accent); }
+.student-button.primary:hover { color: #fff; filter: brightness(1.1); }
+.student-button.saved { color: var(--s-accent); background: var(--s-accent-soft); border-color: var(--s-accent); }
+.student-link { color: var(--s-accent); font-size: 0.88rem; background: none; border: 0; cursor: pointer; padding: 0; }
+.student-link.danger { color: var(--s-close); text-decoration: underline; }
+
+.course-figures-block { display: grid; gap: 0.75rem; }
+.figure-rows { display: grid; gap: 0; margin: 0; border-top: 1px solid var(--s-line-soft); }
+.figure-rows > div {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 1rem;
+  margin: 0; padding: 0.65rem 0; border-bottom: 1px solid var(--s-line-soft);
+}
+.figure-rows dt { color: var(--s-soft); font-size: 0.88rem; }
+.figure-rows dd { margin: 0; }
+.figure-value {
+  padding: 0; border: 0; background: transparent; cursor: pointer;
+  color: var(--s-ink); font-family: var(--s-mono); font-size: 0.95rem; font-weight: 500;
+  font-variant-numeric: tabular-nums; text-align: right;
+}
+.figure-value.cited {
+  text-decoration: underline dotted var(--s-met);
+  text-decoration-thickness: 2px; text-underline-offset: 4px;
+}
+.figure-value.cited:hover, .figure-value[aria-expanded='true'] {
+  color: var(--s-accent); text-decoration-color: var(--s-accent);
+}
+.figure-value:disabled { color: var(--s-faint); cursor: default; font-style: italic; }
+.receipt-quote {
+  display: grid; gap: 0.4rem; margin: 0;
+  padding: 0.85rem 1rem;
+  border-radius: 10px; background: var(--s-accent-soft);
+  color: var(--s-ink);
+}
+.receipt-quote p { font-family: var(--s-mono); font-size: 0.82rem; line-height: 1.6; }
+.receipt-quote cite { color: var(--s-soft); font-size: 0.78rem; font-style: normal; }
+.receipt-hint { color: var(--s-faint); font-size: 0.82rem; }
+
+.course-prose { display: grid; gap: 0.5rem; }
+.course-prose p { max-width: 66ch; color: var(--s-soft); }
+.module-list { margin: 0; padding-left: 1.15rem; display: grid; gap: 0.3rem; color: var(--s-soft); font-size: 0.92rem; }
+.student-source {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  color: var(--s-accent); font-size: 0.9rem; justify-self: start;
+}
+
+/* -------------------------------------------------------- profile page */
+
+.profile-page { display: grid; gap: 1.4rem; max-width: 640px; }
+.profile-lead { max-width: 58ch; color: var(--s-soft); font-size: 0.94rem; }
+.profile-page form { display: grid; gap: 1rem; }
+.profile-page fieldset {
+  display: grid; gap: 0.85rem; margin: 0;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--s-line); border-radius: 12px;
+  background: var(--s-surface);
+}
+.profile-page legend {
+  padding: 0 0.4rem;
+  font-family: var(--s-display); font-size: 1rem; font-weight: 600;
+}
+.profile-page label { display: grid; gap: 0.3rem; font-size: 0.9rem; }
+.profile-page input, .profile-page select {
+  min-height: 44px; padding: 0 0.7rem;
+  border: 1px solid var(--s-line); border-radius: 9px;
+  background: var(--s-paper); color: var(--s-ink); font: inherit; font-size: 1rem;
+}
+.profile-page small { color: var(--s-faint); font-size: 0.79rem; }
+.profile-actions { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+
+.student-empty {
+  display: grid; gap: 0.5rem; justify-items: start;
+  padding: 1.6rem 1.2rem;
+  border: 1px dashed var(--s-line); border-radius: 12px;
+  background: var(--s-surface);
+}
+.student-empty p { max-width: 55ch; color: var(--s-soft); font-size: 0.92rem; }
+.student-error { color: var(--s-close); font-size: 0.9rem; }
+
+@media (max-width: 560px) {
+  /* A met row still fits on one line at this width; only the rows carrying a
+     full sentence need to stack. */
+  .match-row { grid-template-columns: 20px 6.6rem minmax(0, 1fr); }
+  .match-row.close, .match-row.unmet, .match-row.unknown { grid-template-columns: 20px minmax(0, 1fr); }
+  .match-row.close .match-label,
+  .match-row.unmet .match-label,
+  .match-row.unknown .match-label { grid-column: 2; font-size: 0.78rem; color: var(--s-faint); }
+  .match-row.close .match-detail,
+  .match-row.unmet .match-detail,
+  .match-row.unknown .match-detail { grid-column: 2; }
+  .match-asks { grid-column: 2; }
+  .student-bar { gap: 0.6rem; }
+  }
+
+/* ------------------------------------------------------- workstation home */
+
+.workstation { display: grid; gap: 1.4rem; }
+.ws-lead { color: var(--s-soft); max-width: 56ch; }
+.ws-panels { display: grid; gap: 0.9rem; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.ws-panel {
+  display: grid; gap: 0.55rem; align-content: start;
+  padding: 1.05rem 1.15rem;
+  border: 1px solid var(--s-line); border-radius: 12px; background: var(--s-surface);
+}
+.ws-panel > header { display: flex; align-items: center; gap: 0.5rem; }
+.ws-panel h2 { font-size: 1.02rem; }
+.ws-icon {
+  display: grid; place-items: center; width: 26px; height: 26px;
+  border-radius: 8px; background: var(--s-accent-soft); color: var(--s-accent);
+}
+.ws-quiet { color: var(--s-soft); font-size: 0.9rem; }
+.ws-figure {
+  font-family: var(--s-display); font-size: 1.9rem; font-weight: 600;
+  letter-spacing: -0.03em; line-height: 1.05;
+}
+.ws-figure.good { color: var(--s-met); font-size: 1.5rem; }
+.ws-figure.short { color: var(--s-close); font-size: 1.5rem; }
+.ws-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.45rem; }
+.ws-list li { display: grid; gap: 0.1rem; }
+.ws-list strong { font-size: 0.9rem; }
+.ws-list span { color: var(--s-faint); font-size: 0.82rem; }
+.ws-panel .student-button { justify-self: start; }
+
+/* -------------------------------------------------------------- money page */
+
+.money-page { display: grid; gap: 1.5rem; }
+.money-lead { color: var(--s-soft); max-width: 62ch; font-size: 0.94rem; }
+.money-picker select {
+  width: 100%; min-height: 44px; padding: 0 0.7rem;
+  border: 1px solid var(--s-line); border-radius: 10px;
+  background: var(--s-surface); color: var(--s-ink); font: inherit; font-size: 0.95rem;
+}
+
+.money-block {
+  display: grid; gap: 0.75rem;
+  padding: 1.1rem 1.2rem;
+  border: 1px solid var(--s-line); border-radius: 12px; background: var(--s-surface);
+}
+.money-note { color: var(--s-soft); font-size: 0.9rem; max-width: 62ch; }
+.money-warn {
+  display: flex; align-items: flex-start; gap: 0.5rem;
+  padding: 0.6rem 0.75rem; border-radius: 9px;
+  background: var(--s-close-soft); color: var(--s-close);
+  font-size: 0.86rem; line-height: 1.5;
+}
+.money-warn svg { flex: none; margin-top: 0.15rem; }
+
+/* A figure read off a university page and a figure from a reference table must
+   not look alike, or the citation gesture stops meaning anything. */
+.cost-lines { list-style: none; margin: 0; padding: 0; display: grid; }
+.cost-lines li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.1rem 0.9rem;
+  padding: 0.7rem 0; border-bottom: 1px solid var(--s-line-soft);
+}
+.cost-label { display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap; font-size: 0.92rem; }
+.origin-tag { font-size: 0.66rem; font-weight: 700; padding: 0.08rem 0.4rem; border-radius: 999px; white-space: nowrap; }
+.origin-tag.course { color: var(--s-met); background: var(--s-met-soft); }
+.origin-tag.reference { color: var(--s-soft); background: var(--s-unmet-soft); }
+.cost-detail { grid-column: 1; color: var(--s-faint); font-size: 0.8rem; }
+.cost-amount {
+  grid-row: 1 / 3; grid-column: 2; align-self: center;
+  font-family: var(--s-mono); font-size: 0.98rem; font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.cost-source { grid-column: 1 / -1; color: var(--s-faint); font-size: 0.74rem; }
+.cost-total {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 1rem;
+  padding-top: 0.6rem;
+}
+.cost-total span { font-family: var(--s-display); font-size: 1.05rem; font-weight: 600; }
+.cost-total strong {
+  font-family: var(--s-mono); font-size: 1.3rem; font-weight: 500;
+  font-variant-numeric: tabular-nums; letter-spacing: -0.02em;
+}
+
+.funding-list { list-style: none; margin: 0; padding: 0; display: grid; }
+.funding-list li {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto 30px;
+  align-items: center; gap: 0.6rem;
+  padding: 0.55rem 0; border-bottom: 1px solid var(--s-line-soft); font-size: 0.92rem;
+}
+.funding-list li.funding-empty { color: var(--s-faint); grid-template-columns: 1fr; border-bottom: 0; }
+.funding-amount { font-family: var(--s-mono); font-variant-numeric: tabular-nums; }
+.funding-list button {
+  display: grid; place-items: center; width: 28px; height: 28px; padding: 0;
+  border: 0; border-radius: 7px; background: transparent; color: var(--s-faint); cursor: pointer;
+}
+.funding-list button:hover { color: var(--s-close); background: var(--s-close-soft); }
+.funding-add { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.funding-add label { flex: 1; min-width: 120px; }
+.funding-add input {
+  width: 100%; min-height: 42px; padding: 0 0.7rem;
+  border: 1px solid var(--s-line); border-radius: 9px;
+  background: var(--s-paper); color: var(--s-ink); font: inherit; font-size: 0.95rem;
+}
+.funding-verdict {
+  padding: 0.65rem 0.8rem; border-radius: 9px;
+  font-family: var(--s-display); font-size: 1rem; font-weight: 600;
+}
+.funding-verdict.good { color: var(--s-met); background: var(--s-met-soft); }
+.funding-verdict.short { color: var(--s-close); background: var(--s-close-soft); }
+
+.held-input { display: grid; gap: 0.3rem; font-size: 0.9rem; max-width: 260px; }
+.held-input input {
+  min-height: 44px; padding: 0 0.7rem;
+  border: 1px solid var(--s-line); border-radius: 9px;
+  background: var(--s-paper); color: var(--s-ink); font: inherit; font-size: 1rem;
+}
+.visa-lines, .swing-lines { list-style: none; margin: 0; padding: 0; display: grid; }
+.visa-lines li, .swing-lines li {
+  display: flex; justify-content: space-between; gap: 1rem; align-items: baseline;
+  padding: 0.5rem 0; border-bottom: 1px solid var(--s-line-soft); font-size: 0.9rem;
+}
+.visa-lines li span:last-child, .swing-lines li span:last-child {
+  font-family: var(--s-mono); font-variant-numeric: tabular-nums;
+}
+.visa-lines .visa-total { border-bottom: 0; font-weight: 700; }
+.swing-lines .worse span { color: var(--s-close); }
+
+.currency-inputs { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+.currency-inputs label { display: grid; gap: 0.3rem; font-size: 0.88rem; flex: 1; min-width: 110px; }
+.currency-inputs input {
+  min-height: 44px; padding: 0 0.7rem;
+  border: 1px solid var(--s-line); border-radius: 9px;
+  background: var(--s-paper); color: var(--s-ink); font: inherit; font-size: 1rem;
+}
+
+@media (max-width: 560px) {
+  .cost-amount { grid-row: auto; grid-column: 2; align-self: start; }
+}
+
+.student-foot-note {
+  max-width: 62ch; margin: 2.5rem 0 0;
+  padding-top: 1.1rem; border-top: 1px solid var(--s-line);
+  color: var(--s-faint); font-size: 0.8rem;
+}
+/* The student sections read as documents, so they keep a measure rather than
+   filling the workspace the way the console's dashboards do. */
+.student-shell .workspace { padding-bottom: 2rem; }
+/* The topbar carries the page title, so the student topbar needs no actions. */
+.student-shell .topbar { grid-template-columns: 44px minmax(0, 1fr); }

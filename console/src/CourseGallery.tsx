@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  ArrowLeft, ArrowRight, Bookmark, BookmarkCheck, Check, ChevronDown, ExternalLink,
+  ArrowLeft, Bookmark, BookmarkCheck, Check, ChevronDown, ExternalLink,
   Layers, Quote, Search, ShieldCheck, Sparkles, X,
 } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
@@ -10,6 +10,7 @@ import {
 } from 'react'
 import { api, type GalleryCourse, type GalleryFacets, type ShortlistEntry } from './api'
 import { galleryFilterReducer, initialGalleryFilters, type GalleryFilters } from './GalleryState'
+import { useToast } from './toast'
 import { Empty } from './ui'
 
 /* Every figure in this view is receipted: tapping it shows the sentence on the
@@ -26,6 +27,7 @@ const MONTHS = [
 
 export function CourseGallery({ collectionId }: { collectionId?: string }) {
   const queryClient = useQueryClient()
+  const notify = useToast()
   const [state, dispatch] = useReducer(galleryFilterReducer, initialGalleryFilters)
   const [brief, setBrief] = useState('')
   const [plan, setPlan] = useState<{ source: 'model' | 'fallback'; explanation: string }>()
@@ -57,6 +59,7 @@ export function CourseGallery({ collectionId }: { collectionId?: string }) {
 
   const interpret = useMutation({
     mutationFn: api.interpretGalleryQuery,
+    onError: (error: Error) => notify({ tone: 'error', title: 'Could not read that question', detail: error.message }),
     onSuccess: (result) => {
       const planned = result.filters
       dispatch({
@@ -90,8 +93,10 @@ export function CourseGallery({ collectionId }: { collectionId?: string }) {
         }
         return { previous }
       },
-      onError: (_e: unknown, _id: string, context?: { previous?: ShortlistEntry[] }) =>
-        queryClient.setQueryData(['course-gallery', 'shortlist'], context?.previous),
+      onError: (error: Error, _id: string, context?: { previous?: ShortlistEntry[] }) => {
+        queryClient.setQueryData(['course-gallery', 'shortlist'], context?.previous)
+        notify({ tone: 'error', title: 'Shortlist not saved', detail: error.message })
+      },
       onSettled: () => queryClient.invalidateQueries({ queryKey: ['course-gallery', 'shortlist'] }),
     })
   const add = useMutation(shortlistMutation(api.addGalleryShortlist, 'add'))
@@ -105,8 +110,26 @@ export function CourseGallery({ collectionId }: { collectionId?: string }) {
     () => new Map(institutions.data?.map((item) => [item.id, item.name])),
     [institutions.data],
   )
-  const toggleSave = (course: GalleryCourse) =>
-    saved.has(course.id) ? remove.mutate(course.id) : add.mutate(course.id)
+  const toggleSave = (course: GalleryCourse) => {
+    if (saved.has(course.id)) {
+      remove.mutate(course.id)
+      notify({
+        key: `shortlist-${course.id}`,
+        tone: 'info',
+        title: 'Removed from shortlist',
+        detail: course.title,
+        onUndo: () => add.mutate(course.id),
+      })
+    } else {
+      add.mutate(course.id)
+      notify({
+        key: `shortlist-${course.id}`,
+        title: 'Saved to shortlist',
+        detail: `${course.title} — compare it from the tray below.`,
+        onUndo: () => remove.mutate(course.id),
+      })
+    }
+  }
 
   const ask = (event: FormEvent) => {
     event.preventDefault()
@@ -118,26 +141,12 @@ export function CourseGallery({ collectionId }: { collectionId?: string }) {
 
   return <div className="gallery">
     <header className="gallery-masthead">
-      <div className="masthead-top">
-        <div>
-          <h2>{total} course{total === 1 ? '' : 's'}, <em>every figure receipted</em></h2>
-          <p>
-            Each fee, intake and requirement below is backed by the sentence Scrapal read on
-            the university&rsquo;s own page. Tap any figure to see it.
-          </p>
-        </div>
-        <dl className="masthead-stats">
-          <div><dt>Universities</dt><dd>{institutions.data?.length ?? 0}</dd></div>
-          <div><dt>Evidenced</dt><dd>{averageCoverage(courses.data?.items)}</dd></div>
-        </dl>
-      </div>
-
       <form className="ask-bar" onSubmit={ask}>
         <Sparkles aria-hidden="true" />
         <input
           value={brief}
           onChange={(event) => setBrief(event.target.value)}
-          placeholder="One-year master's in London under £15,000 starting September…"
+          placeholder="Describe the course you want"
           aria-label="Describe the course you want, in your own words"
         />
         <button className="button primary" disabled={interpret.isPending || brief.trim().length < 3}>
@@ -145,7 +154,11 @@ export function CourseGallery({ collectionId }: { collectionId?: string }) {
         </button>
       </form>
 
-      <div className="ask-tries">
+      <p className="ask-note">
+        Every figure is quoted from the university&rsquo;s own page &mdash; tap one to read it.
+      </p>
+
+      {!brief && tags.length === 0 && <div className="ask-tries">
         <span>Try</span>
         {[
           "One-year master's in London under £15,000",
@@ -156,7 +169,7 @@ export function CourseGallery({ collectionId }: { collectionId?: string }) {
             {example}
           </button>
         ))}
-      </div>
+      </div>}
 
       {interpret.isPending && (
         <p className="plan-strip thinking"><span className="dots"><i /><i /><i /></span>
@@ -231,9 +244,12 @@ export function CourseGallery({ collectionId }: { collectionId?: string }) {
 
     <div className="gallery-resultline">
       <h3>
-        <span className="figure">{total}</span> published course{total === 1 ? '' : 's'}
+        <span className="figure">{total}</span> course{total === 1 ? '' : 's'}
         {institutions.data && institutions.data.length > 0 &&
-          <> across <span className="figure">{institutions.data.length}</span> universit{institutions.data.length === 1 ? 'y' : 'ies'}</>}
+          <> from <span className="figure">{institutions.data.length}</span> universit{institutions.data.length === 1 ? 'y' : 'ies'}</>}
+        {courses.data?.items.length
+          ? <>, <span className="figure">{averageCoverage(courses.data.items)}</span> evidenced</>
+          : null}
       </h3>
       <label className="sort-picker">
         Sort
@@ -557,7 +573,7 @@ function Dossier({ course, saved, onOpen, onSave }: {
   course: GalleryCourse; saved: boolean; onOpen: () => void; onSave: () => void
 }) {
   const [receipt, setReceipt] = useState<FactKey>()
-  const facts = factsFor(course)
+  const facts = cardFacts(course)
   const shown = receipt ? evidenceFor(course, receipt) : undefined
 
   return <article className="dossier" style={brandVar(course)}>
@@ -582,42 +598,47 @@ function Dossier({ course, saved, onOpen, onSave }: {
       </button>
     </header>
 
-    <div className="dossier-body">
-      {course.award && <p className="award">{course.award}</p>}
-      <h3>{course.title}</h3>
-      {course.course_content && <p className="blurb">{course.course_content}</p>}
+    {/* The title carries the whole card as its hit area, so the row of chrome a
+        separate "open" button needed is gone along with the button. */}
+    <h3>
+      <button type="button" className="open-dossier" onClick={onOpen}>{course.title}</button>
+      {course.award && <span className="award">{course.award}</span>}
+    </h3>
 
-      <div className="facts">
-        {facts.map((fact) => (
-          <button
-            key={fact.key}
-            type="button"
-            className="fact"
-            disabled={!fact.stated}
-            aria-expanded={receipt === fact.key}
-            onClick={() => setReceipt(receipt === fact.key ? undefined : fact.key)}
-          >
-            <span className="k"><Pip course={course} field={fact.key} stated={fact.stated} />{fact.label}</span>
-            <span className={`v ${fact.stated ? '' : 'dim'}`}>{fact.value}</span>
-          </button>
-        ))}
-        <AnimatePresence>
-          {shown && (
-            <motion.div
-              className="receipt"
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: .15 }}
+    <dl className="figures">
+      {facts.map((fact) => (
+        <div key={fact.key}>
+          <dt>{fact.label}</dt>
+          <dd>
+            <button
+              type="button"
+              className={`figure ${fact.stated ? '' : 'unstated'}`}
+              disabled={!fact.stated}
+              aria-expanded={receipt === fact.key}
+              onClick={() => setReceipt(receipt === fact.key ? undefined : fact.key)}
             >
-              <blockquote><Quote aria-hidden="true" />{shown.excerpt}</blockquote>
-              <p className="source">Read from <code>{hostOf(shown.source_url ?? course.source_url)}</code>
-                {shown.section && <> · {shown.section}</>}</p>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-    </div>
+              {fact.value}
+            </button>
+          </dd>
+        </div>
+      ))}
+    </dl>
+
+    <AnimatePresence>
+      {shown && (
+        <motion.div
+          className="receipt"
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: 'auto' }}
+          exit={{ opacity: 0, height: 0 }}
+          transition={{ duration: .15 }}
+        >
+          <blockquote><Quote aria-hidden="true" />{shown.excerpt}</blockquote>
+          <p className="source">Read from <code>{hostOf(shown.source_url ?? course.source_url)}</code>
+            {shown.section && <> · {shown.section}</>}</p>
+        </motion.div>
+      )}
+    </AnimatePresence>
 
     <footer>
       <span className="coverage">
@@ -626,9 +647,6 @@ function Dossier({ course, saved, onOpen, onSave }: {
         </span>
         {Math.round(course.coverage * 100)}% evidenced
       </span>
-      <button type="button" className="open-dossier" onClick={onOpen}>
-        Open dossier <ArrowRight aria-hidden="true" />
-      </button>
     </footer>
   </article>
 }
@@ -637,11 +655,12 @@ function SkeletonCard() {
   return <div className="dossier skeleton" aria-hidden="true">
     <i className="spine" />
     <header><span className="block crest" /><span className="block line" /></header>
-    <div className="dossier-body">
-      <span className="block line short" />
-      <span className="block line tall" />
-      <span className="block grid" />
-    </div>
+    <h3><span className="block line tall" /></h3>
+    <dl className="figures">
+      {[0, 1, 2].map((n) => <div key={n}><dt><span className="block line short" /></dt>
+        <dd><span className="block line" /></dd></div>)}
+    </dl>
+    <footer><span className="block line short" /></footer>
   </div>
 }
 
@@ -1023,8 +1042,13 @@ function factsFor(course: GalleryCourse): Fact[] {
   ]
 }
 
+/** The three figures a reader compares between courses. */
+function cardFacts(course: GalleryCourse): Fact[] {
+  return factsFor(course).filter((fact) => fact.key !== 'entry_requirements')
+}
+
 function keyFacts(course: GalleryCourse): (Fact & { key: FactKey })[] {
-  return factsFor(course)
+  return cardFacts(course)
 }
 
 function evidenceFor(course: GalleryCourse, field: FactKey) {

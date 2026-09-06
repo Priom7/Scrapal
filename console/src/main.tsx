@@ -6,7 +6,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App'
+import { Root } from './Root'
+import { ToastProvider } from './Toasts'
 import './styles.css'
+import './student.css'
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { refetchInterval: 10_000, retry: 1 } },
@@ -15,7 +18,9 @@ const queryClient = new QueryClient({
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <App />
+      <ToastProvider>
+        <Root console={<App />} />
+      </ToastProvider>
     </QueryClientProvider>
   </StrictMode>,
 )
