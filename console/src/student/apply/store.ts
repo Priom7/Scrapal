@@ -95,6 +95,12 @@ function write(applications: Application[]): void {
   listeners.forEach((listener) => listener(applications))
 }
 
+/** Everything saved, outside React. The conversation needs to know what is
+    already on the go before it can ask about it. */
+export function listApplications(): Application[] {
+  return read()
+}
+
 export function useApplications(): Application[] {
   const [applications, setApplications] = useState<Application[]>([])
   useEffect(() => {

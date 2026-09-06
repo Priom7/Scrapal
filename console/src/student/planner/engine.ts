@@ -4,7 +4,7 @@
 // state. No timers, no fetching, no React — so the whole interview can be
 // tested by playing it through.
 import { EMPTY_PROFILE, type StudentProfile } from '../profile'
-import { readApplication, setAnswer, setReferee, setStatus, startApplication } from '../apply/store'
+import { listApplications, readApplication, setAnswer, setReferee, setStatus, startApplication } from '../apply/store'
 import { isSkip, shortlist, stepById, type StepResult } from './script'
 import type { Chip, Message, PlannerState, StepContext } from './types'
 
@@ -219,23 +219,35 @@ export function start(context: StepContext): PlannerState {
 export function resume(saved: PlannerState, since: string, context: StepContext): PlannerState {
   const application = saved.applyingTo ? readApplication(saved.applyingTo) : undefined
   const course = context.courses.find((item) => item.id === saved.applyingTo)
+  // Everything on the go, not only the one the thread stopped on. A student who
+  // left three drafts open should be asked about three, not one.
+  const drafts = listApplications().filter((item) => item.status === 'draft')
+  const others = drafts.filter((item) => item.courseId !== saved.applyingTo)
 
   const where = application && course
     ? `You were partway through your application to ${course.institution.name}.`
-    : saved.done.length > 2
-      ? 'We had made a start on your plan.'
-      : null
+      + (others.length ? ` ${others.length} other draft${others.length === 1 ? ' is' : 's are'} open too.` : '')
+    : drafts.length
+      ? `You have ${drafts.length} draft application${drafts.length === 1 ? '' : 's'} open.`
+      : saved.done.length > 2
+        ? 'We had made a start on your plan.'
+        : null
 
-  const chips = application && course
+  const chips: Chip[] = application && course
     ? [
-      { label: 'Carry on with it', value: `resume:${course.id}` },
-      { label: 'Show my applications', value: 'my applications' },
+      { label: `Carry on with ${course.institution.name}`, value: `resume:${course.id}` },
+      ...(others.length ? [{ label: 'Show my other drafts', value: 'my applications' }] : []),
       { label: 'Start something new', value: 'restart' },
     ]
-    : [
-      { label: 'Carry on', value: 'show me courses' },
-      { label: 'Start again', value: 'restart' },
-    ]
+    : drafts.length
+      ? [
+        { label: 'Pick up a draft', value: 'my applications' },
+        { label: 'Find something new', value: 'show me courses' },
+      ]
+      : [
+        { label: 'Carry on', value: 'show me courses' },
+        { label: 'Start again', value: 'restart' },
+      ]
 
   // Every visit added another greeting to the saved thread, so a returning
   // student met a wall of them. There is only ever one, and it is the last thing
@@ -249,6 +261,9 @@ export function resume(saved: PlannerState, since: string, context: StepContext)
       from: 'scrapal',
       kind: 'resume',
       text: `Welcome back. We last spoke ${since}.${where ? ` ${where}` : ''}`,
+      // With drafts open the list itself is the answer to "where was I", so it
+      // comes with the greeting rather than one tap behind it.
+      card: drafts.length ? { kind: 'drafts' } : undefined,
       chips,
     }],
   }
