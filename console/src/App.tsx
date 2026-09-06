@@ -44,6 +44,8 @@ import { isStaleScope, useCollectionScope } from './CollectionScope'
 import { CourseGallery } from './CourseGallery'
 import { InterpretedQuery } from './QueryPlan'
 import { RunPath } from './RunPath'
+import { useTheme } from './theme'
+import { useToast } from './toast'
 import { formatDuration, ICON, isLiveRun, QueryPlanData, readPlan, relativeDate, Tone, useDialog, useMediaQuery, uuid } from './lib'
 import { Empty, Meter, Status } from './ui'
 
@@ -65,11 +67,7 @@ const nav: { id: View; label: string; icon: typeof Activity }[] = [
 function App() {
   const queryClient = useQueryClient()
   const [view, setView] = useState<View>('overview')
-  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
-    const saved = localStorage.getItem('scrapal-theme')
-    if (saved === 'light' || saved === 'dark') return saved
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
-  })
+  const [theme, setTheme] = useTheme()
   const [agentOpen, setAgentOpen] = useState(() => window.matchMedia('(min-width: 1181px)').matches)
   const [navOpen, setNavOpen] = useState(false)
   const mobile = useMediaQuery('(max-width: 760px)')
@@ -88,11 +86,6 @@ function App() {
   useEffect(() => {
     if (isStaleScope(scope, collections.data ?? [])) setScope(undefined)
   }, [collections.data, scope, setScope])
-
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme
-    localStorage.setItem('scrapal-theme', theme)
-  }, [theme])
 
   useEffect(() => {
     localStorage.setItem('scrapal-sidebar', sidebarCollapsed ? 'collapsed' : 'expanded')
@@ -250,7 +243,15 @@ function Overview({ activeRun, sources, runs, documents, sourceMap, onInspect }:
 }
 
 function Sources({ sources, runs, onRun, onInspect, onAdd }: { sources: Source[]; runs: Run[]; onRun: (run: Run) => void; onInspect: (id: string) => void; onAdd: () => void }) {
-  const mutation = useMutation({ mutationFn: api.startRun, onSuccess: onRun })
+  const notify = useToast()
+  const mutation = useMutation({
+    mutationFn: api.startRun,
+    onSuccess: (run) => {
+      onRun(run)
+      notify({ title: 'Crawl started', detail: 'Progress appears below as pages are checked.' })
+    },
+    onError: (error: Error) => notify({ tone: 'error', title: 'Could not start the crawl', detail: error.message }),
+  })
   if (!sources.length) return <Empty icon={Globe2} title="Connect the first source" text="Add a public website, sitemap, Greenwich catalogue, or document collection." action="Add source" onAction={onAdd} />
   return <section className="source-grid" aria-label="Connected sources">
     {sources.map((source) => {
@@ -274,7 +275,23 @@ function Knowledge({ collectionId, documents }: { collectionId?: string; documen
   return <div className="knowledge-layout">
     <section className="search-hero"><p className="eyebrow">Hybrid retrieval</p><h2>Find the evidence, not just the phrase.</h2><form onSubmit={(event) => { event.preventDefault(); setSubmitted(query) }}><Search aria-hidden="true" /><label className="sr-only" htmlFor="knowledge-query">Search knowledge</label><input id="knowledge-query" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Ask about courses, requirements, fees…" /><button>Search</button></form></section>
     {search.isFetching && <p className="loading-line"><Sparkles /> Searching words and meaning…</p>}
-    {search.data?.hits.map((hit: SearchHit) => <article className="result" key={hit.chunk_id}><div><p className="eyebrow">{hit.heading || 'Source passage'}</p><h3>{hit.title}</h3></div><p>{hit.excerpt}</p><a href={hit.url} target="_blank" rel="noreferrer">Open source <ArrowRight size={ICON.sm} /></a></article>)}
+    {search.error && <p className="inline-error">{search.error.message}</p>}
+    {/* Say what came back and why, rather than dropping the reader into a list
+        of indistinguishable cards. */}
+    {submitted && !search.isFetching && search.data && (
+      search.data.hits.length
+        ? <p className="result-summary" aria-live="polite">
+            <strong>{search.data.hits.length} passage{search.data.hits.length === 1 ? '' : 's'}</strong>
+            {' from '}{new Set(search.data.hits.map((hit: SearchHit) => hit.document_id)).size} documents,
+            ranked by wording and meaning together.
+          </p>
+        : <Empty
+            icon={Search}
+            title={`Nothing indexed matches “${submitted}”`}
+            text="Try a subject, a university, or a phrase from a course page. Only published courses are searchable."
+          />
+    )}
+    {search.data?.hits.map((hit: SearchHit) => <article className="result" key={hit.chunk_id}><div className="result-head"><div><p className="eyebrow">{hit.heading || 'Source passage'}</p><h3>{hit.title}</h3></div><span className={`match-basis ${hit.lexical_score >= .5 ? 'wording' : 'meaning'}`}>{hit.lexical_score >= .5 ? 'Matched your words' : 'Matched the meaning'}</span></div><p>{hit.excerpt}</p><a href={hit.url} target="_blank" rel="noreferrer">Open source <ArrowRight size={ICON.sm} /></a></article>)}
     {!submitted && <section className="panel"><div className="section-heading"><div><p className="eyebrow">Indexed material</p><h2>Latest documents</h2></div></div>{documents.slice(0, 8).map((doc) => <div className="document-row" key={doc.id}><Database /><div><strong>{doc.title}</strong><small>{doc.media_type} · {relativeDate(doc.updated_at)}</small></div><a href={doc.canonical_url} target="_blank" rel="noreferrer" aria-label={`Open ${doc.title}`}><ChevronRight /></a></div>)}</section>}
   </div>
 }
@@ -301,6 +318,7 @@ function CourseIntelligence({ collectionId, onOpenSources }: { collectionId?: st
   const [institution, setInstitution] = useState<string>()
   const [selectedId, setSelectedId] = useState<string>()
   const [note, setNote] = useState('Reviewed against the captured source evidence.')
+  const notify = useToast()
   const overview = useQuery({
     queryKey: ['course-intelligence', 'overview', collectionId],
     queryFn: () => api.courseIntelligenceOverview(collectionId),
@@ -311,8 +329,37 @@ function CourseIntelligence({ collectionId, onOpenSources }: { collectionId?: st
   })
   const selected = records.data?.find((record) => record.id === selectedId) ?? records.data?.[0]
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['course-intelligence'] })
-  const publish = useMutation({ mutationFn: (id: string) => api.publishCourseRecord(id, note), onSuccess: refresh })
-  const reject = useMutation({ mutationFn: (id: string) => api.rejectCourseRecord(id, note), onSuccess: refresh })
+  // Returning a record to review is a real endpoint, so publishing and
+  // rejecting are both genuinely reversible.
+  const sendBack = useMutation({
+    mutationFn: (id: string) => api.reviewCourseRecord(id, 'Returned to review from the review queue.'),
+    onSuccess: () => refresh(),
+    onError: (error: Error) => notify({ tone: 'error', title: 'Could not undo', detail: error.message }),
+  })
+  const publish = useMutation({
+    mutationFn: (id: string) => api.publishCourseRecord(id, note),
+    onSuccess: (record) => {
+      refresh()
+      notify({
+        title: 'Published',
+        detail: `${String(record.data.title ?? 'This course')} is now visible in the course gallery.`,
+        onUndo: () => sendBack.mutate(record.id),
+      })
+    },
+    onError: (error: Error) => notify({ tone: 'error', title: 'Could not publish', detail: error.message }),
+  })
+  const reject = useMutation({
+    mutationFn: (id: string) => api.rejectCourseRecord(id, note),
+    onSuccess: (record) => {
+      refresh()
+      notify({
+        title: 'Rejected',
+        detail: `${String(record.data.title ?? 'This course')} stays out of the gallery.`,
+        onUndo: () => sendBack.mutate(record.id),
+      })
+    },
+    onError: (error: Error) => notify({ tone: 'error', title: 'Could not reject', detail: error.message }),
+  })
   const summary = overview.data
   const spine = summary?.by_institution ?? []
   const scopedTo = institution ? spine.find((row) => row.institution_id === institution) : undefined
@@ -557,8 +604,23 @@ function candidateDetail(item: Record<string, unknown>) {
 }
 
 function Reviews({ proposals, onChanged }: { proposals: { id: string; title: string; action_type: string; rationale: string; risk: string; status: string }[]; onChanged: () => void }) {
-  const approve = useMutation({ mutationFn: api.approveProposal, onSuccess: onChanged })
-  const reject = useMutation({ mutationFn: api.rejectProposal, onSuccess: onChanged })
+  const notify = useToast()
+  const approve = useMutation({
+    mutationFn: api.approveProposal,
+    onSuccess: (proposal) => {
+      onChanged()
+      notify({ title: 'Action approved', detail: `Scrapal will ${proposal.title.charAt(0).toLowerCase()}${proposal.title.slice(1)}.` })
+    },
+    onError: (error: Error) => notify({ tone: 'error', title: 'Could not approve', detail: error.message }),
+  })
+  const reject = useMutation({
+    mutationFn: api.rejectProposal,
+    onSuccess: () => {
+      onChanged()
+      notify({ title: 'Action rejected', detail: 'Nothing in your workspace changed.' })
+    },
+    onError: (error: Error) => notify({ tone: 'error', title: 'Could not reject', detail: error.message }),
+  })
   const pending = proposals.filter((proposal) => proposal.status === 'pending')
   if (!pending.length) return <Empty icon={ShieldCheck} title="Nothing needs review" text="Low-confidence changes and agent-proposed actions will wait here before they can affect your workspace." />
   return <section className="review-stack">{pending.map((proposal) => <article className="review-card" key={proposal.id}><div className={`risk ${proposal.risk}`}><CircleAlert /> {proposal.risk} risk</div><p className="eyebrow">Agent proposal · {proposal.action_type}</p><h2>{proposal.title}</h2><p>{proposal.rationale}</p><div className="review-actions"><button className="button secondary" disabled={reject.isPending} onClick={() => reject.mutate(proposal.id)}>Reject</button><button className="button primary" disabled={approve.isPending} onClick={() => approve.mutate(proposal.id)}><Check size={ICON.md} /> Approve action</button></div></article>)}</section>
@@ -576,8 +638,23 @@ function Observability({ onInspect }: { onInspect: (id: string) => void }) {
   const incidents = useQuery({ queryKey: ['observability', 'incidents'], queryFn: api.incidents, refetchInterval: 5000 })
   const workers = useQuery({ queryKey: ['observability', 'workers'], queryFn: api.workers, refetchInterval: 10_000 })
   const dependencies = useQuery({ queryKey: ['observability', 'dependencies'], queryFn: api.dependencies, refetchInterval: 15_000 })
-  const acknowledge = useMutation({ mutationFn: api.acknowledgeIncident, onSuccess: () => queryClient.invalidateQueries({ queryKey: ['observability'] }) })
-  const resolve = useMutation({ mutationFn: api.resolveIncident, onSuccess: () => queryClient.invalidateQueries({ queryKey: ['observability'] }) })
+  const notifyIncident = useToast()
+  const acknowledge = useMutation({
+    mutationFn: api.acknowledgeIncident,
+    onSuccess: (incident) => {
+      queryClient.invalidateQueries({ queryKey: ['observability'] })
+      notifyIncident({ tone: 'info', title: 'Incident acknowledged', detail: `${incident.service} · someone is looking at it.` })
+    },
+    onError: (error: Error) => notifyIncident({ tone: 'error', title: 'Could not acknowledge', detail: error.message }),
+  })
+  const resolve = useMutation({
+    mutationFn: api.resolveIncident,
+    onSuccess: (incident) => {
+      queryClient.invalidateQueries({ queryKey: ['observability'] })
+      notifyIncident({ title: 'Incident resolved', detail: `${incident.service} is clear.` })
+    },
+    onError: (error: Error) => notifyIncident({ tone: 'error', title: 'Could not resolve', detail: error.message }),
+  })
   const openGrafana = async () => window.open((await api.grafanaLink()).url, '_blank', 'noopener,noreferrer')
   const data = overview.data
   return <div className="observability-view">
@@ -755,7 +832,15 @@ function RunMonitor({ runId, onClose }: { runId: string; onClose: () => void }) 
     return () => controller.abort()
   }, [activeRunId, queryClient])
 
-  const cancel = useMutation({ mutationFn: api.cancelRun, onSuccess: (update) => setRun((current) => current ? { ...current, ...update } : current) })
+  const notifyRun = useToast()
+  const cancel = useMutation({
+    mutationFn: api.cancelRun,
+    onSuccess: (update) => {
+      setRun((current) => current ? { ...current, ...update } : current)
+      notifyRun({ tone: 'info', title: 'Crawl cancelled', detail: `${update.pages_processed} pages were kept.` })
+    },
+    onError: (error: Error) => notifyRun({ tone: 'error', title: 'Could not cancel', detail: error.message }),
+  })
   const retry = useMutation({
     mutationFn: api.retryRunIssues,
     onSuccess: (update) => {
@@ -763,7 +848,9 @@ function RunMonitor({ runId, onClose }: { runId: string; onClose: () => void }) 
       setConnection('connecting')
       setActiveRunId(update.id)
       queryClient.invalidateQueries({ queryKey: ['runs'] })
+      notifyRun({ title: 'Retrying the failed pages', detail: 'This runs as a new crawl, linked to the one it retries.' })
     },
+    onError: (error: Error) => notifyRun({ tone: 'error', title: 'Could not retry', detail: error.message }),
   })
   const resume = useMutation({
     mutationFn: api.startRun,

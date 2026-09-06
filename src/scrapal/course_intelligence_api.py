@@ -272,6 +272,10 @@ async def revisions(record_id: str, session: Session, _: SuperAdmin) -> list[dic
             "validation": row.validation_json,
             "note": row.note,
             "created_at": row.created_at,
+            # The snapshot already stores the field values; without returning
+            # them a caller can see that a record changed but not what changed,
+            # which is the only thing a reader actually wants to know.
+            "data": row.data,
         }
         for row in rows
     ]

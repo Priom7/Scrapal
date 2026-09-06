@@ -1,5 +1,7 @@
 // Keep browser requests on the console origin. Nginx proxies /api to FastAPI,
 // so the same build works on localhost, LAN addresses, and stable hostnames.
+import { http } from './mock/http'
+
 const baseUrl = (import.meta.env.VITE_API_URL ?? '/api').replace(/\/$/, '')
 const apiKey = import.meta.env.VITE_API_KEY ?? 'scrapal-local-dev-key'
 
@@ -256,6 +258,16 @@ export type CourseIntelligenceOverview = {
   }[]
   missing_fields: { field: string; count: number }[]
 }
+export type RecordRevision = {
+  id: string
+  revision: number
+  status: CourseRecord['status']
+  confidence: number
+  validation: CourseRecord['validation_json']
+  note: string | null
+  created_at: string
+  data: Record<string, unknown>
+}
 export type GalleryInstitution = {
   id: string
   name: string
@@ -284,6 +296,9 @@ export type GalleryCourse = {
   scholarships: string[]
   course_content: string | null
   careers: string | null
+  /** Illustrative image for the course. Placeholder until a university
+      supplies its own through the institution portal. */
+  image_url?: string
   source_url: string
   coverage: number
   evidence: CourseRecord['evidence']
@@ -348,7 +363,7 @@ function galleryParams(filters: GalleryFilterParams): URLSearchParams {
 }
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(`${baseUrl}${path}`, {
+  const response = await http(`${baseUrl}${path}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -465,6 +480,12 @@ export const api = {
     request<CourseRecord>(`/v1/admin/course-intelligence/records/${id}/publish`, {
       method: 'POST', body: JSON.stringify({ note }),
     }),
+  courseRecordRevisions: (id: string) =>
+    request<RecordRevision[]>(`/v1/admin/course-intelligence/records/${id}/revisions`),
+  reviewCourseRecord: (id: string, note: string) =>
+    request<CourseRecord>(`/v1/admin/course-intelligence/records/${id}/review`, {
+      method: 'POST', body: JSON.stringify({ note }),
+    }),
   rejectCourseRecord: (id: string, note: string) =>
     request<CourseRecord>(`/v1/admin/course-intelligence/records/${id}/reject`, {
       method: 'POST', body: JSON.stringify({ note }),
@@ -474,7 +495,7 @@ export const api = {
   rejectProposal: (id: string) =>
     request<Proposal>(`/v1/action-proposals/${id}/reject`, { method: 'POST' }),
   watchRun: async (id: string, onProgress: (run: RunDetail) => void, signal: AbortSignal) => {
-    const response = await fetch(`${baseUrl}/v1/runs/${id}/events`, {
+    const response = await http(`${baseUrl}/v1/runs/${id}/events`, {
       headers: { 'X-API-Key': apiKey },
       signal,
     })
@@ -508,7 +529,7 @@ export const api = {
     let handlerError: unknown
     while (!terminal) {
       try {
-        const response = await fetch(
+        const response = await http(
           `${baseUrl}/v1/conversations/${conversationId}/events?generation_id=${generationId}`,
           { headers: { 'X-API-Key': apiKey, ...(lastEventId ? { 'Last-Event-ID': lastEventId } : {}) }, signal },
         )
