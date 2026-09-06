@@ -1,0 +1,19 @@
+flowchart TD
+    A["main.tsx: new QueryClient"] --> B["defaultOptions.queries.refetchInterval = 10_000<br/>applied to EVERY query in the console"]
+
+    B --> C["App.tsx mounts 6 always-on queries<br/>collections, sources, runs, documents, system, proposals"]
+    B --> D["the active view mounts its own"]
+
+    D --> E{"which view is open?"}
+    E -- "Course gallery" --> F["institutions + facets + courses<br/>3 full-catalogue loads, every 10s"]
+    E -- "Course intelligence" --> G["overview + records<br/>records now sends limit=500"]
+    E -- "Observability" --> H["overview + runs + incidents + workers"]
+    E -- "Retrieval Lab" --> I["profiles"]
+
+    F --> J["~214 KB per courses response today,<br/>53% of it evidence the grid never renders"]
+    J --> K(["Steady-state cost of one idle open tab:<br/>3 unbounded catalogue queries every 10 seconds,<br/>whether or not anything changed."])
+
+    L["Live surfaces already use SSE and do not need polling:<br/>run_events and conversation_events"]
+    M["ETag or Last-Modified would make the poll nearly free;<br/>a per-query refetchInterval would remove most of it."]
+    K -.- M
+    B -.- L

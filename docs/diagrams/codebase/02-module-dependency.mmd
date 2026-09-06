@@ -1,0 +1,100 @@
+flowchart TD
+    subgraph entry["Entry points"]
+        main["main.py"]
+        jobs["jobs.py"]
+    end
+
+    subgraph routers["Routers"]
+        api["api.py"]
+        bp_api["blueprints_api.py"]
+        ci_api["course_intelligence_api.py"]
+        cg_api["course_gallery_api.py"]
+        rl_api["retrieval_api.py"]
+        ob_api["observability_api.py"]
+    end
+
+    subgraph services["Services"]
+        ing["ingestion.py"]
+        idx["indexing.py"]
+        chk["chunking.py"]
+        srch["search.py"]
+        gen["generation.py"]
+        bp["blueprints.py"]
+        ev["crawl_events.py"]
+        inst["institutions.py"]
+        art["artifacts.py"]
+        oll["ollama.py"]
+        eval_["evaluation.py"]
+    end
+
+    subgraph domain["Connectors and domain"]
+        web["connectors/website.py"]
+        doc["connectors/document.py"]
+        reg["extractors/registry.py"]
+        genx["extractors/generic.py"]
+        grex["extractors/greenwich.py"]
+        grw["university/greenwich.py"]
+    end
+
+    subgraph core["Core"]
+        cfg["config.py"]
+        db["db.py"]
+        mdl["models.py"]
+        sch["schemas.py"]
+        sec["security.py"]
+        tel["telemetry.py"]
+    end
+
+    main --> routers
+    main --> idx
+    main --> sec
+    main --> tel
+    jobs --> ing
+    jobs --> gen
+    jobs --> idx
+
+    api --> ing
+    api --> srch
+    api --> gen
+    api --> inst
+    api --> oll
+    api --> jobs
+    bp_api --> bp
+    bp_api --> inst
+    bp_api --> jobs
+    ci_api --> jobs
+    cg_api --> oll
+    rl_api --> srch
+    rl_api --> gen
+    rl_api --> oll
+    rl_api --> eval_
+    ob_api --> mdl
+
+    ing --> web
+    ing --> doc
+    ing --> reg
+    ing --> idx
+    ing --> art
+    ing --> ev
+    ing --> oll
+    ing --> inst
+    idx --> chk
+    idx --> oll
+    srch --> oll
+    gen --> srch
+    gen --> oll
+    bp --> web
+    reg --> genx
+    reg --> grex
+    grex --> grw
+    grw --> web
+
+    routers --> sec
+    routers --> sch
+    routers --> db
+    services --> mdl
+    services --> cfg
+    services --> tel
+
+    note1["rl_api imports generation's validator and rebuilds<br/>the answer loop: the only duplicated workflow in the tree."]
+    rl_api -.- note1

@@ -1,0 +1,43 @@
+sequenceDiagram
+    autonumber
+    participant BR as Browser
+    participant NG as Nginx console
+    participant FA as FastAPI
+    participant SEC as security.py
+    participant RT as router
+    participant SV as service
+    participant PG as PostgreSQL
+    participant MQ as RabbitMQ
+    participant WK as Celery worker
+
+    BR->>NG: GET /api/v1/runs
+    Note over NG: variable upstream + resolver 127.0.0.11<br/>so a restarted api container is re-resolved
+    NG->>FA: GET /v1/runs
+    FA->>SEC: get_principal
+    SEC->>PG: SELECT api_keys WHERE key_hash
+    SEC-->>FA: Principal
+    FA->>RT: list_runs with session and principal
+    RT->>PG: recover_stale_runs — UPDATE on a GET
+    Note over RT,PG: a read endpoint performs writes:<br/>queued > 2 min or no heartbeat > 5 min becomes failed
+    RT->>PG: SELECT runs JOIN sources JOIN collections
+    RT-->>BR: 200 list[RunOut]
+
+    BR->>NG: POST /api/v1/runs
+    NG->>FA: POST /v1/runs
+    FA->>RT: create_run
+    RT->>PG: INSERT Run
+    alt celery_enabled
+        RT->>MQ: ingest_task delay run.id
+        MQ->>WK: deliver on the ingest queue
+    else disabled
+        RT->>RT: BackgroundTasks — runs inside the API process
+    end
+    RT-->>BR: 202 RunOut
+
+    BR->>NG: GET /api/v1/runs/{id}/events
+    NG->>FA: SSE, proxy_buffering off
+    loop every 0.5s until terminal
+        FA->>PG: re-query the run in a fresh session
+        FA-->>BR: event: progress, only when the fingerprint changes
+    end
+    Note over FA,PG: this stream polls the database twice a second<br/>per open run monitor — the crawl already pushes<br/>its events to a Redis stream that goes unread here

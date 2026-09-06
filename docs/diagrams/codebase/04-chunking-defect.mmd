@@ -1,0 +1,30 @@
+flowchart TD
+    A(["chunk_text(text, target_tokens=600, overlap_tokens=80)"]) --> B["collapse 3+ newlines, strip"]
+    B --> C["paragraphs = split on blank lines"]
+    C --> D{"for each paragraph"}
+
+    D --> E{"len < 140 and no terminal punctuation?"}
+    E -- yes --> F["treat as a heading"]
+    E -- no --> G
+    F --> G["candidate = buffer + paragraph"]
+
+    G --> H{"buffer non-empty AND<br/>len(candidate) > 2400 chars?"}
+    H -- yes --> I["flush buffer as a chunk<br/>buffer = tail(320 chars) + paragraph"]
+    H -- no --> J["buffer = candidate"]
+
+    I --> D
+    J --> D
+    D -- exhausted --> K["flush remaining buffer"]
+
+    K --> L{"THE DEFECT"}
+    L --> M["The split only ever happens BETWEEN paragraphs.<br/>A single paragraph longer than the target is never divided —<br/>buffer is empty on its first pass, so the guard cannot fire,<br/>and the whole paragraph becomes one chunk."]
+
+    M --> N["Measured on the live corpus of 1,513 chunks"]
+    N --> O["646 within the 600-token target"]
+    N --> P["310 over target but under the embedding context"]
+    N --> Q["557 over 2,048 tokens — 36.8% of the corpus"]
+
+    Q --> R(["nomic-embed-text truncates at its context window,<br/>so the tail of every one of those chunks is embedded as nothing<br/>and is unreachable by the semantic lane."])
+
+    S["Reproduction: chunk_text('word ' * 8000)<br/>-> 1 chunk, 9,999 estimated tokens"]
+    M -.- S

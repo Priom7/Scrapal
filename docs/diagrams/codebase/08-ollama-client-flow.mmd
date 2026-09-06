@@ -1,0 +1,32 @@
+flowchart TD
+    A["caller: embed / chat / structured / chat_stream"] --> B{"locked == False?"}
+    B -- yes --> C["async with self.workload()"]
+    C --> D["Redis.from_url — NEW connection"]
+    D --> E["acquire redis lock 'scrapal:ollama:workload'<br/>timeout 360s, blocking_timeout 120s"]
+    E --> F["recurse into itself with locked=True"]
+    B -- no --> G
+
+    F --> G["httpx.AsyncClient(...) — NEW client per call"]
+    G --> H{"which operation?"}
+    H --> H1["/api/embed — timeout 90"]
+    H --> H2["/api/chat stream=False — timeout 180"]
+    H --> H3["/api/chat format=schema — timeout 120"]
+    H --> H4["/api/chat stream=True — timeout 180"]
+    H --> H5["/api/version + /api/tags — timeout 3"]
+
+    H2 --> I{"TimeoutException?"}
+    I -- yes --> J["type(self)._last_chat_error = detail<br/>CLASS attribute, process-global"]
+    J --> K["health() reports 'degraded' for 300s"]
+
+    H1 --> L(["OllamaUnavailable on any HTTPError"])
+    H3 --> L
+    H4 --> L
+    H2 --> L
+
+    subgraph issues["What this costs"]
+        N1["4 near-identical locked-recursion preambles"]
+        N2["A new httpx client and TCP handshake per call —<br/>no connection reuse across a 500-page crawl"]
+        N3["A new Redis connection per lock acquisition"]
+        N4["Five hardcoded timeouts, none in Settings"]
+        N5["_last_chat_error is per-process: api and worker<br/>disagree about whether the model is degraded"]
+    end

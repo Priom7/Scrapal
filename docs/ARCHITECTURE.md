@@ -1,7 +1,7 @@
 # Scrapal Architecture Reference
 
 **Document type:** Complete component architecture and workflow reference
-**Repository snapshot:** branch `v3`, commit `9807dfe` plus the working-tree extraction-guard fix
+**Repository snapshot:** branch `v3`, commit `75ef7a8` (includes the extraction-guard fix in `1144e7b`)
 **Verified against:** the running local stack and the live PostgreSQL schema on 5 September 2026
 **Companion document:** [`SCRAPAL_MASTER.md`](SCRAPAL_MASTER.md) covers product position, roadmap and honesty gates. This document covers *only* what the software is made of and how each piece behaves.
 

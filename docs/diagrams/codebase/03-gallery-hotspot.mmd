@@ -1,0 +1,35 @@
+flowchart TD
+    subgraph browser["One console page render, then every 10s forever"]
+        B1["GET /course-gallery/institutions"]
+        B2["GET /course-gallery/facets"]
+        B3["GET /course-gallery/courses?limit=24"]
+    end
+
+    B1 --> P1
+    B2 --> P2
+    B3 --> P3
+
+    P1["_published_courses()"]
+    P2["_published_courses()"]
+    P3["_published_courses()"]
+
+    P1 --> Q[("SELECT StructuredRecord JOIN Institution JOIN Collection<br/>WHERE published — NO LIMIT, NO OFFSET")]
+    P2 --> Q
+    P3 --> Q
+
+    Q --> R["162 rows today<br/>data avg 2,416 B + evidence avg 1,688 B per row"]
+    R --> S["gallery_course() maps EVERY row to a dict<br/>including the full evidence blob"]
+
+    S --> T1["institutions: counts per institution, discards the rest"]
+    S --> T2["facets: 7 facet passes x N courses, in Python"]
+    S --> T3["courses: filter, sort, then slice [cursor : cursor+24]"]
+
+    T3 --> U["214 KB response for 24 cards<br/>53% of it evidence the card grid never renders"]
+
+    V{"8 of 8 gallery endpoints<br/>call _published_courses"}
+    V --> W["course_detail loads all 162 to find 1"]
+    V --> X["add_to_shortlist loads all 162 to validate 1 id"]
+    V --> Y["shortlist loads all 162 to decorate a handful"]
+
+    Z["Cost is O(published courses) per request,<br/>independent of page size."]
+    U -.- Z
