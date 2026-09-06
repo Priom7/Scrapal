@@ -237,6 +237,17 @@ export function matchCourse(course: GalleryCourse, profile: StudentProfile): Cou
   }
 }
 
+/** A figure for scanning a long list. It is always shown next to the named
+    gaps, never instead of them: the number lets someone rank twenty courses at
+    a glance, the sentences are what they act on. "close" counts as half,
+    because being 0.5 of an IELTS band short is not the same as being unable to
+    apply. Returns null when nothing could be checked — an unknown is not 0%. */
+export function matchPercent(match: CourseMatch): number | null {
+  if (match.unprofiled || match.total === 0) return null
+  const close = match.checks.filter((check) => check.verdict === 'close').length
+  return Math.round(((match.met + close * 0.5) / match.total) * 100)
+}
+
 /** Courses a student can act on come first; nothing is hidden. A course that
     could not be checked is not a better match than one that was checked and
     passed, so unchecked requirements carry a cost too — a smaller one, since

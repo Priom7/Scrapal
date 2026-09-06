@@ -446,3 +446,34 @@ describe('returning a record to review', () => {
     expect(response.status).toBe(422)
   })
 })
+
+describe('reading a natural-language search', () => {
+  const interpret = async (query: string) => {
+    const response = await mockFetch('/api/v1/admin/course-gallery/interpret', {
+      method: 'POST', body: JSON.stringify({ query }),
+    })
+    return (await response.json()) as { filters: { q: string | null; level: string | null; countries: string[]; fee_max: number | null } }
+  }
+
+  // The remainder used to be handed straight to the text filter, so
+  // "One-year master's in London under £15,000" searched for "One-year 's in"
+  // and returned nothing at all.
+  it('does not turn leftover fragments into a search term', async () => {
+    const { filters } = await interpret("One-year master's in London under £15,000")
+    expect(filters.level).toBe('Postgraduate')
+    expect(filters.countries).toEqual(['GB'])
+    expect(filters.fee_max).toBe(15000)
+    expect(filters.q).toBeNull()
+  })
+
+  it('still keeps a real subject', async () => {
+    const { filters } = await interpret('Postgraduate data science in Ireland')
+    expect(filters.q?.toLowerCase()).toContain('data')
+    expect(filters.countries).toEqual(['IE'])
+  })
+
+  it('leaves a search that names nothing recognised alone', async () => {
+    const { filters } = await interpret('cyber security')
+    expect(filters.q?.toLowerCase()).toBe('cyber security')
+  })
+})

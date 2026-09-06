@@ -1,7 +1,12 @@
+import { RefreshCw } from 'lucide-react'
 import { useState } from 'react'
+import { ICON } from '../lib'
 import { useToast } from '../toast'
+import { StudentAvatar } from './Avatar'
 import { CLASS_LABELS, type Classification } from './match'
-import { clearProfile, EMPTY_PROFILE, hasAnything, saveProfile, type StudentProfile } from './profile'
+import {
+  clearProfile, defaultAvatar, EMPTY_PROFILE, hasAnything, saveProfile, type StudentProfile,
+} from './profile'
 
 const MONTHS = ['January', 'May', 'September']
 
@@ -15,10 +20,32 @@ export function ProfilePage({ profile, onChange }: {
     setDraft((current) => ({ ...current, [key]: value }))
 
   return <div className="profile-page">
-    <p className="profile-lead">
-      Four answers are enough to check most requirements. This stays in this browser — it is never
-      sent anywhere, and you can delete it below.
-    </p>
+    {/* A profile with a face reads as yours; a column of inputs reads as a
+        form someone is making you fill in. */}
+    <header className="profile-identity">
+      <StudentAvatar src={draft.avatarUrl} name={draft.name} size={76} />
+      <div>
+        <label className="profile-name">
+          <span className="sr-only">Your name</span>
+          <input
+            value={draft.name ?? ''}
+            onChange={(event) => set('name', event.target.value || null)}
+            placeholder="Add your name"
+          />
+        </label>
+        <p className="profile-lead">
+          Four answers are enough to check most requirements. This stays in this browser — it is
+          never sent anywhere, and you can delete it below.
+        </p>
+        <button
+          type="button"
+          className="student-link"
+          onClick={() => set('avatarUrl', defaultAvatar(`${draft.name ?? 'you'}-${Date.now()}`))}
+        >
+          <RefreshCw size={ICON.xs} aria-hidden="true" /> Change picture
+        </button>
+      </div>
+    </header>
 
     <form
       onSubmit={(event) => {
@@ -28,6 +55,19 @@ export function ProfilePage({ profile, onChange }: {
         notify({ title: 'Details saved', detail: 'Courses are now matched against them.' })
       }}
     >
+      <fieldset>
+        <legend>Where you are from</legend>
+        <label>
+          Home country
+          <input
+            value={draft.homeCountry ?? ''}
+            onChange={(event) => set('homeCountry', event.target.value || null)}
+            placeholder="e.g. Bangladesh"
+          />
+          <small>Used for fee status and visa rules, never shared.</small>
+        </label>
+      </fieldset>
+
       <fieldset>
         <legend>Your qualification</legend>
         <label>

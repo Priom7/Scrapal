@@ -135,7 +135,17 @@
   border-radius: 10px;
   background: var(--s-paper);
 }
+.match-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.8rem; }
 .match-headline { font-family: var(--s-display); font-size: 1rem; font-weight: 600; }
+/* The figure is for scanning; the sentences beneath are for deciding. It never
+   appears without the count it was derived from. */
+.match-score { flex: none; display: grid; justify-items: end; line-height: 1.1; }
+.match-score strong { font-family: var(--s-mono); font-size: 1.25rem; font-weight: 500; font-variant-numeric: tabular-nums; }
+.match-score small { color: var(--s-faint); font-size: 0.68rem; white-space: nowrap; }
+.match-score.small strong { font-size: 1rem; }
+.match-score.met strong { color: var(--s-met); }
+.match-score.close strong { color: var(--s-close); }
+.match-score.unmet strong { color: var(--s-soft); }
 .match-unchecked { color: var(--s-faint); font-size: 0.8rem; margin-top: -0.15rem; }
 .match-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.3rem; }
 .match-row {
@@ -161,6 +171,14 @@
 .match-asks {
   grid-column: 3; color: var(--s-faint); font-size: 0.78rem;
 }
+/* In a 280px card there is no room for a label column; the sentence needing
+   attention takes the width. */
+.match.compact { padding: 0.65rem 0.75rem; gap: 0.4rem; }
+.match.compact .match-headline { font-size: 0.9rem; line-height: 1.35; }
+.match.compact .match-row { grid-template-columns: 19px minmax(0, 1fr); align-items: start; }
+.match.compact .match-detail { font-size: 0.82rem; line-height: 1.45; }
+.match-met { color: var(--s-met); font-size: 0.78rem; font-weight: 700; }
+
 .match.detailed { padding: 1rem 1.05rem; gap: 0.7rem; }
 .match.detailed .match-headline { font-size: 1.15rem; }
 .match-invite { font-size: 0.88rem; color: var(--s-soft); }
@@ -182,24 +200,13 @@
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
-/* ---------------------------------------------------------- course page */
-
-.course-page { display: grid; gap: 1.3rem; max-width: 720px; }
-.student-back {
-  display: inline-flex; align-items: center; gap: 0.35rem;
-  color: var(--s-soft); font-size: 0.87rem; text-decoration: none;
-  justify-self: start;
-}
-.student-back:hover { color: var(--s-ink); }
-.course-head { display: grid; gap: 0.4rem; justify-items: start; }
-.course-inst { color: var(--s-soft); font-size: 0.92rem; }
-.course-award { color: var(--s-soft); font-size: 0.88rem; }
+/* ---------------------------------------------- shared buttons and links */
 
 .student-button {
   display: inline-flex; align-items: center; gap: 0.4rem;
   min-height: 42px; padding: 0 1rem;
   color: var(--s-ink); font: inherit; font-size: 0.9rem; font-weight: 700;
-  text-decoration: none;
+  text-decoration: none; white-space: nowrap;
   border: 1px solid var(--s-line); border-radius: 10px;
   background: var(--s-surface); cursor: pointer;
 }
@@ -207,16 +214,138 @@
 .student-button.primary { color: #fff; background: var(--s-accent); border-color: var(--s-accent); }
 .student-button.primary:hover { color: #fff; filter: brightness(1.1); }
 .student-button.saved { color: var(--s-accent); background: var(--s-accent-soft); border-color: var(--s-accent); }
-.student-link { color: var(--s-accent); font-size: 0.88rem; background: none; border: 0; cursor: pointer; padding: 0; }
+
+.student-link {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  color: var(--s-accent); font: inherit; font-size: 0.88rem;
+  background: none; border: 0; padding: 0; cursor: pointer;
+}
 .student-link.danger { color: var(--s-close); text-decoration: underline; }
 
-.course-figures-block { display: grid; gap: 0.75rem; }
+.student-back {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  color: var(--s-soft); font: inherit; font-size: 0.87rem; text-decoration: none;
+  border: 0; background: none; padding: 0; cursor: pointer; justify-self: start;
+}
+.student-back:hover { color: var(--s-ink); }
+
+.student-source {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  color: var(--s-accent); font-size: 0.9rem; justify-self: start;
+}
+
+/* --------------------------------------------------------- course detail */
+
+.course-detail { display: grid; gap: 1.1rem; max-width: 860px; }
+
+.detail-banner {
+  position: relative; overflow: hidden;
+  border-radius: 16px; min-height: clamp(180px, 30vw, 260px);
+  display: flex; flex-direction: column; justify-content: flex-end;
+  padding: 1.1rem clamp(1rem, 3vw, 1.6rem);
+  color: #fff;
+}
+.detail-banner > img, .detail-banner .banner-fill {
+  position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%; object-fit: cover;
+  background: var(--s-unmet-soft);
+}
+/* The photograph is a backdrop, so the words on it have to stay readable. */
+.detail-banner::after {
+  content: ''; position: absolute; inset: 0; z-index: 1;
+  background: linear-gradient(180deg, rgba(9, 15, 26, .2) 0%, rgba(9, 15, 26, .86) 82%);
+}
+/* Everything except the photograph sits above the gradient that makes it
+   readable; the photograph sits below it. */
+.detail-banner > :not(img):not(.banner-fill) { position: relative; z-index: 2; }
+.detail-back {
+  align-self: flex-start; display: inline-flex; align-items: center; gap: 0.35rem;
+  padding: 0.35rem 0.7rem; margin-bottom: auto;
+  color: #fff; font-size: 0.84rem; text-decoration: none;
+  border-radius: 999px; background: rgba(255, 255, 255, .16);
+}
+.detail-back:hover { background: rgba(255, 255, 255, .26); }
+.detail-title { display: grid; gap: 0.4rem; }
+.detail-inst {
+  display: flex; align-items: center; gap: 0.35rem;
+  color: rgba(255, 255, 255, .82); font-size: 0.86rem;
+}
+.detail-banner h1 { color: #fff; font-size: clamp(1.4rem, 3.2vw, 2rem); }
+.detail-chips { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.detail-chips span {
+  padding: 0.2rem 0.6rem; border-radius: 999px;
+  font-size: 0.76rem; color: #fff; background: rgba(255, 255, 255, .18);
+}
+
+.detail-actions { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.icon-action {
+  display: grid; place-items: center; width: 42px; height: 42px; padding: 0;
+  color: var(--s-soft); border: 1px solid var(--s-line); border-radius: 10px;
+  background: var(--s-surface); cursor: pointer;
+}
+.icon-action:hover { color: var(--s-accent); border-color: var(--s-accent); }
+
+/* One overflow control instead of a row of competing buttons. */
+.more-menu { position: relative; }
+.more-pop {
+  position: absolute; right: 0; top: calc(100% + 0.35rem); z-index: 30;
+  min-width: 230px; display: grid; padding: 0.3rem;
+  border: 1px solid var(--s-line); border-radius: 11px; background: var(--s-surface);
+  box-shadow: 0 14px 36px rgba(8, 13, 22, .17);
+}
+.more-pop button, .more-pop a {
+  display: flex; align-items: center; gap: 0.55rem;
+  padding: 0.55rem 0.6rem; border: 0; border-radius: 8px;
+  background: transparent; color: var(--s-ink); cursor: pointer;
+  font: inherit; font-size: 0.88rem; text-align: left; text-decoration: none;
+}
+.more-pop button:hover, .more-pop a:hover { background: var(--s-paper); }
+
+.detail-nav {
+  display: flex; gap: 0.3rem; overflow-x: auto;
+  padding-bottom: 0.2rem; border-bottom: 1px solid var(--s-line);
+  scrollbar-width: none;
+}
+.detail-nav::-webkit-scrollbar { display: none; }
+.detail-nav button {
+  display: inline-flex; align-items: center; gap: 0.35rem; flex: none;
+  padding: 0.5rem 0.7rem; border: 0; border-bottom: 2px solid transparent;
+  background: transparent; color: var(--s-soft); cursor: pointer;
+  font: inherit; font-size: 0.86rem; white-space: nowrap;
+}
+.detail-nav button:hover { color: var(--s-ink); }
+.detail-nav button.on { color: var(--s-accent); border-bottom-color: var(--s-accent); font-weight: 700; }
+
+.detail-section {
+  display: grid; gap: 0.7rem; scroll-margin-top: 5rem;
+  padding: 1.1rem 1.2rem;
+  border: 1px solid var(--s-line); border-radius: 12px; background: var(--s-surface);
+}
+.detail-section h2 { display: flex; align-items: center; gap: 0.45rem; font-size: 1.05rem; }
+.detail-section p { color: var(--s-soft); max-width: 66ch; line-height: 1.65; }
+
+.key-strip-student {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0; border: 1px solid var(--s-line-soft); border-radius: 10px; overflow: hidden;
+}
+.key-fact-student {
+  margin: 0; padding: 0.7rem 0.8rem;
+  border-left: 3px solid var(--s-unmet); background: var(--s-paper);
+  box-shadow: inset 0 0 0 1px var(--s-line-soft);
+}
+.key-fact-student.met { border-left-color: var(--s-met); }
+.key-fact-student.close { border-left-color: var(--s-close); }
+.key-fact-student.unmet { border-left-color: var(--s-close); }
+.key-fact-student dt { color: var(--s-faint); font-size: 0.72rem; }
+.key-fact-student dd { margin: 0.15rem 0 0; font-size: 0.86rem; line-height: 1.45; }
+.key-fact-student.close dd, .key-fact-student.unmet dd { color: var(--s-close); font-weight: 700; }
+.detail-score { display: flex; justify-content: flex-end; }
+
 .figure-rows { display: grid; gap: 0; margin: 0; border-top: 1px solid var(--s-line-soft); }
 .figure-rows > div {
   display: flex; align-items: baseline; justify-content: space-between; gap: 1rem;
   margin: 0; padding: 0.65rem 0; border-bottom: 1px solid var(--s-line-soft);
 }
-.figure-rows dt { color: var(--s-soft); font-size: 0.88rem; }
+.figure-rows dt { display: flex; align-items: center; gap: 0.4rem; color: var(--s-soft); font-size: 0.88rem; }
 .figure-rows dd { margin: 0; }
 .figure-value {
   padding: 0; border: 0; background: transparent; cursor: pointer;
@@ -232,22 +361,16 @@
 }
 .figure-value:disabled { color: var(--s-faint); cursor: default; font-style: italic; }
 .receipt-quote {
-  display: grid; gap: 0.4rem; margin: 0;
-  padding: 0.85rem 1rem;
-  border-radius: 10px; background: var(--s-accent-soft);
-  color: var(--s-ink);
+  display: grid; gap: 0.35rem; margin: 0;
+  padding: 0.8rem 0.95rem; border-radius: 10px; background: var(--s-accent-soft);
 }
-.receipt-quote p { font-family: var(--s-mono); font-size: 0.82rem; line-height: 1.6; }
+.receipt-quote p { font-family: var(--s-mono); font-size: 0.82rem; line-height: 1.6; color: var(--s-ink); }
 .receipt-quote cite { color: var(--s-soft); font-size: 0.78rem; font-style: normal; }
 .receipt-hint { color: var(--s-faint); font-size: 0.82rem; }
 
-.course-prose { display: grid; gap: 0.5rem; }
-.course-prose p { max-width: 66ch; color: var(--s-soft); }
 .module-list { margin: 0; padding-left: 1.15rem; display: grid; gap: 0.3rem; color: var(--s-soft); font-size: 0.92rem; }
-.student-source {
-  display: inline-flex; align-items: center; gap: 0.4rem;
-  color: var(--s-accent); font-size: 0.9rem; justify-self: start;
-}
+.match-invite { font-size: 0.88rem; color: var(--s-soft); }
+.match-invite a { color: var(--s-accent); }
 
 /* -------------------------------------------------------- profile page */
 
@@ -436,6 +559,7 @@
   .cost-amount { grid-row: auto; grid-column: 2; align-self: start; }
 }
 
+.planner.is-opening ~ .student-foot-note { display: none; }
 .student-foot-note {
   max-width: 62ch; margin: 2.5rem 0 0;
   padding-top: 1.1rem; border-top: 1px solid var(--s-line);
@@ -446,3 +570,825 @@
 .student-shell .workspace { padding-bottom: 2rem; }
 /* The topbar carries the page title, so the student topbar needs no actions. */
 .student-shell .topbar { grid-template-columns: 44px minmax(0, 1fr); }
+
+/* -------------------------------------------------------------- claim check */
+
+.check-page { display: grid; gap: 1.2rem; max-width: 720px; }
+.check-lead { color: var(--s-soft); max-width: 62ch; font-size: 0.94rem; }
+
+.check-form { display: grid; gap: 0.7rem; justify-items: start; }
+.check-form label { width: 100%; }
+.check-form textarea {
+  width: 100%; padding: 0.75rem 0.85rem;
+  border: 1px solid var(--s-line); border-radius: 11px;
+  background: var(--s-surface); color: var(--s-ink);
+  font: inherit; font-size: 1rem; line-height: 1.5; resize: vertical;
+}
+
+.check-examples { display: grid; gap: 0.45rem; justify-items: start; }
+.check-examples > span { color: var(--s-faint); font-size: 0.8rem; }
+.check-examples button {
+  max-width: 100%; padding: 0.5rem 0.75rem; text-align: left;
+  color: var(--s-soft); font: inherit; font-size: 0.87rem; line-height: 1.4;
+  border: 1px dashed var(--s-line); border-radius: 10px;
+  background: transparent; cursor: pointer;
+}
+.check-examples button:hover { color: var(--s-ink); border-color: var(--s-accent); }
+
+/* The verdict is the one thing on this page carrying colour, and the colour is
+   a claim about evidence — not a judgement of the person who was told it. */
+.verdict {
+  display: grid; gap: 0.85rem;
+  padding: 1.1rem 1.2rem;
+  border: 1px solid var(--s-line); border-left: 3px solid var(--s-unmet);
+  border-radius: 12px; background: var(--s-surface);
+}
+.verdict > header { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0.75rem; align-items: start; }
+.verdict header p { color: var(--s-soft); font-size: 0.91rem; max-width: 60ch; }
+.verdict h2 { margin-bottom: 0.15rem; }
+.verdict h3 { font-family: var(--s-display); font-size: 0.95rem; font-weight: 600; margin: 0; }
+.verdict-mark {
+  display: grid; place-items: center; width: 30px; height: 30px;
+  border-radius: 9px; color: var(--s-unmet); background: var(--s-unmet-soft);
+}
+.verdict.supported { border-left-color: var(--s-met); }
+.verdict.supported .verdict-mark { color: var(--s-met); background: var(--s-met-soft); }
+.verdict.conflicting { border-left-color: var(--s-close); }
+.verdict.conflicting .verdict-mark { color: var(--s-close); background: var(--s-close-soft); }
+.verdict.related { border-left-color: var(--s-accent); }
+.verdict.related .verdict-mark { color: var(--s-accent); background: var(--s-accent-soft); }
+
+.conflict-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.45rem; }
+.conflict-list li {
+  display: grid; gap: 0.15rem;
+  padding: 0.6rem 0.75rem; border-radius: 9px; background: var(--s-close-soft);
+}
+.conflict-claimed { color: var(--s-soft); font-size: 0.84rem; text-decoration: line-through; }
+.conflict-published {
+  color: var(--s-close); font-family: var(--s-mono); font-size: 0.95rem; font-weight: 500;
+}
+
+.verdict-absolutes { color: var(--s-soft); font-size: 0.88rem; }
+.verdict-absolutes code {
+  font-family: var(--s-mono); font-size: 0.82rem;
+  padding: 0.05rem 0.35rem; margin: 0 0.15rem;
+  border-radius: 5px; background: var(--s-unmet-soft); color: var(--s-ink);
+}
+
+.evidence-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.7rem; }
+.evidence-list li { display: grid; gap: 0.3rem; }
+.evidence-list blockquote {
+  display: flex; gap: 0.5rem; margin: 0;
+  padding: 0.7rem 0.85rem; border-radius: 9px; background: var(--s-paper);
+}
+.evidence-list blockquote svg { flex: none; margin-top: 0.25rem; color: var(--s-faint); }
+.evidence-list blockquote p { font-family: var(--s-mono); font-size: 0.8rem; line-height: 1.6; }
+.evidence-list a { color: var(--s-accent); font-size: 0.83rem; }
+
+.check-caveat {
+  color: var(--s-faint); font-size: 0.82rem; max-width: 60ch;
+  padding-top: 0.9rem; border-top: 1px solid var(--s-line-soft);
+}
+
+/* ------------------------------------------------------------ change watch */
+
+.change-watch {
+  display: grid; gap: 0.6rem;
+  padding: 1rem 1.15rem;
+  border: 1px solid var(--s-line); border-left: 3px solid var(--s-accent);
+  border-radius: 12px; background: var(--s-surface);
+}
+.change-watch h2 { font-size: 1rem; }
+.change-watch ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.45rem; }
+.change-watch li {
+  display: grid; grid-template-columns: 22px minmax(0, 1fr);
+  gap: 0.55rem; align-items: start; font-size: 0.9rem;
+}
+.change-mark {
+  display: grid; place-items: center; width: 21px; height: 21px;
+  border-radius: 50%; color: var(--s-unmet); background: var(--s-unmet-soft);
+}
+/* A fee rise is the change a reader most needs to catch, so it is the one that
+   carries colour. A fall is good news and stays quiet. */
+.change-watch li.up .change-mark { color: var(--s-close); background: var(--s-close-soft); }
+.change-watch li.up .change-text { font-weight: 700; }
+.change-watch li.down .change-mark { color: var(--s-met); background: var(--s-met-soft); }
+.change-note { color: var(--s-faint); font-size: 0.79rem; }
+
+/* ------------------------------------------------------------- the planner */
+
+.planner {
+  display: flex; flex-direction: column;
+  min-height: min(72vh, 660px);
+  max-width: 720px;
+}
+/* Before the conversation has really begun there is nothing to scroll, so the
+   opening sits in the middle of the space rather than pinned to its top edge
+   with a void beneath. */
+.planner.is-opening { justify-content: center; }
+.planner.is-opening .thread { flex: 0; padding-bottom: 1.25rem; }
+.planner.is-opening .composer { margin-top: 0; }
+
+.thread { flex: 1; display: flex; flex-direction: column; gap: 0.5rem; }
+
+/* A turn is the speaker mark plus what they said. */
+.turn { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 0.55rem; align-items: start; }
+/* The student's turn mirrors: their face sits on the right of their words. */
+.turn.student { grid-template-columns: minmax(0, 1fr) 30px; justify-items: end; }
+.turn.student .turn-face { order: 2; }
+.turn.card { grid-template-columns: minmax(0, 1fr); }
+.turn-face { margin-top: 0.15rem; }
+.turn-face.hidden { visibility: hidden; }
+
+.avatar {
+  display: grid; place-items: center; overflow: hidden;
+  border-radius: 50%; flex: none;
+}
+.avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.scrapal-avatar { background: #fff; border: 1px solid var(--s-line); }
+.scrapal-avatar img { object-fit: contain; padding: 3px; }
+.student-avatar { background: var(--s-accent-soft); color: var(--s-accent); }
+.avatar-initials { font-family: var(--s-display); font-size: 0.72rem; font-weight: 600; }
+
+.bubble {
+  /* A comfortable reading measure. A bubble spanning a desktop column reads as
+     a document, not speech. */
+  max-width: 56ch;
+  padding: 0.7rem 0.95rem;
+  border-radius: 15px;
+  font-size: 0.95rem; line-height: 1.55;
+}
+.bubble p { margin: 0; }
+.bubble.scrapal {
+  color: var(--s-ink); background: var(--s-surface);
+  border: 1px solid var(--s-line);
+  border-top-left-radius: 5px;
+}
+.bubble.student {
+  /* Hug the words. A short reply stretched across the column reads as a banner,
+     not something a person said. */
+  width: fit-content;
+  color: #fff; background: var(--s-accent);
+  border-bottom-right-radius: 5px;
+}
+.bubble.card-bubble { max-width: 100%; width: 100%; padding: 0; border: 0; background: transparent; }
+
+.turn .bubble.thinking, .bubble.thinking { display: flex; gap: 4px; padding: 0.85rem 0.9rem; width: fit-content; }
+.bubble.thinking span {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--s-faint); animation: planner-pulse 1.1s infinite;
+}
+.bubble.thinking span:nth-child(2) { animation-delay: 0.15s; }
+.bubble.thinking span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes planner-pulse { 0%, 60%, 100% { opacity: 0.25; } 30% { opacity: 1; } }
+
+.chips { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.25rem 0 0 2.15rem; }
+.chips button {
+  min-height: 38px; padding: 0 0.85rem;
+  color: var(--s-accent); font: inherit; font-size: 0.89rem; font-weight: 700;
+  border: 1px solid color-mix(in srgb, var(--s-accent) 45%, var(--s-line));
+  border-radius: 999px; background: var(--s-surface); cursor: pointer;
+}
+.chips button:hover { background: var(--s-accent-soft); }
+.chips button.skip { color: var(--s-soft); border-color: var(--s-line); font-weight: 400; }
+
+.composer {
+  position: sticky; bottom: 0; margin-top: auto;
+  display: flex; gap: 0.5rem; align-items: center;
+  padding: 0.6rem 0 0.2rem;
+  background: linear-gradient(to top, var(--s-paper) 72%, transparent);
+}
+.composer input {
+  flex: 1; min-width: 0; min-height: 46px; padding: 0 0.9rem;
+  border: 1px solid var(--s-line); border-radius: 999px;
+  background: var(--s-surface); color: var(--s-ink); font: inherit; font-size: 1rem;
+}
+.composer button {
+  flex: none; display: grid; place-items: center;
+  width: 46px; height: 46px; padding: 0;
+  color: #fff; border: 0; border-radius: 50%;
+  background: var(--s-accent); cursor: pointer;
+}
+.composer button:disabled { opacity: 0.45; cursor: default; }
+
+/* Cards in the thread: the answer is shown, not described. */
+.chat-courses { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.6rem; }
+.chat-courses > li {
+  display: grid; gap: 0.6rem;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid var(--s-line); border-radius: 12px; background: var(--s-surface);
+}
+.chat-courses a { text-decoration: none; color: inherit; display: grid; gap: 0.1rem; }
+.chat-courses a:hover strong { text-decoration: underline; text-underline-offset: 2px; }
+.chat-courses strong { font-family: var(--s-display); font-size: 1rem; font-weight: 600; }
+.chat-courses a span { color: var(--s-soft); font-size: 0.85rem; }
+.chat-figures { display: flex; flex-wrap: wrap; gap: 0.15rem 1.1rem; margin: 0; }
+.chat-figures div { margin: 0; }
+.chat-figures dt { color: var(--s-faint); font-size: 0.72rem; }
+.chat-figures dd {
+  margin: 0; font-family: var(--s-mono); font-size: 0.88rem; font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.chat-costs {
+  display: grid; gap: 0.6rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--s-line); border-radius: 12px; background: var(--s-surface);
+}
+.chat-costs ul { list-style: none; margin: 0; padding: 0; display: grid; }
+.chat-costs li {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 1rem;
+  padding: 0.45rem 0; border-bottom: 1px solid var(--s-line-soft); font-size: 0.9rem;
+}
+.chat-costs li span em {
+  display: block; font-style: normal; color: var(--s-faint); font-size: 0.72rem;
+}
+.chat-amount { font-family: var(--s-mono); font-variant-numeric: tabular-nums; }
+.chat-total {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 1rem;
+}
+.chat-total strong {
+  font-family: var(--s-mono); font-size: 1.2rem; font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bubble.thinking span { animation: none; }
+}
+
+/* ------------------------------------------------------------ applications */
+
+.applications { display: grid; gap: 1.2rem; max-width: 720px; }
+.pack-head { display: grid; gap: 0.25rem; }
+.pack-course { font-family: var(--s-display); font-size: 1.05rem; font-weight: 600; }
+.pack-status { color: var(--s-close); font-size: 0.9rem; font-weight: 700; }
+.pack-status.ready { color: var(--s-met); }
+
+.doc-list { list-style: none; margin: 0; padding: 0; display: grid; }
+.doc-list li {
+  display: grid; grid-template-columns: 26px minmax(0, 1fr) auto;
+  gap: 0.15rem 0.7rem; align-items: start;
+  padding: 0.75rem 0; border-bottom: 1px solid var(--s-line-soft);
+}
+.doc-tick {
+  display: grid; place-items: center;
+  width: 22px; height: 22px; margin-top: 0.15rem; padding: 0;
+  color: transparent; border: 1.5px solid var(--s-line); border-radius: 6px;
+  background: transparent; cursor: pointer;
+}
+.doc-list li.done .doc-tick { color: #fff; border-color: var(--s-met); background: var(--s-met); }
+.doc-body { min-width: 0; display: grid; gap: 0.2rem; }
+.doc-body strong { display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap; font-size: 0.93rem; }
+.doc-why { color: var(--s-soft); font-size: 0.83rem; line-height: 1.45; }
+.doc-file {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  padding: 0.2rem 0.5rem; border-radius: 7px;
+  background: var(--s-accent-soft); color: var(--s-accent);
+  font-family: var(--s-mono); font-size: 0.76rem; justify-self: start;
+}
+.doc-file button { display: grid; place-items: center; padding: 0; border: 0; background: none; color: inherit; cursor: pointer; }
+.doc-expiry { display: flex; align-items: center; gap: 0.45rem; color: var(--s-soft); font-size: 0.8rem; }
+.doc-expiry input {
+  min-height: 34px; padding: 0 0.5rem;
+  border: 1px solid var(--s-line); border-radius: 8px;
+  background: var(--s-paper); color: var(--s-ink); font: inherit; font-size: 0.85rem;
+}
+.doc-warning {
+  display: flex; align-items: flex-start; gap: 0.4rem;
+  color: var(--s-close); font-size: 0.82rem; line-height: 1.45;
+}
+.doc-attach {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  min-height: 32px; padding: 0 0.6rem; white-space: nowrap;
+  color: var(--s-soft); font: inherit; font-size: 0.82rem;
+  border: 1px solid var(--s-line); border-radius: 8px; background: transparent; cursor: pointer;
+}
+.doc-attach:hover { color: var(--s-accent); border-color: var(--s-accent); }
+
+.statement-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.statement-prompt { display: grid; gap: 0.3rem; font-size: 0.9rem; }
+.statement-prompt textarea {
+  padding: 0.6rem 0.7rem; resize: vertical;
+  border: 1px solid var(--s-line); border-radius: 9px;
+  background: var(--s-paper); color: var(--s-ink); font: inherit; font-size: 0.95rem;
+}
+.statement-draft { display: grid; gap: 0.85rem; padding-top: 0.4rem; }
+.statement-draft h3 { font-family: var(--s-display); font-size: 0.88rem; font-weight: 600; margin: 0 0 0.15rem; color: var(--s-faint); }
+.statement-draft p { font-size: 0.95rem; line-height: 1.65; }
+/* A section still waiting on the student is marked, so an unfinished draft
+   cannot be mistaken for a finished one. */
+.statement-draft .needs-you {
+  padding-left: 0.75rem; border-left: 2px solid var(--s-close);
+}
+
+.chat-application {
+  display: grid; gap: 0.35rem; justify-items: start;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--s-line); border-radius: 12px; background: var(--s-surface);
+}
+.chat-application strong { font-family: var(--s-display); font-size: 1rem; font-weight: 600; }
+.chat-application > span { color: var(--s-soft); font-size: 0.85rem; }
+.chat-application ul { list-style: none; margin: 0.3rem 0; padding: 0; width: 100%; display: grid; gap: 0.25rem; }
+.chat-application li { display: flex; justify-content: space-between; gap: 1rem; font-size: 0.88rem; }
+
+/* ------------------------------------------- the catalogue, inside the chat */
+
+/* A list of courses in a thread would push the conversation off the screen, so
+   it scrolls sideways instead — the way a catalogue behaves on a phone. */
+.chat-catalogue { display: grid; gap: 0.35rem; width: 100%; }
+.turn.scrapal .card-bubble > * { width: 100%; }
+.chat-rail {
+  list-style: none; margin: 0; padding: 0 0 0.3rem;
+  display: grid; grid-auto-flow: column; grid-auto-columns: min(280px, 82vw);
+  gap: 0.6rem; overflow-x: auto; scroll-snap-type: x mandatory;
+  scrollbar-width: thin; -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+.chat-rail > li {
+  scroll-snap-align: start;
+  /* A column so the action sits on the same line across every card, however
+     much the match summary above it varies. */
+  display: flex; flex-direction: column; gap: 0.55rem;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid var(--s-line); border-radius: 12px; background: var(--s-surface);
+}
+.chat-rail > li .student-button { margin-top: auto; }
+.chat-rail a { text-decoration: none; color: inherit; display: grid; gap: 0.1rem; }
+.chat-rail a:hover strong { text-decoration: underline; text-underline-offset: 2px; }
+.chat-rail strong { font-family: var(--s-display); font-size: 0.98rem; font-weight: 600; }
+.chat-rail a span { color: var(--s-soft); font-size: 0.83rem; }
+.chat-rail .student-button { justify-self: stretch; justify-content: center; }
+.rail-hint { color: var(--s-faint); font-size: 0.76rem; }
+
+.chat-answer ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.55rem; }
+.chat-answer li { display: grid; gap: 0.25rem; }
+.chat-answer blockquote {
+  display: flex; gap: 0.45rem; margin: 0;
+  padding: 0.6rem 0.75rem; border-radius: 10px; background: var(--s-surface);
+  border: 1px solid var(--s-line);
+}
+.chat-answer blockquote svg { flex: none; margin-top: 0.25rem; color: var(--s-faint); }
+.chat-answer blockquote p { font-family: var(--s-mono); font-size: 0.79rem; line-height: 1.6; }
+.chat-answer a { color: var(--s-accent); font-size: 0.8rem; }
+.chat-answer.empty p {
+  padding: 0.7rem 0.85rem; border-radius: 10px;
+  border: 1px solid var(--s-line); background: var(--s-surface);
+  color: var(--s-soft); font-size: 0.9rem;
+}
+.chat-thinking-note { color: var(--s-faint); font-size: 0.86rem; }
+
+.chat-drafts { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
+.chat-drafts li {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.8rem; flex-wrap: wrap;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--s-line); border-radius: 12px; background: var(--s-surface);
+}
+.chat-drafts strong { display: block; font-family: var(--s-display); font-size: 0.95rem; font-weight: 600; }
+.chat-drafts span { color: var(--s-soft); font-size: 0.82rem; }
+
+/* Chat-first is the paid tier; the badge says so without shouting. */
+.sidebar nav a .nav-label { white-space: nowrap; }
+.sidebar nav a .nav-tag {
+  margin-left: auto; padding: 0.1rem 0.4rem;
+  font-size: 0.62rem; font-weight: 700; letter-spacing: 0.02em;
+  border-radius: 999px; color: var(--amber); background: color-mix(in srgb, var(--amber) 18%, transparent);
+}
+.sidebar-collapsed .nav-tag { display: none; }
+
+.thread-tools { display: flex; justify-content: center; padding-top: 0.35rem; }
+.thread-tools button {
+  padding: 0.2rem 0; border: 0; background: none; cursor: pointer;
+  color: var(--s-faint); font: inherit; font-size: 0.78rem; text-decoration: underline;
+}
+.thread-tools button:hover { color: var(--s-ink); }
+
+.chat-docs { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.3rem; }
+.chat-docs li { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 0.55rem; align-items: center; font-size: 0.9rem; }
+.chat-docs button {
+  display: grid; place-items: center; width: 22px; height: 22px; padding: 0;
+  color: transparent; border: 1.5px solid var(--s-line); border-radius: 6px;
+  background: var(--s-surface); cursor: pointer;
+}
+.chat-docs li.done button { color: #fff; border-color: var(--s-met); background: var(--s-met); }
+.chat-docs li.done span { color: var(--s-soft); }
+.chat-docs em {
+  margin-left: 0.4rem; font-style: normal; font-size: 0.68rem; font-weight: 700;
+  padding: 0.05rem 0.35rem; border-radius: 999px;
+  color: var(--s-met); background: var(--s-met-soft);
+}
+
+.draft-status { font-weight: 700; }
+.draft-status.submitted { color: var(--s-accent); }
+.draft-status.offer { color: var(--s-met); }
+.draft-status.unsuccessful { color: var(--s-soft); }
+
+.pack-stage { display: flex; align-items: center; gap: 0.5rem; font-size: 0.86rem; color: var(--s-soft); margin-top: 0.35rem; }
+.pack-stage select {
+  min-height: 36px; padding: 0 0.55rem;
+  border: 1px solid var(--s-line); border-radius: 8px;
+  background: var(--s-surface); color: var(--s-ink); font: inherit; font-size: 0.88rem;
+}
+
+/* ---------------------------------------------------------------- profile */
+
+.profile-identity {
+  display: grid; grid-template-columns: auto minmax(0, 1fr);
+  gap: 0 1rem; align-items: start;
+  padding: 1.1rem 1.2rem;
+  border: 1px solid var(--s-line); border-radius: 12px; background: var(--s-surface);
+}
+.profile-identity .avatar { box-shadow: 0 0 0 3px var(--s-surface), 0 0 0 4px var(--s-line); }
+.profile-identity > div { display: grid; gap: 0.4rem; justify-items: start; min-width: 0; }
+.profile-name input {
+  width: 100%; padding: 0; border: 0; background: transparent;
+  color: var(--s-ink); font-family: var(--s-display);
+  font-size: 1.4rem; font-weight: 600; letter-spacing: -0.035em;
+}
+.profile-name input::placeholder { color: var(--s-faint); }
+.profile-identity .student-link { display: inline-flex; align-items: center; gap: 0.3rem; }
+
+@media (max-width: 480px) {
+  .profile-identity { grid-template-columns: 1fr; gap: 0.75rem; justify-items: start; }
+}
+
+/* ------------------------------------------------------------------ imagery */
+
+/* Placeholder photography while universities supply their own. Every one has a
+   solid-colour fallback so a lost network leaves a brand colour, not a hole. */
+.rail-photo, .card-photo, .course-banner {
+  display: block; width: 100%; object-fit: cover;
+  background: var(--s-unmet-soft);
+}
+.rail-photo { height: 96px; border-radius: 9px; }
+.card-photo { height: 116px; border-radius: 10px; margin-bottom: 0.25rem; }
+.course-banner { height: clamp(140px, 26vw, 220px); border-radius: 14px; }
+.placeholder { opacity: 0.9; }
+
+.course-card { overflow: hidden; }
+
+/* The statement, in the thread. */
+.chat-statement {
+  display: grid; gap: 0.75rem;
+  padding: 0.95rem 1.05rem;
+  border: 1px solid var(--s-line); border-radius: 12px; background: var(--s-surface);
+}
+.chat-statement h4 {
+  margin: 0 0 0.15rem; font-family: var(--s-display);
+  font-size: 0.8rem; font-weight: 600; color: var(--s-faint);
+}
+.chat-statement p { font-size: 0.92rem; line-height: 1.6; }
+.chat-statement .needs-you { padding-left: 0.7rem; border-left: 2px solid var(--s-close); }
+.chat-statement-foot {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.8rem; flex-wrap: wrap;
+  padding-top: 0.55rem; border-top: 1px solid var(--s-line-soft);
+}
+.chat-statement-foot span { color: var(--s-faint); font-size: 0.79rem; }
+
+.chat-docs li { grid-template-columns: 24px minmax(0, 1fr) auto; }
+.chat-doc-file {
+  display: block; margin-top: 0.1rem;
+  font-family: var(--s-mono); font-size: 0.73rem; font-weight: 400; color: var(--s-accent);
+}
+.chat-doc-attach {
+  display: grid; place-items: center; width: 30px; height: 30px;
+  border: 1px solid var(--s-line); border-radius: 8px;
+  color: var(--s-soft); cursor: pointer;
+}
+.chat-doc-attach:hover { color: var(--s-accent); border-color: var(--s-accent); }
+.chat-doc-attach input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+
+/* ------------------------------------- the gallery, tuned for the student */
+
+/* The student gallery reuses the operator gallery's structure and chrome. What
+   changes is what a card leads with: the operator needs evidence coverage, the
+   student needs to know whether they can get in. */
+.student-gallery .dossier {
+  display: flex; flex-direction: column; gap: 0;
+  overflow: hidden;
+}
+.dossier-photo {
+  display: block; width: 100%; height: 118px; object-fit: cover;
+  background: var(--surface-2);
+}
+.student-gallery .dossier > header { padding: 0.75rem 0.9rem 0 1.1rem; }
+.student-gallery .dossier .who { display: grid; gap: 0.05rem; }
+.student-gallery .dossier .who strong { font-size: 0.82rem; }
+.student-gallery .dossier .who span { color: var(--ink-soft); font-size: 0.75rem; }
+.student-gallery .dossier h3 { padding: 0 0.9rem 0 1.1rem; margin: 0.35rem 0 0; }
+.student-gallery .dossier h3 a { color: inherit; text-decoration: none; }
+.student-gallery .dossier h3 a:hover { text-decoration: underline; text-underline-offset: 2px; }
+
+.student-gallery .figures {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.1rem 0.8rem; margin: 0.75rem 0 0; padding: 0 0.9rem 0 1.1rem;
+}
+.student-gallery .figures div { margin: 0; min-width: 0; }
+.student-gallery .figures dt { color: var(--ink-soft); font-size: 0.7rem; }
+.student-gallery .figures dd { margin: 0.1rem 0 0; }
+/* Figures keep the gallery's citation treatment: mono, tabular, traceable. */
+.student-gallery .figures dd, .student-gallery .figures dt { text-align: left; }
+.student-gallery .figure-value {
+  display: block; text-align: left;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font: 600 0.9rem 'IBM Plex Mono', ui-monospace, monospace;
+  letter-spacing: -0.02em; font-variant-numeric: tabular-nums;
+}
+
+.student-gallery .dossier > footer {
+  display: flex; align-items: center; gap: 0.7rem;
+  margin-top: auto; padding: 0.75rem 0.9rem 0.85rem 1.1rem;
+}
+.student-gallery .card-gap {
+  min-width: 0; color: var(--ink-soft); font-size: 0.78rem; line-height: 1.4;
+}
+.student-gallery .match-score strong { font-size: 1.15rem; }
+
+.student-gallery .profile-strip { margin: 0 clamp(1.2rem, 2.6vw, 2rem) 0.9rem; }
+.student-gallery .gallery-resultline h2 { font-family: 'Sora', sans-serif; font-size: 1.05rem; }
+.student-gallery .plan-strip p { margin: 0; }
+.student-gallery .plan-strip strong { display: block; }
+
+/* ------------------------------------------------------ application cards */
+
+.application-cards { list-style: none; margin: 0; padding: 0; display: grid; gap: 1rem; }
+.application-card {
+  overflow: hidden;
+  border: 1px solid var(--s-line); border-radius: 14px; background: var(--s-surface);
+}
+.application-banner {
+  display: block; width: 100%; height: 120px; object-fit: cover;
+  background: var(--s-unmet-soft);
+}
+.application-body { display: grid; gap: 0.8rem; padding: 0.95rem 1.1rem 1.1rem; }
+.application-body > header {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 0.8rem;
+}
+.application-body h2 { font-size: 1.1rem; }
+.application-body h2 button {
+  padding: 0; border: 0; background: none; cursor: pointer;
+  color: inherit; font: inherit; text-align: left;
+}
+.application-body h2 button:hover { text-decoration: underline; text-underline-offset: 2px; }
+.application-body header p { color: var(--s-soft); font-size: 0.86rem; margin-top: 0.1rem; }
+
+.app-status {
+  flex: none; padding: 0.15rem 0.55rem; border-radius: 999px;
+  font-size: 0.72rem; font-weight: 700; white-space: nowrap;
+  color: var(--s-soft); background: var(--s-unmet-soft);
+}
+.app-status.submitted { color: var(--s-accent); background: var(--s-accent-soft); }
+.app-status.offer { color: var(--s-met); background: var(--s-met-soft); }
+
+.app-progress {
+  height: 6px; border-radius: 3px; overflow: hidden; background: var(--s-unmet-soft);
+}
+.app-progress span { display: block; height: 100%; background: var(--s-accent); border-radius: 3px; }
+
+.app-stats {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(74px, 1fr));
+  gap: 0.4rem 0.9rem; margin: 0;
+}
+.app-stats div { margin: 0; min-width: 0; }
+.app-stats dt { color: var(--s-faint); font-size: 0.71rem; }
+.app-stats dd {
+  margin: 0.1rem 0 0;
+  font-family: var(--s-mono); font-size: 1.05rem; font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.app-stats dd small { color: var(--s-faint); font-size: 0.72rem; font-weight: 400; }
+.app-match dd { margin-top: 0; }
+.app-match .match-score { justify-items: start; }
+.application-body .student-button { justify-self: start; }
+
+/* The filter sheet on a phone: a sheet floating over a live, scrolling page
+   reads as a glitch. It needs a backdrop, a locked page and a way out. */
+.filter-backdrop {
+  position: fixed; inset: 0; z-index: 61;
+  padding: 0; border: 0; cursor: pointer;
+  background: rgba(9, 14, 20, 0.42);
+  -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px);
+}
+.student-gallery .filter-pop header { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; }
+.filter-pop-actions { display: flex; align-items: center; gap: 0.2rem; }
+.filter-pop-close {
+  display: grid; place-items: center; width: 30px; height: 30px; padding: 0;
+  color: var(--ink-soft); border: 0; border-radius: 8px; background: transparent; cursor: pointer;
+}
+.filter-pop-close:hover { color: var(--ink); background: var(--surface-2); }
+
+@media (min-width: 761px) {
+  .filter-pop-close { display: none; }
+}
+
+/* A page that carries its own heading gets a quieter label in the topbar. */
+.topbar-title {
+  margin: 0; color: var(--s-soft);
+  font-family: var(--s-display); font-size: 1.02rem; font-weight: 600;
+  letter-spacing: -0.03em;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* The overflow control and its menu, used on cards and detail pages alike. */
+.card-actions { display: flex; align-items: center; gap: 0.15rem; }
+.card-actions .icon-action { width: 34px; height: 34px; border: 0; background: transparent; }
+.card-actions .icon-action:hover { background: var(--s-paper); }
+.more-pop.left { right: auto; left: 0; }
+.more-pop button.danger { color: var(--s-close); }
+.more-pop button.danger:hover { background: var(--s-close-soft); }
+.app-head-actions { display: flex; align-items: center; gap: 0.35rem; flex: none; }
+.app-head-actions .icon-action { width: 34px; height: 34px; border: 0; background: transparent; }
+.app-head-actions .icon-action:hover { background: var(--s-paper); }
+
+/* The sheet is portalled to the body, so it needs its own geometry rather than
+   inheriting the desktop popover's absolute positioning. */
+.filter-pop.is-sheet {
+  position: fixed; inset: auto 0 0; z-index: 62;
+  width: auto; max-height: 78vh;
+  display: flex; flex-direction: column;
+  border: 1px solid var(--line); border-bottom: 0;
+  border-radius: 18px 18px 0 0;
+  background: var(--surface);
+  box-shadow: 0 -18px 44px rgba(8, 13, 22, .34);
+  padding-bottom: env(safe-area-inset-bottom);
+  animation: sheet-rise 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.filter-pop.is-sheet::before {
+  content: ''; display: block; flex: none;
+  width: 38px; height: 4px; margin: 0.6rem auto 0.1rem;
+  border-radius: 2px; background: var(--line);
+}
+.filter-pop.is-sheet footer { display: block; padding: 0.55rem; border-top: 1px solid var(--line); }
+.filter-pop.is-sheet footer button {
+  width: 100%; padding: 0.85rem;
+  color: #fff; font: inherit; font-weight: 700; font-size: 0.92rem;
+  border: 0; border-radius: 11px; background: var(--s-accent); cursor: pointer;
+}
+.filter-backdrop { animation: fade-in 0.18s ease; }
+
+@keyframes sheet-rise { from { transform: translateY(14px); opacity: 0.6; } to { transform: none; opacity: 1; } }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .filter-pop.is-sheet, .filter-backdrop { animation: none; }
+}
+
+/* ------------------------------------------------------- the search hero */
+
+/* The operator gallery's masthead is an opaque dark slab, which is right in a
+   dense console and reads as a foreign object on a light, roomy student page.
+   Here it becomes glass over a slow-drifting wash of the product's own colours,
+   so it belongs to the page instead of sitting on top of it.
+   Scoped to .student-gallery: the operator's masthead is untouched. */
+.student-gallery .gallery-masthead {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  margin: 0 clamp(1.2rem, 2.6vw, 2rem);
+  padding: clamp(1.3rem, 3vw, 2rem) clamp(1.1rem, 3vw, 1.9rem) 0;
+  color: var(--s-ink);
+  background: color-mix(in srgb, var(--s-surface) 62%, transparent);
+  border: 1px solid color-mix(in srgb, var(--s-accent) 16%, var(--s-line));
+  border-radius: 20px;
+  -webkit-backdrop-filter: blur(22px) saturate(1.3);
+  backdrop-filter: blur(22px) saturate(1.3);
+  box-shadow:
+    0 1px 0 color-mix(in srgb, #fff 60%, transparent) inset,
+    0 18px 42px -28px color-mix(in srgb, var(--s-accent) 60%, transparent);
+}
+
+/* The colour behind the glass. Large, soft and slow — decoration that never
+   competes with the words in front of it. */
+.student-gallery .gallery-masthead::before {
+  content: '';
+  position: absolute; inset: -35%;
+  z-index: -1;
+  background:
+    radial-gradient(38% 46% at 18% 28%, color-mix(in srgb, var(--s-accent) 52%, transparent), transparent 68%),
+    radial-gradient(34% 42% at 82% 18%, color-mix(in srgb, var(--mint) 46%, transparent), transparent 68%),
+    radial-gradient(44% 52% at 62% 92%, color-mix(in srgb, var(--s-accent) 34%, transparent), transparent 70%);
+  filter: blur(26px);
+  opacity: 0.55;
+  animation: hero-drift 26s ease-in-out infinite alternate;
+}
+
+@keyframes hero-drift {
+  from { transform: translate3d(-3%, -2%, 0) scale(1); }
+  to { transform: translate3d(4%, 3%, 0) scale(1.08); }
+}
+
+:root[data-theme='dark'] .student-gallery .gallery-masthead {
+  background: color-mix(in srgb, var(--s-surface) 58%, transparent);
+  box-shadow:
+    0 1px 0 color-mix(in srgb, #fff 8%, transparent) inset,
+    0 20px 46px -30px #000;
+}
+:root[data-theme='dark'] .student-gallery .gallery-masthead::before { opacity: 0.4; }
+
+/* The search field itself: a lighter pane of the same glass. */
+.student-gallery .ask-bar {
+  border-color: color-mix(in srgb, var(--s-accent) 22%, var(--s-line));
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--s-surface) 78%, transparent);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+}
+.student-gallery .ask-bar:focus-within {
+  border-color: var(--s-accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--s-accent) 16%, transparent);
+}
+.student-gallery .ask-bar > svg { color: var(--s-accent); }
+.student-gallery .ask-bar input { color: var(--s-ink); }
+.student-gallery .ask-bar input::placeholder { color: var(--s-faint); }
+.student-gallery .ask-note { color: var(--s-soft); }
+
+.student-gallery .ask-tries > span { color: var(--s-faint); }
+.student-gallery .ask-tries button {
+  color: var(--s-soft);
+  border-color: color-mix(in srgb, var(--s-accent) 22%, var(--s-line));
+  background: color-mix(in srgb, var(--s-surface) 55%, transparent);
+  transition: border-color .16s ease, color .16s ease, transform .16s ease;
+}
+.student-gallery .ask-tries button:hover {
+  color: var(--s-accent); border-color: var(--s-accent); transform: translateY(-1px);
+}
+
+/* Country tabs as glass pills that lift into the results below. */
+.student-gallery .country-rail button {
+  color: var(--s-soft);
+  border-radius: 12px 12px 0 0;
+  background: color-mix(in srgb, var(--s-surface) 40%, transparent);
+  transition: background .16s ease, color .16s ease;
+}
+.student-gallery .country-rail button:hover { color: var(--s-ink); background: color-mix(in srgb, var(--s-surface) 70%, transparent); }
+.student-gallery .country-rail button[aria-pressed='true'] {
+  color: var(--s-ink); font-weight: 700;
+  background: var(--s-paper);
+  box-shadow: 0 -1px 0 var(--s-line) inset;
+}
+.student-gallery .country-rail .tally { color: var(--s-faint); background: transparent; }
+
+/* One quiet entrance, on load only. */
+.student-gallery .gallery-masthead { animation: hero-in .42s cubic-bezier(.22, 1, .36, 1) both; }
+@keyframes hero-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .student-gallery .gallery-masthead,
+  .student-gallery .gallery-masthead::before { animation: none; }
+  .student-gallery .ask-tries button:hover { transform: none; }
+}
+
+/* The search button inherits styling meant for a dark slab; on glass it needs
+   to be the solid thing on the panel. */
+.student-gallery .ask-bar .button.primary {
+  color: #fff;
+  background: var(--s-accent);
+  border: 0;
+  box-shadow: 0 6px 16px -8px color-mix(in srgb, var(--s-accent) 90%, transparent);
+}
+.student-gallery .ask-bar .button.primary:hover:not(:disabled) { filter: brightness(1.08); }
+.student-gallery .ask-bar .button.primary:disabled { opacity: 0.55; }
+
+/* The rail sits on the panel's bottom edge and the active tab joins the
+   results below it, so the two read as one surface. */
+.student-gallery .country-rail {
+  margin-top: 0.9rem;
+  padding: 0 0.15rem;
+  gap: 0.2rem;
+}
+.student-gallery .country-rail button {
+  padding: 0.6rem 0.85rem;
+  border: 1px solid transparent; border-bottom: 0;
+}
+.student-gallery .country-rail button[aria-pressed='true'] {
+  border-color: color-mix(in srgb, var(--s-accent) 18%, var(--s-line));
+  box-shadow: none;
+}
+
+/* The portalled sheet carries .student for its tokens; it must not also inherit
+   the layout that class applies to a page. */
+.student-portal { display: contents; }
+
+/* The navigation drawer must sit above the sticky filter bar. The filter bar
+   is z-index 20 and the drawer was 10, so on a phone the filters cut straight
+   across an open menu. Scoped to the student shell. */
+@media (max-width: 760px) {
+  .student-shell .nav-backdrop { z-index: 68; }
+  .student-shell .sidebar, .student-shell.sidebar-collapsed .sidebar { z-index: 69; }
+}
+
+/* On a dark ground the accent is light, so the button takes dark text rather
+   than white — white on #7384ff is under 3:1. */
+:root[data-theme='dark'] .student-gallery .ask-bar .button.primary {
+  color: #0b1117;
+  font-weight: 700;
+}
+
+/* Dropping the filter that is excluding everything, by name. */
+.relax-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; margin-top: 0.3rem; }
+.relax-row > span { color: var(--s-faint); font-size: 0.82rem; }
+.relax-row button {
+  padding: 0.35rem 0.7rem;
+  color: var(--s-accent); font: inherit; font-size: 0.84rem; font-weight: 700;
+  border: 1px solid color-mix(in srgb, var(--s-accent) 40%, var(--s-line));
+  border-radius: 999px; background: var(--s-surface); cursor: pointer;
+}
+.relax-row button:hover { background: var(--s-accent-soft); }

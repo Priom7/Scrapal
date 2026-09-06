@@ -17,7 +17,7 @@ import {
   approveBlueprint, createSource, getBlueprint, previewBlueprint, runBlueprint, updateBlueprint,
 } from './blueprints'
 import { listProposals, setProposalStatus } from './proposals'
-import { listRecords, publishedIds, recordsOverview, setRecordStatus } from './records'
+import { listRecords, publishedIds, recordRevisions, recordsOverview, setRecordStatus } from './records'
 import { profiles, runRetrieval } from './lab'
 import { documents, search } from './search'
 
@@ -151,10 +151,24 @@ function interpret(query: string): GalleryInterpretation {
   const intakeMonths = ['January', 'May', 'September'].filter((month) => has(month.toLowerCase()))
   const feeMatch = text.match(/(?:under|below|less than|max)\s*[£$]?\s*([\d,]+)/)
   const feeMax = feeMatch ? Number(feeMatch[1].replace(/,/g, '')) : null
+  // What is left after the recognised parts are removed is only a search term
+  // if it still contains real words. Stripping "One-year master's in London
+  // under £15,000" left "One-year 's in", and feeding that to the text filter
+  // matched nothing — the search appeared to lose every result.
+  const LEFTOVER_NOISE = new Set([
+    'in', 'at', 'the', 'for', 'with', 'and', 'or', 'of', 'to', 'on',
+    'want', 'looking', 'course', 'courses', 'degree', 'degrees',
+    'year', 'years', 'one', 'two', 'three', 'starting', 'start', 'study', 'studying',
+    'intake', 'intakes', 'available', 'options', 'programme', 'programmes', 'program',
+  ])
   const stripped = query
     .replace(/\b(uk|england|london|ireland|dublin|new zealand|auckland|masters?|msc|postgraduate|bachelors?|bsc|undergraduate|part[- ]time|full[- ]time|online|distance|january|may|september)\b/gi, '')
     .replace(/(?:under|below|less than|max)\s*[£$]?\s*[\d,]+/gi, '')
-    .replace(/\s+/g, ' ')
+    .replace(/[\u2019']s\b/g, '')
+    .replace(/[^a-zA-Z\s]/g, ' ')
+    .split(/\s+/)
+    .filter((word) => word.length > 2 && !LEFTOVER_NOISE.has(word.toLowerCase()))
+    .join(' ')
     .trim()
 
   const applied = [
@@ -407,6 +421,15 @@ const routes: Route[] = [
       url.searchParams.get('institution_id'),
       Number(url.searchParams.get('limit') ?? 500),
     ),
+  },
+  {
+    method: 'GET',
+    pattern: /^\/v1\/admin\/course-intelligence\/records\/([^/]+)\/revisions$/,
+    handler: (_url, _init, params) => {
+      const revisions = recordRevisions(params[0])
+      if (!revisions) throw new MockHttpError(404, 'Course record not found')
+      return revisions
+    },
   },
   {
     method: 'POST',

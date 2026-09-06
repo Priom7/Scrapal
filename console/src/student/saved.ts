@@ -1,45 +1,66 @@
-// Saved courses live on the student's own device, like their profile.
+// Saved courses live on the student's own device, like their profile. The date
+// matters as much as the id: "what changed since you saved this" needs a moment
+// to compare against.
 import { useEffect, useState } from 'react'
 
 const KEY = 'scrapal.student.saved'
-const listeners = new Set<(ids: string[]) => void>()
+const listeners = new Set<(entries: SavedEntry[]) => void>()
 
-function read(): string[] {
+export type SavedEntry = { id: string; at: string }
+
+function read(): SavedEntry[] {
   try {
     const raw = globalThis.localStorage?.getItem(KEY)
-    return raw ? (JSON.parse(raw) as string[]) : []
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as unknown
+    if (!Array.isArray(parsed)) return []
+    // Earlier versions stored bare ids; keep those working rather than
+    // silently emptying someone's shortlist on upgrade.
+    return parsed.map((item) => typeof item === 'string'
+      ? { id: item, at: new Date(0).toISOString() }
+      : item as SavedEntry)
   } catch {
     return []
   }
 }
 
-function write(ids: string[]): void {
+function write(entries: SavedEntry[]): void {
   try {
-    globalThis.localStorage?.setItem(KEY, JSON.stringify(ids))
+    globalThis.localStorage?.setItem(KEY, JSON.stringify(entries))
   } catch {
     // Browsing still works without saved courses.
   }
-  listeners.forEach((listener) => listener(ids))
+  listeners.forEach((listener) => listener(entries))
+}
+
+export function useSavedEntries(): SavedEntry[] {
+  const [entries, setEntries] = useState<SavedEntry[]>([])
+  useEffect(() => {
+    setEntries(read())
+    listeners.add(setEntries)
+    return () => { listeners.delete(setEntries) }
+  }, [])
+  return entries
 }
 
 export function useSaved(): string[] {
-  const [ids, setIds] = useState<string[]>([])
-  useEffect(() => {
-    setIds(read())
-    listeners.add(setIds)
-    return () => { listeners.delete(setIds) }
-  }, [])
-  return ids
+  return useSavedEntries().map((entry) => entry.id)
 }
 
 export function isSaved(ids: string[], id: string): boolean {
   return ids.includes(id)
 }
 
+export function savedAt(entries: SavedEntry[], id: string): string | null {
+  return entries.find((entry) => entry.id === id)?.at ?? null
+}
+
 /** Returns whether the course is saved after the toggle. */
 export function toggleSaved(id: string): boolean {
-  const ids = read()
-  const next = ids.includes(id) ? ids.filter((item) => item !== id) : [...ids, id]
+  const entries = read()
+  const next = entries.some((entry) => entry.id === id)
+    ? entries.filter((entry) => entry.id !== id)
+    : [...entries, { id, at: new Date().toISOString() }]
   write(next)
-  return next.includes(id)
+  return next.some((entry) => entry.id === id)
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { GalleryCourse } from '../api'
-import { matchCourse, matchRank } from './match'
+import { matchCourse, matchPercent, matchRank } from './match'
 import { EMPTY_PROFILE, type StudentProfile } from './profile'
 
 function course(overrides: Partial<GalleryCourse> = {}): GalleryCourse {
@@ -89,5 +89,35 @@ describe('explainable matching', () => {
     const complete = matchCourse(course(), profile({ classification: '2:1', ieltsOverall: 7, ieltsLowest: 6.5, budget: 25000, intake: 'September' }))
     const partial = matchCourse(course({ english_requirements: null }), profile({ classification: '2:1', budget: 25000, intake: 'September' }))
     expect(matchRank(complete)).toBeLessThan(matchRank(partial))
+  })
+})
+
+describe('the match figure', () => {
+  const asks21 = () => course()
+
+  // A number nobody could compute is worse than no number.
+  it('has no figure when nothing could be checked', () => {
+    expect(matchPercent(matchCourse(asks21(), profile()))).toBeNull()
+  })
+
+  it('reaches 100 only when everything checked is met', () => {
+    const full = matchCourse(asks21(), profile({
+      classification: '2:1', ieltsOverall: 7, ieltsLowest: 6.5, budget: 25000, intake: 'September',
+    }))
+    expect(matchPercent(full)).toBe(100)
+  })
+
+  // Being half a band short is not the same as being unable to apply.
+  it('counts a near miss as half, not zero', () => {
+    const close = matchCourse(asks21(), profile({
+      classification: '2:2', ieltsOverall: 7, ieltsLowest: 6.5, budget: 25000, intake: 'September',
+    }))
+    expect(matchPercent(close)).toBe(88)
+  })
+
+  it('still names the gap alongside the figure', () => {
+    const result = matchCourse(asks21(), profile({ classification: '2:2' }))
+    expect(matchPercent(result)).not.toBeNull()
+    expect(result.checks.find((check) => check.id === 'degree')!.gap).toContain('asks for')
   })
 })

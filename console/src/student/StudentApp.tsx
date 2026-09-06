@@ -1,12 +1,15 @@
-import { Bookmark, Coins, GraduationCap, Search, Sparkles } from 'lucide-react'
+import { Bookmark, Coins, FileText, GraduationCap, LayoutGrid, MessagesSquare, Search, ShieldQuestion } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { api, type GalleryCourse } from '../api'
 import { match, useLocation } from '../router'
+import { CheckPage } from './CheckPage'
 import { CoursePage } from './CoursePage'
 import { FindCourses } from './FindCourses'
 import { MoneyPage } from './MoneyPage'
 import { ProfilePage } from './ProfilePage'
+import { ApplicationsPage } from './apply/ApplicationsPage'
+import { Planner } from './planner/Planner'
 import { StudentShell, type ShellSection } from './StudentShell'
 import { Workstation } from './Workstation'
 import { EMPTY_PROFILE, loadProfile, saveProfile, type StudentProfile } from './profile'
@@ -27,13 +30,27 @@ const ROUTES: {
   path: string
   nav?: string
   icon?: ShellSection['icon']
-  title: string
+  tag?: string
+  /** A function where the title depends on what is being shown. */
+  title: string | ((context: ViewContext) => string)
+  /** The page supplies its own h1; the topbar must not repeat it. */
+  ownTitle?: boolean
   render: (context: ViewContext) => ReactNode
 }[] = [
   {
     path: '/student',
+    nav: 'Plan',
+    icon: MessagesSquare,
+    tag: 'Premium',
+    title: 'Plan your study',
+    render: ({ courses, loading, profile, setProfile }) => (
+      <Planner courses={courses} loading={loading} profile={profile} onProfile={setProfile} />
+    ),
+  },
+  {
+    path: '/student/workspace',
     nav: 'Workspace',
-    icon: Sparkles,
+    icon: LayoutGrid,
     title: 'Your workspace',
     render: ({ courses, loading, profile }) => <Workstation courses={courses} loading={loading} profile={profile} />,
   },
@@ -47,6 +64,15 @@ const ROUTES: {
     ),
   },
   {
+    path: '/student/applications',
+    nav: 'Applications',
+    icon: FileText,
+    title: 'Your applications',
+    render: ({ courses, loading, profile }) => (
+      <ApplicationsPage courses={courses} loading={loading} profile={profile} />
+    ),
+  },
+  {
     path: '/student/money',
     nav: 'Money',
     icon: Coins,
@@ -54,6 +80,13 @@ const ROUTES: {
     render: ({ courses, loading, profile, setProfile }) => (
       <MoneyPage courses={courses} loading={loading} profile={profile} onChange={setProfile} />
     ),
+  },
+  {
+    path: '/student/check',
+    nav: 'Check a claim',
+    icon: ShieldQuestion,
+    title: 'Check what you were told',
+    render: () => <CheckPage />,
   },
   {
     path: '/student/saved',
@@ -73,7 +106,11 @@ const ROUTES: {
   },
   {
     path: '/student/courses/:id',
-    title: 'Course',
+    ownTitle: true,
+    title: ({ courses, params }) => {
+      const course = courses.find((item) => item.id === params.id)
+      return course ? `${course.institution.name}${course.institution.city ? `, ${course.institution.city}` : ''}` : 'Course'
+    },
     render: ({ courses, loading, profile, params }) => (
       <CoursePage id={params.id} courses={courses} loading={loading} profile={profile} />
     ),
@@ -113,9 +150,9 @@ export function StudentApp() {
 
   const sections: ShellSection[] = ROUTES
     .filter((route) => route.nav && route.icon)
-    .map((route) => ({ path: route.path, label: route.nav!, icon: route.icon! }))
+    .map((route) => ({ path: route.path, label: route.nav!, icon: route.icon!, tag: route.tag }))
 
-  return <StudentShell sections={sections} current={path} title={active?.route.title ?? 'Not found'}>
+  return <StudentShell sections={sections} current={path} title={resolveTitle(active?.route.title, context)} ownTitle={active?.route.ownTitle}>
     {active
       ? active.route.render(context)
       : <div className="student-empty">
@@ -127,4 +164,12 @@ export function StudentApp() {
       visa charges and money rules are reference figures, shown with the date they were checked.
     </p>
   </StudentShell>
+}
+
+function resolveTitle(
+  title: string | ((context: ViewContext) => string) | undefined,
+  context: ViewContext,
+): string {
+  if (!title) return 'Not found'
+  return typeof title === 'function' ? title(context) : title
 }

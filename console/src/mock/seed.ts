@@ -126,6 +126,49 @@ export const collections: Collection[] = [
   { id: 'col-anz-courses', name: 'ANZ pilot', description: 'Australia and New Zealand expansion pilot.' },
 ]
 
+// Photography, matched to the subject rather than picked at random. A stock
+// image with no relationship to the course reads as filler and is worse than
+// none — the first attempt served a plane wreck for a data science degree.
+//
+// These are Unsplash CDN ids, verified to resolve, standing in until a
+// university supplies its own imagery through the institution portal. Every one
+// falls back to the institution's brand colour when the network is unavailable.
+const SUBJECT_PHOTOS: { match: string[]; id: string }[] = [
+  { match: ['computer', 'software', 'artificial', 'data', 'robotic'], id: 'photo-1518770660439-4636190af475' },
+  { match: ['cyber', 'security'], id: 'photo-1526628953301-3e589a6a8b74' },
+  { match: ['business', 'management', 'marketing', 'supply'], id: 'photo-1454165804606-c3d57bc86b40' },
+  { match: ['finance', 'accounting', 'economics'], id: 'photo-1551288049-bebda4e38f71' },
+  { match: ['engineering', 'mechanical', 'electrical', 'civil'], id: 'photo-1581091226825-a6a2a5aee158' },
+  { match: ['nursing', 'health', 'biomedical'], id: 'photo-1576091160399-112ba8d25d1d' },
+  { match: ['psychology', 'education'], id: 'photo-1497366216548-37526070297c' },
+  { match: ['architecture'], id: 'photo-1503387762-592deb58ef4e' },
+  { match: ['law'], id: 'photo-1589829545856-d10d557cf95f' },
+  { match: ['environmental'], id: 'photo-1470071459604-3b5ec3a7fe05' },
+  { match: ['design', 'media', 'graphic'], id: 'photo-1481277542470-605612bd2d61' },
+]
+
+const CAMPUS_PHOTOS = [
+  'photo-1524178232363-1fb2b075b655',
+  'photo-1517048676732-d65bc937f952',
+  'photo-1497366216548-37526070297c',
+]
+
+function unsplash(id: string, width: number, height: number): string {
+  return `https://images.unsplash.com/${id}?w=${width}&h=${height}&fit=crop&q=70`
+}
+
+/** An image that has something to do with the subject being studied. */
+function subjectPhoto(subject: string, width: number, height: number): string {
+  const lower = subject.toLowerCase()
+  const found = SUBJECT_PHOTOS.find((entry) => entry.match.some((word) => lower.includes(word)))
+  return unsplash(found?.id ?? CAMPUS_PHOTOS[0], width, height)
+}
+
+/** A campus banner, stable per institution. */
+function campusPhoto(index: number, width: number, height: number): string {
+  return unsplash(CAMPUS_PHOTOS[index % CAMPUS_PHOTOS.length], width, height)
+}
+
 export const institutions: Institution[] = INSTITUTION_SEEDS.map((seed, index) => ({
   id: `inst-${seed.slug}`,
   name: seed.name,
@@ -135,9 +178,14 @@ export const institutions: Institution[] = INSTITUTION_SEEDS.map((seed, index) =
   city: seed.city,
   website_url: `https://www.${seed.domain}`,
   logo_url: logo(seed.initials, seed.color),
-  banner_url: banner(seed.color, index + 7),
+  banner_url: campusPhoto(index, 1200, 420),
   brand_color: seed.color,
 }))
+
+/** The generated banner, used when the placeholder service cannot be reached. */
+export const fallbackBanners: Record<string, string> = Object.fromEntries(
+  INSTITUTION_SEEDS.map((seed, index) => [`inst-${seed.slug}`, banner(seed.color, index + 7)]),
+)
 
 export const galleryInstitutions: GalleryInstitution[] = institutions.map((inst) => ({
   id: inst.id,
@@ -205,6 +253,7 @@ function buildCourses(): GalleryCourse[] {
         scholarships: sample(random, SCHOLARSHIPS, 0, 2),
         course_content: `This ${award} in ${subject} combines taught modules with applied project work at ${inst.name}. Students build practical capability alongside the theory that underpins it, finishing with an independent piece of work assessed by academic and industry reviewers.`,
         careers: `Graduates progress into ${pick(random, ['consultancy', 'the public sector', 'startups', 'research', 'industry'])} roles such as ${subject} analyst, project lead, or specialist practitioner.`,
+        image_url: subjectPhoto(subject, 640, 360),
         source_url: url,
         coverage,
         evidence: evidenceFor(url, filled),

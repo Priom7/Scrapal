@@ -258,6 +258,16 @@ export type CourseIntelligenceOverview = {
   }[]
   missing_fields: { field: string; count: number }[]
 }
+export type RecordRevision = {
+  id: string
+  revision: number
+  status: CourseRecord['status']
+  confidence: number
+  validation: CourseRecord['validation_json']
+  note: string | null
+  created_at: string
+  data: Record<string, unknown>
+}
 export type GalleryInstitution = {
   id: string
   name: string
@@ -286,6 +296,9 @@ export type GalleryCourse = {
   scholarships: string[]
   course_content: string | null
   careers: string | null
+  /** Illustrative image for the course. Placeholder until a university
+      supplies its own through the institution portal. */
+  image_url?: string
   source_url: string
   coverage: number
   evidence: CourseRecord['evidence']
@@ -467,6 +480,8 @@ export const api = {
     request<CourseRecord>(`/v1/admin/course-intelligence/records/${id}/publish`, {
       method: 'POST', body: JSON.stringify({ note }),
     }),
+  courseRecordRevisions: (id: string) =>
+    request<RecordRevision[]>(`/v1/admin/course-intelligence/records/${id}/revisions`),
   reviewCourseRecord: (id: string, note: string) =>
     request<CourseRecord>(`/v1/admin/course-intelligence/records/${id}/review`, {
       method: 'POST', body: JSON.stringify({ note }),

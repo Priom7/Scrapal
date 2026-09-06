@@ -12,12 +12,17 @@ export type ShellSection = {
   path: string
   label: string
   icon: typeof Menu
+  /** A short badge, for marking a paid tier. */
+  tag?: string
 }
 
-export function StudentShell({ sections, current, title, children }: {
+export function StudentShell({ sections, current, title, ownTitle, children }: {
   sections: ShellSection[]
   current: string
   title: string
+  /** The page renders its own h1, so the topbar shows a quieter label and does
+      not repeat it — one h1 per page, and the title said once. */
+  ownTitle?: boolean
   children: ReactNode
 }) {
   const [theme, setTheme] = useTheme()
@@ -56,7 +61,7 @@ export function StudentShell({ sections, current, title, children }: {
 
       <p className="workspace-label">Your study</p>
       <nav>
-        {sections.map(({ path, label, icon: Icon }) => (
+        {sections.map(({ path, label, icon: Icon, tag }) => (
           <a
             key={path}
             {...linkTo(path)}
@@ -66,6 +71,7 @@ export function StudentShell({ sections, current, title, children }: {
             onClick={(event) => { linkTo(path).onClick(event); setNavOpen(false) }}
           >
             <Icon size={ICON.lg} aria-hidden="true" /><span className="nav-label">{label}</span>
+            {tag && <span className="nav-tag">{tag}</span>}
           </a>
         ))}
       </nav>
@@ -99,7 +105,7 @@ export function StudentShell({ sections, current, title, children }: {
         </button>
         <div>
           <p className="eyebrow">Scrapal / student</p>
-          <h1>{title}</h1>
+          {ownTitle ? <p className="topbar-title">{title}</p> : <h1>{title}</h1>}
         </div>
       </header>
 

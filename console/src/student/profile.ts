@@ -5,12 +5,18 @@ import type { FundingSource } from './funding'
 import type { Classification } from './match'
 
 export type StudentProfile = {
+  /** Who the student is. Their own to set, change or clear. */
+  name: string | null
+  avatarUrl: string | null
+  homeCountry: string | null
   classification: Classification | null
   ucasPoints: number | null
   ieltsOverall: number | null
   ieltsLowest: number | null
   budget: number | null
   intake: string | null
+  /** Undergraduate or Postgraduate, as the courses label it. */
+  level: string | null
   countries: string[]
   /** Money. Kept in the same store because it is the same person's data, and
       the spec says they own all of it together. */
@@ -22,12 +28,16 @@ export type StudentProfile = {
 }
 
 export const EMPTY_PROFILE: StudentProfile = {
+  name: null,
+  avatarUrl: null,
+  homeCountry: null,
   classification: null,
   ucasPoints: null,
   ieltsOverall: null,
   ieltsLowest: null,
   budget: null,
   intake: null,
+  level: null,
   countries: [],
   homeCurrency: null,
   exchangeRate: null,
@@ -81,4 +91,13 @@ export function describeProfile(profile: StudentProfile): string {
     profile.intake && `${profile.intake} start`,
   ].filter(Boolean)
   return parts.length ? parts.join(' · ') : 'No details yet'
+}
+
+/** A default face, so a new profile is not an empty grey circle. Deterministic
+    per person so it does not change on every render. Falls back to initials if
+    the placeholder service cannot be reached. */
+export function defaultAvatar(seed: string): string {
+  const index = Math.abs([...seed].reduce((hash, char) => hash * 31 + char.charCodeAt(0), 7)) % 99
+  const set = index % 2 === 0 ? 'women' : 'men'
+  return `https://randomuser.me/api/portraits/${set}/${index}.jpg`
 }
