@@ -17,6 +17,7 @@ import { matchCourse, matchRank } from './match'
 import { describeProfile, hasAnything, type StudentProfile } from './profile'
 import { startApplication } from './apply/store'
 import { isSaved, toggleSaved, useSaved } from './saved'
+import { Loading } from '../brand'
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December']
@@ -261,7 +262,7 @@ export function FindCourses({ courses, loading, error, profile, savedOnly }: {
       )}
     </div>
 
-    {loading && <p className="find-count">Loading courses…</p>}
+    {loading && <Loading>Searching courses…</Loading>}
 
     {!loading && results.length === 0 && (
       <div className="student-empty">

@@ -13,6 +13,7 @@ import { matchCourse } from '../match'
 import { MatchPanel } from '../MatchPanel'
 import type { StudentProfile } from '../profile'
 import type { Card } from './types'
+import { Loading } from '../../brand'
 
 export function CardView({ card, courses, profile, onSend }: {
   card: Card
@@ -130,7 +131,7 @@ function AnswerCard({ question }: { question: string }) {
     queryFn: () => api.search(question),
   })
 
-  if (search.isLoading) return <p className="chat-thinking-note">Looking through the published pages…</p>
+  if (search.isLoading) return <Loading>Looking through the published pages…</Loading>
   const hits = search.data?.hits.slice(0, 3) ?? []
 
   if (!hits.length) {

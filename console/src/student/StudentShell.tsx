@@ -42,8 +42,8 @@ export function StudentShell({ sections, current, title, ownTitle, children }: {
     <aside className={`sidebar ${navOpen ? 'open' : ''}`} id="primary-nav">
       <div className="brand-block">
         <div className="brand-lockup">
-          <img className="brand-wordmark" src="/scrapal_logo.svg" alt="Scrapal" />
-          <span className="brand-mark" aria-label="Scrapal"><img src="/scrapal_logo.svg" alt="" /></span>
+          <img className="brand-wordmark" src="/brand/scrapal-logo.svg" alt="Scrapal" />
+          <span className="brand-mark" aria-label="Scrapal"><img src="/brand/scrapal-icon.svg" alt="" /></span>
         </div>
         <button
           className="icon-button collapse-button"

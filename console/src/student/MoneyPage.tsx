@@ -8,6 +8,7 @@ import { modelCost, type CostModel } from './costs'
 import { currencySwing, fundingPosition, maintenanceCheck, permittedWorkIncome, type FundingSource } from './funding'
 import { saveProfile, type StudentProfile } from './profile'
 import { useSaved } from './saved'
+import { Loading } from '../brand'
 
 const money = (amount: number) => `£${Math.round(amount).toLocaleString('en-GB')}`
 
@@ -30,7 +31,7 @@ export function MoneyPage({ courses, loading, profile, onChange }: {
     saveProfile(next)
   }
 
-  if (loading) return <p className="find-count">Loading…</p>
+  if (loading) return <Loading>Working out what this will cost…</Loading>
 
   if (!mine.length) {
     return <div className="student-empty">

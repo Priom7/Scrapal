@@ -113,8 +113,8 @@ function App() {
       <aside id="primary-nav" className={`sidebar ${navOpen ? 'open' : ''}`} aria-label="Primary navigation" inert={mobile && (!navOpen || agentOpen) ? true : undefined}>
         <div className="brand-block">
           <div className="brand-lockup">
-            <img className="brand-wordmark" src="/scrapal_logo.svg" alt="Scrapal" />
-            <span className="brand-mark" aria-label="Scrapal"><img src="/scrapal_logo.svg" alt="" /></span>
+            <img className="brand-wordmark" src="/brand/scrapal-logo.svg" alt="Scrapal" />
+            <span className="brand-mark" aria-label="Scrapal"><img src="/brand/scrapal-icon.svg" alt="" /></span>
           </div>
           <button className="icon-button collapse-button" onClick={() => setSidebarCollapsed(!sidebarCollapsed)} aria-label={sidebarCollapsed ? 'Expand navigation' : 'Collapse navigation'} title={sidebarCollapsed ? 'Expand navigation' : 'Collapse navigation'}>
             {sidebarCollapsed ? <PanelLeftOpen size={ICON.lg} /> : <PanelLeftClose size={ICON.lg} />}

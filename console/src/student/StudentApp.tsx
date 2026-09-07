@@ -2,7 +2,8 @@ import { Bookmark, Coins, FileText, GraduationCap, LayoutGrid, MessagesSquare, S
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { api, type GalleryCourse } from '../api'
-import { match, useLocation } from '../router'
+import { NotFound } from '../brand'
+import { match, navigate, useLocation } from '../router'
 import { CheckPage } from './CheckPage'
 import { CoursePage } from './CoursePage'
 import { FindCourses } from './FindCourses'
@@ -155,10 +156,9 @@ export function StudentApp() {
   return <StudentShell sections={sections} current={path} title={resolveTitle(active?.route.title, context)} ownTitle={active?.route.ownTitle}>
     {active
       ? active.route.render(context)
-      : <div className="student-empty">
-          <h2>That page does not exist</h2>
-          <p>The link may be out of date. Everything you have saved is still in your workspace.</p>
-        </div>}
+      : <NotFound onHome={() => navigate('/student')}>
+          The link may be out of date. Everything you have saved is still in your workspace.
+        </NotFound>}
     <p className="student-foot-note">
       Figures marked as read from a university link back to the page they came from. Living costs,
       visa charges and money rules are reference figures, shown with the date they were checked.

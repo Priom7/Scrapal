@@ -1,0 +1,251 @@
+/* Scrapal brand system v1.1 — the single source of truth for colour, type,
+   radius, elevation and motion.
+
+   This file holds the brand as it is written in the guidelines. Everything else
+   (styles.css for the console, student.css for the student app) consumes these
+   tokens and must not redefine a brand value locally. When the guidelines
+   change, they change here and the whole product follows.
+
+   The legacy token names the two stylesheets already use (--cobalt, --paper,
+   --ink …) are kept and re-pointed at brand values, so conforming to the brand
+   did not mean rewriting three thousand lines of rules. */
+
+:root {
+  /* ---- Core palette (guidelines p.04) ------------------------------------ */
+  --sc-blue: #465cff;        /* Primary Blue  */
+  --sc-blue-deep: #3145d6;   /* pressed / dark-surface partner */
+  --sc-sky: #3fa7e8;         /* Sky Blue      */
+  --sc-cyan: #34a8d8;        /* Cyan          */
+  --sc-mint: #42cfa0;        /* Mint          */
+  --sc-emerald: #20c998;     /* Emerald       */
+  --sc-amber: #e4a72c;       /* Amber         */
+  --sc-navy: #101820;        /* Wordmark Navy */
+  --sc-cloud: #f8fafc;       /* Cloud         */
+
+  /* ---- Semantic colours -------------------------------------------------- */
+  --sc-success: #22c55e;
+  --sc-warning: #f59e0b;
+  --sc-error: #ef4444;
+  --sc-info: #8b5cf6;
+
+  /* Semantic *inks*: the same meanings at text contrast on a light surface.
+     "Do not rely on colour alone" is a copy rule; this is the contrast half of
+     it, so a status word stays readable rather than merely coloured. */
+  --sc-success-ink: #087255;
+  --sc-warning-ink: #956100;
+  --sc-error-ink: #b42318;
+  --sc-info-ink: #6532d9;
+
+  /* Tints for badge and banner fills (guidelines p.05, p.06). */
+  --sc-blue-wash: #eef1ff;
+  --sc-success-wash: #e7f8ef;
+  --sc-warning-wash: #fdf2e2;
+  --sc-error-wash: #fdeceb;
+  --sc-info-wash: #f2ecfe;
+
+  /* ---- Typography (guidelines p.03) -------------------------------------- */
+  /* Inter carries the interface. Comfortaa is reserved for the wordmark and
+     occasional brand-led moments — never for product copy. */
+  --sc-font: 'Inter', system-ui, -apple-system, sans-serif;
+  --sc-font-brand: 'Comfortaa', 'Inter', system-ui, sans-serif;
+  --sc-font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  --sc-display: clamp(2.75rem, 4.4vw, 3.75rem); /* 44–60px */
+  --sc-h1: clamp(2rem, 3vw, 2.5rem);            /* 32–40px */
+  --sc-h2: clamp(1.5rem, 2.1vw, 1.75rem);       /* 24–28px */
+  --sc-body: clamp(0.875rem, 1vw, 1.125rem);    /* 14–18px */
+  --sc-meta: clamp(0.6875rem, 0.8vw, 0.8125rem);/* 11–13px */
+
+  /* ---- Shape (guidelines p.06, p.08) ------------------------------------- */
+  /* "Roundish, polished." Cards 20–24, buttons 16–18, pills fully round. */
+  --sc-radius-card: 22px;   /* top-level cards */
+  --sc-radius-panel: 18px;  /* panels nested inside a card */
+  --sc-radius-control: 16px;
+  --sc-radius-input: 14px;
+  --sc-radius-small: 10px;
+  --sc-radius-pill: 999px;
+
+  /* ---- Depth ------------------------------------------------------------- */
+  /* "Avoid heavy shadows; let spacing do the work." Borders carry structure,
+     shadow only lifts something that genuinely floats. */
+  --sc-border: 1px solid var(--line);
+  --sc-lift: 0 1px 2px rgb(16 24 32 / 0.04), 0 8px 24px rgb(16 24 32 / 0.05);
+  --sc-lift-high: 0 24px 60px rgb(16 24 32 / 0.18);
+
+  /* ---- Motion ------------------------------------------------------------ */
+  --sc-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --sc-fast: 0.16s;
+  --sc-slow: 0.32s;
+}
+
+:root[data-theme='dark'] {
+  /* The dark theme is built on the wordmark navy rather than a neutral grey, so
+     the dark app icon and the dark UI are the same colour family. */
+  --sc-blue: #7384ff;
+  --sc-blue-deep: #93a0ff;
+  --sc-mint: #58ddb0;
+  --sc-success-ink: #58ddb0;
+  --sc-warning-ink: #f0b74e;
+  --sc-error-ink: #ff9b95;
+  --sc-info-ink: #b79bff;
+  --sc-blue-wash: #1a2340;
+  --sc-success-wash: #102b23;
+  --sc-warning-wash: #2e2312;
+  --sc-error-wash: #35191b;
+  --sc-info-wash: #241c3d;
+  --sc-lift: 0 18px 60px rgb(0 0 0 / 0.3);
+  --sc-lift-high: 0 28px 80px rgb(0 0 0 / 0.5);
+}
+
+/* ------------------------------------------------------------------ brand marks */
+
+.brand-logo, .brand-icon { display: block; height: auto; }
+/* Minimum digital sizes from the guidelines (p.02). Below these the thread in
+   the mark stops reading as a thread. */
+.brand-logo { min-width: 120px; }
+.brand-icon { min-width: 48px; }
+
+/* The mark ships on light artwork, so on a dark surface it sits on its own
+   light plate rather than being recoloured — "do not redraw the logo". */
+.brand-plate {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 0.3rem 0.45rem;
+  border-radius: var(--sc-radius-small);
+  background: var(--sc-cloud);
+}
+
+.brand-wordmark-type {
+  font-family: var(--sc-font-brand);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+/* ------------------------------------------------------------------ icons */
+
+/* "Simple 1.5–2px line icons with rounded joins" (guidelines p.10). Lucide
+   draws at 2px on a 24px grid, which reads heavy once an icon is scaled to 13
+   or 15px. stroke-width is a presentation attribute, so CSS overrides it here
+   once for every icon in the product rather than per call site. Icons inherit
+   currentColor, which keeps them navy by default and brand blue when they sit
+   inside an active control. */
+.lucide { stroke-width: 1.75; }
+
+/* ------------------------------------------------------------------ loading */
+
+/* The branded three-dot indicator (guidelines p.11), in brand blue, sky and
+   emerald. Used wherever a wait is short and the shape of the result is not
+   known; where the shape *is* known, use a skeleton instead. */
+.sc-dots { display: inline-flex; align-items: center; gap: 0.34em; }
+.sc-dots span {
+  width: 0.62em; height: 0.62em; border-radius: 50%;
+  animation: sc-dot 1.05s var(--sc-ease) infinite;
+}
+.sc-dots span:nth-child(1) { background: var(--sc-blue); }
+.sc-dots span:nth-child(2) { background: var(--sc-sky); animation-delay: 0.14s; }
+.sc-dots span:nth-child(3) { background: var(--sc-emerald); animation-delay: 0.28s; }
+@keyframes sc-dot {
+  0%, 70%, 100% { opacity: 0.28; transform: translateY(0) scale(0.82); }
+  35% { opacity: 1; transform: translateY(-0.28em) scale(1); }
+}
+
+.sc-loading {
+  display: flex; align-items: center; gap: 0.6rem;
+  color: var(--ink-soft); font-size: 0.9rem;
+}
+
+/* Skeletons say "content of this shape is coming". The sweep is slow enough to
+   read as loading rather than as a flashing element. */
+.sc-skeleton {
+  display: block; border-radius: var(--sc-radius-small);
+  background: linear-gradient(90deg, var(--surface-2) 0%, var(--line) 48%, var(--surface-2) 100%);
+  background-size: 280% 100%;
+  animation: sc-sweep 1.5s ease-in-out infinite;
+}
+@keyframes sc-sweep { from { background-position: 160% 0; } to { background-position: -60% 0; } }
+
+.sc-skeleton-card {
+  display: grid; gap: 0.7rem; padding: 1.1rem;
+  border: var(--sc-border); border-radius: var(--sc-radius-card); background: var(--surface);
+}
+.sc-skeleton-row { display: flex; align-items: center; gap: 0.9rem; }
+.sc-skeleton-row > .sc-skeleton:first-child { flex: none; }
+.sc-skeleton-lines { display: grid; gap: 0.5rem; flex: 1; min-width: 0; }
+
+/* ------------------------------------------------------------------ splash */
+
+/* Shown while the shell boots. It uses the animated mark rather than a spinner
+   because the first thing a new user should learn is the logo. */
+.sc-splash {
+  position: fixed; inset: 0; z-index: 200;
+  display: grid; place-items: center; gap: 1.4rem; align-content: center;
+  background: var(--paper);
+  animation: sc-splash-out var(--sc-slow) var(--sc-ease) forwards;
+}
+.sc-splash img { width: 92px; height: 92px; }
+.sc-splash p {
+  margin: 0; color: var(--ink-soft);
+  font-family: var(--sc-font-brand); font-size: 0.95rem; letter-spacing: 0.01em;
+}
+@keyframes sc-splash-out { to { opacity: 1; } }
+.sc-splash.leaving { animation: sc-splash-fade var(--sc-slow) var(--sc-ease) forwards; }
+@keyframes sc-splash-fade { to { opacity: 0; visibility: hidden; } }
+
+/* ------------------------------------------------------------------ states */
+
+/* Empty, error and 404 share one centred, calm layout (guidelines p.11–p.12):
+   say what happened, then offer the next action. */
+.sc-state {
+  display: grid; justify-items: center; gap: 0.65rem;
+  max-width: 30rem; margin: 2.5rem auto; padding: 2rem 1.5rem;
+  border: var(--sc-border); border-radius: var(--sc-radius-card);
+  background: var(--surface); text-align: center;
+}
+.sc-state-mark {
+  display: grid; place-items: center; width: 46px; height: 46px;
+  border-radius: var(--sc-radius-control);
+  color: var(--sc-blue); background: var(--sc-blue-wash);
+}
+.sc-state.error .sc-state-mark { color: var(--sc-error-ink); background: var(--sc-error-wash); }
+.sc-state h2 { margin: 0; font-size: 1.25rem; }
+.sc-state p { margin: 0; color: var(--ink-soft); font-size: 0.92rem; line-height: 1.6; }
+.sc-state-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.5rem; margin-top: 0.5rem; }
+
+/* The 404's numerals are the one place the display size is used in-product. */
+.sc-404 { margin: 0; color: var(--sc-blue); font-family: var(--sc-font-brand); font-size: var(--sc-display); font-weight: 700; line-height: 1; }
+
+/* The 404 page. Centred, calm and actionable (guidelines p.12). */
+.sc-notfound {
+  min-height: 100vh; display: grid; align-content: center; justify-items: center;
+  gap: 0.5rem; padding: 2rem; text-align: center; background: var(--paper);
+}
+.sc-notfound h1 { margin: 0; font-size: var(--sc-h2); }
+.sc-notfound-text { max-width: 26rem; margin: 0; color: var(--ink-soft); line-height: 1.6; }
+
+/* The one primary button the brand layer owns, for surfaces that render before
+   any product stylesheet has a say. */
+.sc-primary {
+  display: inline-flex; align-items: center; gap: 0.45rem;
+  min-height: 44px; margin-top: 0.9rem; padding: 0 1.15rem;
+  border: 0; border-radius: var(--sc-radius-control);
+  color: #fff; background: var(--sc-blue);
+  font: inherit; font-weight: 600; cursor: pointer;
+  transition: background var(--sc-fast) var(--sc-ease), transform var(--sc-fast) var(--sc-ease);
+}
+.sc-primary:hover { background: var(--sc-blue-deep); }
+.sc-primary:active { transform: translateY(1px); }
+
+/* An inline error banner, for a failure that belongs to one panel rather than
+   the whole page. */
+.sc-error-banner {
+  display: flex; align-items: flex-start; gap: 0.55rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid color-mix(in srgb, var(--sc-error) 35%, transparent);
+  border-radius: var(--sc-radius-control);
+  color: var(--sc-error-ink); background: var(--sc-error-wash);
+  font-size: 0.88rem; line-height: 1.5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sc-dots span, .sc-skeleton, .sc-splash, .sc-splash.leaving { animation: none; }
+  .sc-dots span { opacity: 0.8; }
+}

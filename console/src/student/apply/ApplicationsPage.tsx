@@ -4,6 +4,7 @@ import {
 } from 'lucide-react'
 import { useMemo, useRef, useState } from 'react'
 import type { GalleryCourse } from '../../api'
+import { Loading } from '../../brand'
 import { ICON } from '../../lib'
 import { navigate } from '../../router'
 import { useToast } from '../../toast'
@@ -38,7 +39,7 @@ export function ApplicationsPage({ courses, loading, profile }: {
     localStorage.setItem('scrapal.student.appview', next)
   }
 
-  if (loading) return <p className="find-count">Loading…</p>
+  if (loading) return <Loading>Gathering your applications…</Loading>
 
   if (!applications.length) {
     return <div className="student-empty">
