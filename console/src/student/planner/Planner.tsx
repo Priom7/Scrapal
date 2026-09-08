@@ -2,12 +2,22 @@ import { ArrowUp } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import type { GalleryCourse } from '../../api'
 import { ICON } from '../../lib'
+import { BrandIcon } from '../../brand'
 import { ScrapalAvatar, StudentAvatar } from '../Avatar'
 import { saveProfile, type StudentProfile } from '../profile'
 import { CardView } from './cards'
 import { answer, chipsFor, initialState, resume, start } from './engine'
 import { clearThread, loadThread, saveThread, sinceLabel } from './persist'
 import type { Message, PlannerState } from './types'
+
+/** The time of day, because a planner that greets you the same way at 2am as
+    at 9am is not talking to anyone in particular. */
+function greeting(): string {
+  const hour = new Date().getHours()
+  if (hour < 12) return 'Good morning'
+  if (hour < 18) return 'Good afternoon'
+  return 'Good evening'
+}
 
 export function Planner({ courses, loading, profile, onProfile }: {
   courses: GalleryCourse[]
@@ -69,6 +79,19 @@ export function Planner({ courses, loading, profile, onProfile }: {
   const opening = state.messages.length <= 2
 
   return <div className={`planner ${opening ? 'is-opening' : ''}`}>
+    {/* A single bubble floating in the middle of a large screen reads as a
+        page that failed to load. The opening says what this is before the
+        conversation has anything in it to say for itself. */}
+    {opening && (
+      <div className="planner-welcome">
+        <BrandIcon size={56} animated />
+        <h2>{greeting()}</h2>
+        {/* Deliberately not a restatement of the first bubble, which already
+            says what Scrapal does. This says how far the conversation reaches. */}
+        <p>Courses, costs, funding and your applications — all in one conversation.</p>
+      </div>
+    )}
+
     <div className="thread" role="log" aria-live="polite" aria-label="Your conversation with Scrapal">
       {state.messages.map((message, index) => (
         <Bubble

@@ -1,4 +1,4 @@
-import { Bookmark, Coins, FileText, GraduationCap, LayoutGrid, MessagesSquare, Search, ShieldQuestion } from 'lucide-react'
+import { Banknote, Bookmark, Coins, FileText, GraduationCap, LayoutGrid, MessagesSquare, Radar, Search, ShieldQuestion, Users } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { api, type GalleryCourse } from '../api'
@@ -9,8 +9,13 @@ import { CoursePage } from './CoursePage'
 import { FindCourses } from './FindCourses'
 import { MoneyPage } from './MoneyPage'
 import { ProfilePage } from './ProfilePage'
+import { SavedPage } from './SavedPage'
 import { ApplicationsPage } from './apply/ApplicationsPage'
 import { Planner } from './planner/Planner'
+import { FundingPage } from './radar/FundingPage'
+import { PeoplePage } from './radar/PeoplePage'
+import { RadarPage } from './radar/RadarPage'
+import { ResearcherPage } from './radar/ResearcherPage'
 import { StudentShell, type ShellSection } from './StudentShell'
 import { Workstation } from './Workstation'
 import { EMPTY_PROFILE, loadProfile, saveProfile, type StudentProfile } from './profile'
@@ -47,6 +52,34 @@ const ROUTES: {
     render: ({ courses, loading, profile, setProfile }) => (
       <Planner courses={courses} loading={loading} profile={profile} onProfile={setProfile} />
     ),
+  },
+  {
+    path: '/student/radar',
+    nav: 'Research radar',
+    icon: Radar,
+    tag: 'New',
+    title: 'Research Opportunity Radar',
+    render: () => <RadarPage />,
+  },
+  {
+    path: '/student/people',
+    nav: 'Researchers',
+    icon: Users,
+    title: 'Researchers and mentors',
+    render: () => <PeoplePage />,
+  },
+  {
+    path: '/student/funding',
+    nav: 'Funding',
+    icon: Banknote,
+    title: 'Funding opportunities',
+    render: () => <FundingPage />,
+  },
+  {
+    path: '/student/researchers/:id',
+    title: 'Researcher',
+    ownTitle: true,
+    render: ({ params }) => <ResearcherPage id={params.id} />,
   },
   {
     path: '/student/workspace',
@@ -93,9 +126,9 @@ const ROUTES: {
     path: '/student/saved',
     nav: 'Saved',
     icon: Bookmark,
-    title: 'Courses you saved',
+    title: 'Everything you saved',
     render: ({ courses, loading, error, profile }) => (
-      <FindCourses courses={courses} loading={loading} error={error} profile={profile} savedOnly />
+      <SavedPage courses={courses} loading={loading} error={error} profile={profile} />
     ),
   },
   {

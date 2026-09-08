@@ -2,6 +2,7 @@
 // returns plain data; status codes and latency are the transport's job.
 import type {
   CourseRecord,
+  RadarQuery,
   GalleryCourse,
   GalleryFacets,
   GalleryInterpretation,
@@ -20,6 +21,7 @@ import { listProposals, setProposalStatus } from './proposals'
 import { listRecords, publishedIds, recordRevisions, recordsOverview, setRecordStatus } from './records'
 import { profiles, runRetrieval } from './lab'
 import { documents, search } from './search'
+import { listFunding, listResearchers, researcherDetail, runRadar } from './radar'
 
 export class MockHttpError extends Error {
   status: number
@@ -443,6 +445,45 @@ const routes: Route[] = [
       const updated = setRecordStatus(params[0], status, note ?? '')
       if (!updated) throw new MockHttpError(404, 'Course record not found')
       return updated
+    },
+  },
+  {
+    method: 'POST',
+    pattern: /^\/v1\/research\/match$/,
+    handler: (_url, init) => {
+      const query = body<RadarQuery>(init)
+      // The transport must not quietly accept a document even if a future
+      // caller tries to send one: refusing here keeps the privacy promise a
+      // property of the system rather than of one component.
+      if ('text' in (query as Record<string, unknown>)) {
+        throw new MockHttpError(422, 'The Radar accepts a fingerprint, not the document itself')
+      }
+      return runRadar({
+        topics: query.topics ?? [],
+        methods: query.methods ?? [],
+        applications: query.applications ?? [],
+        discipline: query.discipline ?? null,
+        keywords: query.keywords ?? [],
+      })
+    },
+  },
+  {
+    method: 'GET',
+    pattern: /^\/v1\/research\/funding$/,
+    handler: (url) => listFunding(url.searchParams),
+  },
+  {
+    method: 'GET',
+    pattern: /^\/v1\/research\/researchers$/,
+    handler: (url) => listResearchers(url.searchParams),
+  },
+  {
+    method: 'GET',
+    pattern: /^\/v1\/research\/researchers\/([^/]+)$/,
+    handler: (_url, _init, params) => {
+      const detail = researcherDetail(params[0])
+      if (!detail) throw new MockHttpError(404, 'Researcher not found')
+      return detail
     },
   },
   {

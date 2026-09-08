@@ -17,7 +17,7 @@ import type { StudentProfile } from '../profile'
 import { expiryWarning, requiredDocuments, type RequiredDoc } from './documents'
 import { draftStatement, PROMPTS, statementText } from './statement'
 import {
-  addDocumentVersion, readiness, removeApplication, restoreApplication, setAnswer,
+  addDocumentVersion, attachedCount, completion, readiness, removeApplication, restoreApplication, setAnswer,
   setDocument, setStatus, STATUS_LABELS, useApplications,
   type Application, type ApplicationStatus,
 } from './store'
@@ -194,7 +194,7 @@ function BoardCard({ application, course, profile, dragging, onDragStart, onDrag
   const docs = requiredDocuments(course)
   const draft = draftStatement(course, profile, application.answers)
   const state = readiness(application, docs.map((doc) => doc.id), draft.gaps)
-  const attached = Object.values(application.documents).filter((doc) => doc.versions?.length).length
+  const attached = attachedCount(application)
 
   return <article
     className={`board-card ${dragging ? 'dragging' : ''}`}
@@ -228,12 +228,9 @@ function ApplicationCard({ application, course, profile, onOpen }: {
   const docs = requiredDocuments(course)
   const draft = draftStatement(course, profile, application.answers)
   const state = readiness(application, docs.map((doc) => doc.id), draft.gaps)
-  const attached = Object.values(application.documents).filter((doc) => doc.versions?.length).length
+  const attached = attachedCount(application)
   const match = matchCourse(course, profile)
-  const complete = Math.round(
-    ((state.documentsDone / Math.max(1, state.documentsTotal)) * 0.6
-      + (draft.gaps === 0 ? 1 : Math.max(0, 1 - draft.gaps / 4)) * 0.4) * 100,
-  )
+  const complete = completion(state, draft.gaps)
 
   return <article className="application-card">
     <SafeImage

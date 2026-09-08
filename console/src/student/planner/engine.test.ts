@@ -230,3 +230,87 @@ describe('returning more than once', () => {
     expect(second.messages.length).toBe(first.messages.length)
   })
 })
+
+describe('the Radar, asked for in conversation', () => {
+  const RESEARCH = 'Graph neural networks for detecting financial fraud in transaction networks.'
+
+  // localStorage is shared across tests in this file, and the engine reads
+  // remembered terms; clearing keeps each case independent.
+  const fresh = () => {
+    globalThis.localStorage?.clear()
+    return opening()
+  }
+
+  it('asks for the work when it has none to go on', () => {
+    const state = say(fresh(), 'find me researchers')
+    expect(state.step).toBe('research')
+    const last = state.messages[state.messages.length - 1]
+    expect(last.text).toMatch(/paste a few sentences/i)
+  })
+
+  it('shows the terms before searching, and does not search on its own', () => {
+    const asked = say(fresh(), 'find me researchers')
+    const read = say(asked, RESEARCH)
+    expect(read.step).toBe('radarTerms')
+    const cards = read.messages.filter((message) => message.card)
+    // The terms are shown; nothing has been matched yet.
+    expect(cards.some((message) => message.card?.kind === 'radar-terms')).toBe(true)
+    expect(cards.some((message) => message.card?.kind === 'radar-matches')).toBe(false)
+  })
+
+  // The whole point of the review step: it cannot be skipped just because this
+  // is a chat rather than the Radar page.
+  it('carries only fingerprint terms, never the sentences that were pasted', () => {
+    const secret = 'We reweight the adjacency matrix by settlement latency, which nobody has '
+      + 'published, applied to graph neural networks for financial fraud detection.'
+    const read = say(say(fresh(), 'find me researchers'), secret)
+    const card = read.messages.find((message) => message.card?.kind === 'radar-terms')!
+    const terms = (card.card as { kind: 'radar-terms'; terms: string[] }).terms
+    expect(terms.length).toBeGreaterThan(0)
+    const travelling = terms.join(' ').toLowerCase()
+    // Published vocabulary and single salient words only — nothing that would
+    // disclose the idea itself.
+    for (const term of terms) expect(term.split(/\s+/).length).toBeLessThanOrEqual(3)
+    expect(travelling).not.toContain('reweight the adjacency')
+    expect(travelling).not.toContain('settlement latency')
+    expect(travelling).not.toContain('nobody has published')
+  })
+
+  it('searches only once the student agrees', () => {
+    const read = say(say(fresh(), 'find me researchers'), RESEARCH)
+    const searched = say(read, 'search my research')
+    const cards = searched.messages.filter((message) => message.card)
+    expect(cards.some((message) => message.card?.kind === 'radar-matches')).toBe(true)
+  })
+
+  it('refuses to guess when it cannot read the writing', () => {
+    const asked = say(fresh(), 'find me researchers')
+    const stuck = say(asked, 'asdf qwer zxcv')
+    expect(stuck.step).toBe('research')
+    expect(stuck.messages[stuck.messages.length - 1].text).toMatch(/will not guess/i)
+  })
+
+  it('remembers agreed terms so it does not ask twice', () => {
+    const searched = say(say(say(fresh(), 'find me researchers'), RESEARCH), 'search my research')
+    const again = say(searched, 'funding for my research')
+    // Straight to results, with no second request for the research.
+    expect(again.step).not.toBe('research')
+    const last = again.messages.filter((message) => message.card?.kind === 'radar-matches')
+    expect(last.length).toBeGreaterThan(1)
+  })
+
+  it('asks for funding rather than people when that is what was requested', () => {
+    const read = say(say(fresh(), 'find me funding'), RESEARCH)
+    const searched = say(read, 'search my research')
+    const card = [...searched.messages].reverse().find((message) => message.card?.kind === 'radar-matches')!
+    expect((card.card as { focus: string }).focus).toBe('funding')
+  })
+
+  it('lets the student replace the research it is holding', () => {
+    const read = say(say(fresh(), 'find me researchers'), RESEARCH)
+    const redo = say(read, 'my research is different now')
+    expect(redo.step).toBe('research')
+    expect(redo.research).toBeNull()
+  })
+})
+

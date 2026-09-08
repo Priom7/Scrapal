@@ -223,3 +223,24 @@ export function readiness(application: Application | undefined, requiredIds: str
     ready: done === requiredIds.length && gaps === 0,
   }
 }
+
+/** One percentage, used by every surface that shows one. Documents carry most
+    of the weight because they are the part a student cannot write their way
+    out of; the statement closes the rest as its gaps are filled. Kept here
+    rather than in a component so the chat and the applications page can never
+    quote different numbers for the same application. */
+export function completion(state: ReturnType<typeof readiness>, gaps: number): number {
+  const documents = state.documentsTotal === 0 ? 1 : state.documentsDone / state.documentsTotal
+  const statement = gaps === 0 ? 1 : Math.max(0, 1 - gaps / 4)
+  return Math.round((documents * 0.6 + statement * 0.4) * 100)
+}
+
+/** How many files are recorded against this application. */
+export function attachedCount(application: Application): number {
+  return Object.values(application.documents).filter((doc) => doc.versions?.length).length
+}
+
+/** When the student last did anything to this application. */
+export function lastTouched(application: Application): string | undefined {
+  return application.history?.[application.history.length - 1]?.at
+}
