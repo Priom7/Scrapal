@@ -19,7 +19,7 @@ export function SafeImage({ src, alt, className, fallback }: {
 
 export function ScrapalAvatar({ size = 30 }: { size?: number }) {
   return <span className="avatar scrapal-avatar" style={{ width: size, height: size }}>
-    <img src="/scrapal_logo.svg" alt="" aria-hidden="true" />
+    <img src="/brand/scrapal-icon.svg" alt="" aria-hidden="true" />
   </span>
 }
 

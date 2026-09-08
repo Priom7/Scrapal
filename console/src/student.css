@@ -12,11 +12,21 @@
   --s-soft: var(--ink-soft);
   --s-faint: color-mix(in srgb, var(--ink-soft) 74%, var(--surface));
   --s-paper: var(--paper);
+  /* The raised surface for cards and panels. There is no --s-card: several
+     rules once used that name, it resolved to nothing, and those cards were
+     transparent rather than white. */
   --s-surface: var(--surface);
   --s-line: var(--line);
   --s-line-soft: color-mix(in srgb, var(--line) 55%, var(--surface));
   --s-accent: var(--cobalt);
   --s-accent-soft: color-mix(in srgb, var(--cobalt) 10%, var(--surface));
+  /* For accent text sitting *on* the accent tint. Plain --s-accent reaches only
+     4.34:1 there, just under AA for the 12px chips it is used in. --cobalt-dark
+     is already darker in light and lighter in dark, so one alias works in both
+     themes. */
+  --s-accent-ink: var(--cobalt-dark);
+  /* What sits on a filled accent surface. */
+  --s-on-accent: #fff;
 
   /* Match states keep their meaning from the console's state law:
      mint = done, amber = needs attention. Still no red. */
@@ -27,9 +37,14 @@
   --s-unmet: var(--ink-soft);
   --s-unmet-soft: var(--surface-2);
 
-  --s-display: 'Sora', system-ui, sans-serif;
-  --s-body: 'Atkinson Hyperlegible', system-ui, sans-serif;
-  --s-mono: 'IBM Plex Mono', ui-monospace, monospace;
+  /* The student app is the brand-facing surface, so it is Inter throughout with
+     Comfortaa reserved for the wordmark (guidelines p.03). */
+  --s-display: var(--sc-font);
+  --s-body: var(--sc-font);
+  /* The student app is Inter throughout. Figures that used to be monospaced
+     for alignment keep that alignment through tabular numerals instead, which
+     is what the brand asks for (guidelines p.03). */
+  --s-mono: var(--sc-font);
 
   color: var(--s-ink);
   font-family: var(--s-body);
@@ -38,8 +53,8 @@
 
 .student h1, .student h2 {
   font-family: var(--s-display);
-  font-weight: 600;
-  letter-spacing: -0.035em;
+  font-weight: 700;
+  letter-spacing: -0.025em;
   text-wrap: balance;
   margin: 0;
 }
@@ -60,7 +75,10 @@
 
 /* The shared shell owns the page frame. Content keeps a measure so prose does
    not stretch across a wide screen, but stays wide enough for panel rows. */
-.student { width: 100%; max-width: 1040px; padding-bottom: 3rem; }
+/* Centred, not pinned left. Without the auto margin every student page sat in
+   a 1040px column against the left edge, so on a 2560px screen the right half
+   of the window was simply empty. */
+.student { width: 100%; max-width: 1040px; margin-inline: auto; padding-bottom: 3rem; }
 
 .student a:focus-visible, .student button:focus-visible,
 .student input:focus-visible, .student select:focus-visible {
@@ -77,7 +95,7 @@
   display: flex; align-items: center; justify-content: space-between;
   gap: 1rem; flex-wrap: wrap;
   padding: 0.75rem 0.95rem;
-  border: 1px solid var(--s-line); border-radius: 11px;
+  border: 1px solid var(--s-line); border-radius: var(--sc-radius-small);
   background: var(--s-surface);
 }
 .profile-strip.invite { border-style: dashed; border-color: var(--s-accent); background: var(--s-accent-soft); }
@@ -88,7 +106,7 @@
 .find-search {
   display: flex; align-items: center; gap: 0.55rem;
   padding: 0 0.85rem; min-height: 46px;
-  border: 1px solid var(--s-line); border-radius: 11px;
+  border: 1px solid var(--s-line); border-radius: var(--sc-radius-small);
   background: var(--s-surface); color: var(--s-faint);
 }
 .find-search input {
@@ -98,7 +116,7 @@
 .find-filters { display: flex; align-items: center; gap: 0.5rem; color: var(--s-faint); flex-wrap: wrap; }
 .find-choice select {
   min-height: 38px; padding: 0 0.6rem;
-  border: 1px solid var(--s-line); border-radius: 9px;
+  border: 1px solid var(--s-line); border-radius: var(--sc-radius-small);
   background: var(--s-surface); color: var(--s-ink); font: inherit; font-size: 0.88rem;
 }
 .find-count { color: var(--s-soft); font-size: 0.86rem; }
@@ -109,7 +127,7 @@
 .course-card {
   display: grid; gap: 0.85rem;
   padding: 1.05rem 1.15rem;
-  border: 1px solid var(--s-line); border-radius: 12px;
+  border: 1px solid var(--s-line); border-radius: var(--sc-radius-panel);
   background: var(--s-surface);
 }
 .course-top { display: flex; align-items: flex-start; gap: 0.8rem; }
@@ -121,7 +139,7 @@
 .save-toggle {
   flex: none; display: grid; place-items: center;
   width: 38px; height: 38px; padding: 0;
-  border: 1px solid var(--s-line); border-radius: 10px;
+  border: 1px solid var(--s-line); border-radius: var(--sc-radius-small);
   background: transparent; color: var(--s-soft); cursor: pointer;
 }
 .save-toggle:hover { color: var(--s-accent); border-color: var(--s-accent); }
@@ -132,7 +150,7 @@
 .match {
   display: grid; gap: 0.5rem;
   padding: 0.8rem 0.9rem;
-  border-radius: 10px;
+  border-radius: var(--sc-radius-small);
   background: var(--s-paper);
 }
 .match-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.8rem; }
@@ -207,25 +225,34 @@
   min-height: 42px; padding: 0 1rem;
   color: var(--s-ink); font: inherit; font-size: 0.9rem; font-weight: 700;
   text-decoration: none; white-space: nowrap;
-  border: 1px solid var(--s-line); border-radius: 10px;
+  border: 1px solid var(--s-line); border-radius: var(--sc-radius-small);
   background: var(--s-surface); cursor: pointer;
 }
 .student-button:hover { border-color: var(--s-accent); color: var(--s-accent); }
-.student-button.primary { color: #fff; background: var(--s-accent); border-color: var(--s-accent); }
-.student-button.primary:hover { color: #fff; filter: brightness(1.1); }
+/* The label colour has to follow the accent's lightness, not be assumed. In
+   dark the accent is a pale blue and white text on it reaches only 3.24:1;
+   dark ink on the same fill is comfortably past AA. */
+.student-button.primary { color: var(--s-on-accent); background: var(--s-accent); border-color: var(--s-accent); }
+.student-button.primary:hover { color: var(--s-on-accent); filter: brightness(1.06); }
 .student-button.saved { color: var(--s-accent); background: var(--s-accent-soft); border-color: var(--s-accent); }
 
 .student-link {
   display: inline-flex; align-items: center; gap: 0.3rem;
   color: var(--s-accent); font: inherit; font-size: 0.88rem;
-  background: none; border: 0; padding: 0; cursor: pointer;
+  background: none; border: 0; cursor: pointer;
+  /* Vertical padding on an inline-flex control grows the hit area to the 24px
+     WCAG 2.5.8 minimum without changing where the text sits on the line. */
+  padding: 0.15rem 0; min-height: 24px;
 }
 .student-link.danger { color: var(--s-close); text-decoration: underline; }
 
 .student-back {
   display: inline-flex; align-items: center; gap: 0.35rem;
   color: var(--s-soft); font: inherit; font-size: 0.87rem; text-decoration: none;
-  border: 0; background: none; padding: 0; cursor: pointer; justify-self: start;
+  border: 0; background: none; cursor: pointer; justify-self: start;
+  /* A standalone navigation control, so it gets a real target rather than the
+     22px the text alone gave it. */
+  min-height: 32px; padding: 0 0.5rem 0 0;
 }
 .student-back:hover { color: var(--s-ink); }
 
@@ -240,7 +267,7 @@
 
 .detail-banner {
   position: relative; overflow: hidden;
-  border-radius: 16px; min-height: clamp(180px, 30vw, 260px);
+  border-radius: var(--sc-radius-control); min-height: clamp(180px, 30vw, 260px);
   display: flex; flex-direction: column; justify-content: flex-end;
   padding: 1.1rem clamp(1rem, 3vw, 1.6rem);
   color: #fff;
@@ -279,7 +306,7 @@
 .detail-actions { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
 .icon-action {
   display: grid; place-items: center; width: 42px; height: 42px; padding: 0;
-  color: var(--s-soft); border: 1px solid var(--s-line); border-radius: 10px;
+  color: var(--s-soft); border: 1px solid var(--s-line); border-radius: var(--sc-radius-small);
   background: var(--s-surface); cursor: pointer;
 }
 .icon-action:hover { color: var(--s-accent); border-color: var(--s-accent); }
@@ -289,7 +316,7 @@
 .more-pop {
   position: absolute; right: 0; top: calc(100% + 0.35rem); z-index: 30;
   min-width: 230px; display: grid; padding: 0.3rem;
-  border: 1px solid var(--s-line); border-radius: 11px; background: var(--s-surface);
+  border: 1px solid var(--s-line); border-radius: var(--sc-radius-small); background: var(--s-surface);
   box-shadow: 0 14px 36px rgba(8, 13, 22, .17);
 }
 .more-pop button, .more-pop a {
@@ -318,14 +345,14 @@
 .detail-section {
   display: grid; gap: 0.7rem; scroll-margin-top: 5rem;
   padding: 1.1rem 1.2rem;
-  border: 1px solid var(--s-line); border-radius: 12px; background: var(--s-surface);
+  border: 1px solid var(--s-line); border-radius: var(--sc-radius-panel); background: var(--s-surface);
 }
 .detail-section h2 { display: flex; align-items: center; gap: 0.45rem; font-size: 1.05rem; }
 .detail-section p { color: var(--s-soft); max-width: 66ch; line-height: 1.65; }
 
 .key-strip-student {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 0; border: 1px solid var(--s-line-soft); border-radius: 10px; overflow: hidden;
+  gap: 0; border: 1px solid var(--s-line-soft); border-radius: var(--sc-radius-small); overflow: hidden;
 }
 .key-fact-student {
   margin: 0; padding: 0.7rem 0.8rem;
@@ -362,9 +389,9 @@
 .figure-value:disabled { color: var(--s-faint); cursor: default; font-style: italic; }
 .receipt-quote {
   display: grid; gap: 0.35rem; margin: 0;
-  padding: 0.8rem 0.95rem; border-radius: 10px; background: var(--s-accent-soft);
+  padding: 0.8rem 0.95rem; border-radius: var(--sc-radius-small); background: var(--s-accent-soft);
 }
-.receipt-quote p { font-family: var(--s-mono); font-size: 0.82rem; line-height: 1.6; color: var(--s-ink); }
+.receipt-quote p { font-family: var(--s-mono); font-size: 0.82rem; line-height: 1.6; color: var(--s-ink); font-variant-numeric: tabular-nums; }
 .receipt-quote cite { color: var(--s-soft); font-size: 0.78rem; font-style: normal; }
 .receipt-hint { color: var(--s-faint); font-size: 0.82rem; }
 
@@ -380,7 +407,7 @@
 .profile-page fieldset {
   display: grid; gap: 0.85rem; margin: 0;
   padding: 1rem 1.1rem;
-  border: 1px solid var(--s-line); border-radius: 12px;
+  border: 1px solid var(--s-line); border-radius: var(--sc-radius-panel);
   background: var(--s-surface);
 }
 .profile-page legend {
@@ -390,7 +417,7 @@
 .profile-page label { display: grid; gap: 0.3rem; font-size: 0.9rem; }
 .profile-page input, .profile-page select {
   min-height: 44px; padding: 0 0.7rem;
-  border: 1px solid var(--s-line); border-radius: 9px;
+  border: 1px solid var(--s-line); border-radius: var(--sc-radius-small);
   background: var(--s-paper); color: var(--s-ink); font: inherit; font-size: 1rem;
 }
 .profile-page small { color: var(--s-faint); font-size: 0.79rem; }
@@ -399,7 +426,7 @@
 .student-empty {
   display: grid; gap: 0.5rem; justify-items: start;
   padding: 1.6rem 1.2rem;
-  border: 1px dashed var(--s-line); border-radius: 12px;
+  border: 1px dashed var(--s-line); border-radius: var(--sc-radius-panel);
   background: var(--s-surface);
 }
 .student-empty p { max-width: 55ch; color: var(--s-soft); font-size: 0.92rem; }
@@ -428,7 +455,7 @@
 .ws-panel {
   display: grid; gap: 0.55rem; align-content: start;
   padding: 1.05rem 1.15rem;
-  border: 1px solid var(--s-line); border-radius: 12px; background: var(--s-surface);
+  border: 1px solid var(--s-line); border-radius: var(--sc-radius-panel); background: var(--s-surface);
 }
 .ws-panel > header { display: flex; align-items: center; gap: 0.5rem; }
 .ws-panel h2 { font-size: 1.02rem; }
@@ -455,19 +482,19 @@
 .money-lead { color: var(--s-soft); max-width: 62ch; font-size: 0.94rem; }
 .money-picker select {
   width: 100%; min-height: 44px; padding: 0 0.7rem;
-  border: 1px solid var(--s-line); border-radius: 10px;
+  border: 1px solid var(--s-line); border-radius: var(--sc-radius-small);
   background: var(--s-surface); color: var(--s-ink); font: inherit; font-size: 0.95rem;
 }
 
 .money-block {
   display: grid; gap: 0.75rem;
   padding: 1.1rem 1.2rem;
-  border: 1px solid var(--s-line); border-radius: 12px; background: var(--s-surface);
+  border: 1px solid var(--s-line); border-radius: var(--sc-radius-panel); background: var(--s-surface);
 }
 .money-note { color: var(--s-soft); font-size: 0.9rem; max-width: 62ch; }
 .money-warn {
   display: flex; align-items: flex-start; gap: 0.5rem;
-  padding: 0.6rem 0.75rem; border-radius: 9px;
+  padding: 0.6rem 0.75rem; border-radius: var(--sc-radius-small);
   background: var(--s-close-soft); color: var(--s-close);
   font-size: 0.86rem; line-height: 1.5;
 }
@@ -520,11 +547,11 @@
 .funding-add label { flex: 1; min-width: 120px; }
 .funding-add input {
   width: 100%; min-height: 42px; padding: 0 0.7rem;
-  border: 1px solid var(--s-line); border-radius: 9px;
+  border: 1px solid var(--s-line); border-radius: var(--sc-radius-small);
   background: var(--s-paper); color: var(--s-ink); font: inherit; font-size: 0.95rem;
 }
 .funding-verdict {
-  padding: 0.65rem 0.8rem; border-radius: 9px;
+  padding: 0.65rem 0.8rem; border-radius: var(--sc-radius-small);
   font-family: var(--s-display); font-size: 1rem; font-weight: 600;
 }
 .funding-verdict.good { color: var(--s-met); background: var(--s-met-soft); }
@@ -533,7 +560,7 @@
 .held-input { display: grid; gap: 0.3rem; font-size: 0.9rem; max-width: 260px; }
 .held-input input {
   min-height: 44px; padding: 0 0.7rem;
-  border: 1px solid var(--s-line); border-radius: 9px;
+  border: 1px solid var(--s-line); border-radius: var(--sc-radius-small);
   background: var(--s-paper); color: var(--s-ink); font: inherit; font-size: 1rem;
 }
 .visa-lines, .swing-lines { list-style: none; margin: 0; padding: 0; display: grid; }
@@ -551,7 +578,7 @@
 .currency-inputs label { display: grid; gap: 0.3rem; font-size: 0.88rem; flex: 1; min-width: 110px; }
 .currency-inputs input {
   min-height: 44px; padding: 0 0.7rem;
-  border: 1px solid var(--s-line); border-radius: 9px;
+  border: 1px solid var(--s-line); border-radius: var(--sc-radius-small);
   background: var(--s-paper); color: var(--s-ink); font: inherit; font-size: 1rem;
 }
 
@@ -580,7 +607,7 @@
 .check-form label { width: 100%; }
 .check-form textarea {
   width: 100%; padding: 0.75rem 0.85rem;
-  border: 1px solid var(--s-line); border-radius: 11px;
+  border: 1px solid var(--s-line); border-radius: var(--sc-radius-small);
   background: var(--s-surface); color: var(--s-ink);
   font: inherit; font-size: 1rem; line-height: 1.5; resize: vertical;
 }
@@ -590,7 +617,7 @@
 .check-examples button {
   max-width: 100%; padding: 0.5rem 0.75rem; text-align: left;
   color: var(--s-soft); font: inherit; font-size: 0.87rem; line-height: 1.4;
-  border: 1px dashed var(--s-line); border-radius: 10px;
+  border: 1px dashed var(--s-line); border-radius: var(--sc-radius-small);
   background: transparent; cursor: pointer;
 }
 .check-examples button:hover { color: var(--s-ink); border-color: var(--s-accent); }
@@ -601,7 +628,7 @@
   display: grid; gap: 0.85rem;
   padding: 1.1rem 1.2rem;
   border: 1px solid var(--s-line); border-left: 3px solid var(--s-unmet);
-  border-radius: 12px; background: var(--s-surface);
+  border-radius: var(--sc-radius-panel); background: var(--s-surface);
 }
 .verdict > header { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0.75rem; align-items: start; }
 .verdict header p { color: var(--s-soft); font-size: 0.91rem; max-width: 60ch; }
@@ -609,7 +636,7 @@
 .verdict h3 { font-family: var(--s-display); font-size: 0.95rem; font-weight: 600; margin: 0; }
 .verdict-mark {
   display: grid; place-items: center; width: 30px; height: 30px;
-  border-radius: 9px; color: var(--s-unmet); background: var(--s-unmet-soft);
+  border-radius: var(--sc-radius-small); color: var(--s-unmet); background: var(--s-unmet-soft);
 }
 .verdict.supported { border-left-color: var(--s-met); }
 .verdict.supported .verdict-mark { color: var(--s-met); background: var(--s-met-soft); }
@@ -621,28 +648,26 @@
 .conflict-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.45rem; }
 .conflict-list li {
   display: grid; gap: 0.15rem;
-  padding: 0.6rem 0.75rem; border-radius: 9px; background: var(--s-close-soft);
+  padding: 0.6rem 0.75rem; border-radius: var(--sc-radius-small); background: var(--s-close-soft);
 }
 .conflict-claimed { color: var(--s-soft); font-size: 0.84rem; text-decoration: line-through; }
 .conflict-published {
-  color: var(--s-close); font-family: var(--s-mono); font-size: 0.95rem; font-weight: 500;
-}
+  color: var(--s-close); font-family: var(--s-mono); font-size: 0.95rem; font-weight: 500; font-variant-numeric: tabular-nums; }
 
 .verdict-absolutes { color: var(--s-soft); font-size: 0.88rem; }
 .verdict-absolutes code {
   font-family: var(--s-mono); font-size: 0.82rem;
   padding: 0.05rem 0.35rem; margin: 0 0.15rem;
-  border-radius: 5px; background: var(--s-unmet-soft); color: var(--s-ink);
-}
+  border-radius: 5px; background: var(--s-unmet-soft); color: var(--s-ink); font-variant-numeric: tabular-nums; }
 
 .evidence-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.7rem; }
 .evidence-list li { display: grid; gap: 0.3rem; }
 .evidence-list blockquote {
   display: flex; gap: 0.5rem; margin: 0;
-  padding: 0.7rem 0.85rem; border-radius: 9px; background: var(--s-paper);
+  padding: 0.7rem 0.85rem; border-radius: var(--sc-radius-small); background: var(--s-paper);
 }
 .evidence-list blockquote svg { flex: none; margin-top: 0.25rem; color: var(--s-faint); }
-.evidence-list blockquote p { font-family: var(--s-mono); font-size: 0.8rem; line-height: 1.6; }
+.evidence-list blockquote p { font-family: var(--s-mono); font-size: 0.8rem; line-height: 1.6; font-variant-numeric: tabular-nums; }
 .evidence-list a { color: var(--s-accent); font-size: 0.83rem; }
 
 .check-caveat {
@@ -656,7 +681,7 @@
   display: grid; gap: 0.6rem;
   padding: 1rem 1.15rem;
   border: 1px solid var(--s-line); border-left: 3px solid var(--s-accent);
-  border-radius: 12px; background: var(--s-surface);
+  border-radius: var(--sc-radius-panel); background: var(--s-surface);
 }
 .change-watch h2 { font-size: 1rem; }
 .change-watch ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.45rem; }
@@ -680,12 +705,23 @@
 .planner {
   display: flex; flex-direction: column;
   min-height: min(72vh, 660px);
-  max-width: 720px;
+  /* A conversation is read at reading width, and centred — a chat column stuck
+     to one edge of a wide window reads as a broken layout. */
+  max-width: 720px; margin-inline: auto; width: 100%;
 }
 /* Before the conversation has really begun there is nothing to scroll, so the
    opening sits in the middle of the space rather than pinned to its top edge
    with a void beneath. */
 .planner.is-opening { justify-content: center; }
+.planner-welcome {
+  display: grid; justify-items: center; gap: 0.5rem;
+  padding: 0 1rem 1.4rem; text-align: center;
+  animation: welcome-in 0.4s var(--sc-ease) both;
+}
+.planner-welcome h2 { font-size: 1.5rem; margin: 0.2rem 0 0; }
+.planner-welcome p { margin: 0; max-width: 34rem; color: var(--s-soft); font-size: 0.93rem; line-height: 1.65; }
+@keyframes welcome-in { from { opacity: 0; transform: translateY(8px); } }
+@media (prefers-reduced-motion: reduce) { .planner-welcome { animation: none; } }
 .planner.is-opening .thread { flex: 0; padding-bottom: 1.25rem; }
 .planner.is-opening .composer { margin-top: 0; }
 
@@ -708,7 +744,8 @@
 .scrapal-avatar { background: #fff; border: 1px solid var(--s-line); }
 .scrapal-avatar img { object-fit: contain; padding: 3px; }
 .student-avatar { background: var(--s-accent-soft); color: var(--s-accent); }
-.avatar-initials { font-family: var(--s-display); font-size: 0.72rem; font-weight: 600; }
+.avatar-initials {
+  color: var(--s-soft); font-family: var(--s-display); font-size: 0.72rem; font-weight: 600; }
 
 .bubble {
   /* A comfortable reading measure. A bubble spanning a desktop column reads as
@@ -776,7 +813,7 @@
 .chat-courses > li {
   display: grid; gap: 0.6rem;
   padding: 0.85rem 0.95rem;
-  border: 1px solid var(--s-line); border-radius: 12px; background: var(--s-surface);
+  border: 1px solid var(--s-line); border-radius: var(--sc-radius-panel); background: var(--s-surface);
 }
 .chat-courses a { text-decoration: none; color: inherit; display: grid; gap: 0.1rem; }
 .chat-courses a:hover strong { text-decoration: underline; text-underline-offset: 2px; }
@@ -793,7 +830,7 @@
 .chat-costs {
   display: grid; gap: 0.6rem;
   padding: 0.9rem 1rem;
-  border: 1px solid var(--s-line); border-radius: 12px; background: var(--s-surface);
+  border: 1px solid var(--s-line); border-radius: var(--sc-radius-panel); background: var(--s-surface);
 }
 .chat-costs ul { list-style: none; margin: 0; padding: 0; display: grid; }
 .chat-costs li {
@@ -844,8 +881,7 @@
   display: inline-flex; align-items: center; gap: 0.35rem;
   padding: 0.2rem 0.5rem; border-radius: 7px;
   background: var(--s-accent-soft); color: var(--s-accent);
-  font-family: var(--s-mono); font-size: 0.76rem; justify-self: start;
-}
+  font-family: var(--s-mono); font-size: 0.76rem; justify-self: start; font-variant-numeric: tabular-nums; }
 .doc-file button { display: grid; place-items: center; padding: 0; border: 0; background: none; color: inherit; cursor: pointer; }
 .doc-expiry { display: flex; align-items: center; gap: 0.45rem; color: var(--s-soft); font-size: 0.8rem; }
 .doc-expiry input {
@@ -869,7 +905,7 @@
 .statement-prompt { display: grid; gap: 0.3rem; font-size: 0.9rem; }
 .statement-prompt textarea {
   padding: 0.6rem 0.7rem; resize: vertical;
-  border: 1px solid var(--s-line); border-radius: 9px;
+  border: 1px solid var(--s-line); border-radius: var(--sc-radius-small);
   background: var(--s-paper); color: var(--s-ink); font: inherit; font-size: 0.95rem;
 }
 .statement-draft { display: grid; gap: 0.85rem; padding-top: 0.4rem; }
@@ -884,7 +920,7 @@
 .chat-application {
   display: grid; gap: 0.35rem; justify-items: start;
   padding: 0.9rem 1rem;
-  border: 1px solid var(--s-line); border-radius: 12px; background: var(--s-surface);
+  border: 1px solid var(--s-line); border-radius: var(--sc-radius-panel); background: var(--s-surface);
 }
 .chat-application strong { font-family: var(--s-display); font-size: 1rem; font-weight: 600; }
 .chat-application > span { color: var(--s-soft); font-size: 0.85rem; }
@@ -910,7 +946,7 @@
      much the match summary above it varies. */
   display: flex; flex-direction: column; gap: 0.55rem;
   padding: 0.85rem 0.95rem;
-  border: 1px solid var(--s-line); border-radius: 12px; background: var(--s-surface);
+  border: 1px solid var(--s-line); border-radius: var(--sc-radius-panel); background: var(--s-surface);
 }
 .chat-rail > li .student-button { margin-top: auto; }
 .chat-rail a { text-decoration: none; color: inherit; display: grid; gap: 0.1rem; }
@@ -924,27 +960,61 @@
 .chat-answer li { display: grid; gap: 0.25rem; }
 .chat-answer blockquote {
   display: flex; gap: 0.45rem; margin: 0;
-  padding: 0.6rem 0.75rem; border-radius: 10px; background: var(--s-surface);
+  padding: 0.6rem 0.75rem; border-radius: var(--sc-radius-small); background: var(--s-surface);
   border: 1px solid var(--s-line);
 }
 .chat-answer blockquote svg { flex: none; margin-top: 0.25rem; color: var(--s-faint); }
-.chat-answer blockquote p { font-family: var(--s-mono); font-size: 0.79rem; line-height: 1.6; }
+.chat-answer blockquote p { font-family: var(--s-mono); font-size: 0.79rem; line-height: 1.6; font-variant-numeric: tabular-nums; }
 .chat-answer a { color: var(--s-accent); font-size: 0.8rem; }
 .chat-answer.empty p {
-  padding: 0.7rem 0.85rem; border-radius: 10px;
+  padding: 0.7rem 0.85rem; border-radius: var(--sc-radius-small);
   border: 1px solid var(--s-line); background: var(--s-surface);
   color: var(--s-soft); font-size: 0.9rem;
 }
 .chat-thinking-note { color: var(--s-faint); font-size: 0.86rem; }
 
-.chat-drafts { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
+/* A draft in the thread carries the same facts as its card on the applications
+   page — status, progress, documents, attachments, gaps — at chat scale. */
+.chat-drafts { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.55rem; }
 .chat-drafts li {
-  display: flex; align-items: center; justify-content: space-between; gap: 0.8rem; flex-wrap: wrap;
-  padding: 0.75rem 0.9rem;
-  border: 1px solid var(--s-line); border-radius: 12px; background: var(--s-surface);
+  display: grid; gap: 0.4rem;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid var(--s-line); border-radius: var(--sc-radius-panel); background: var(--s-surface);
+  animation: draft-in 0.24s var(--sc-ease) both;
 }
-.chat-drafts strong { display: block; font-family: var(--s-display); font-size: 0.95rem; font-weight: 600; }
-.chat-drafts span { color: var(--s-soft); font-size: 0.82rem; }
+.chat-drafts li:nth-child(2) { animation-delay: 0.05s; }
+.chat-drafts li:nth-child(3) { animation-delay: 0.1s; }
+@keyframes draft-in { from { opacity: 0; transform: translateY(5px); } }
+
+.draft-head { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
+.draft-head time { color: var(--s-faint); font-size: 0.74rem; white-space: nowrap; }
+.chat-drafts strong { font-family: var(--s-display); font-size: 0.95rem; font-weight: 600; line-height: 1.35; }
+.draft-where {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  color: var(--s-soft); font-size: 0.82rem;
+}
+
+.draft-bar { height: 5px; margin: 0.15rem 0 0.1rem; border-radius: 999px; background: var(--s-surface-2, var(--s-paper)); overflow: hidden; }
+.draft-bar span { display: block; height: 100%; border-radius: 999px; background: var(--s-accent); transition: width var(--sc-slow) var(--sc-ease); }
+
+.draft-stats { display: flex; align-items: center; gap: 0.85rem; margin: 0; }
+.draft-stats div { display: inline-flex; align-items: center; gap: 0.28rem; margin: 0; }
+.draft-stats dt { display: grid; place-items: center; margin: 0; color: var(--s-faint); }
+.draft-stats dd { margin: 0; color: var(--s-soft); font-size: 0.8rem; font-variant-numeric: tabular-nums; }
+.draft-percent { margin-left: auto !important; }
+.draft-percent dd { color: var(--s-ink); font-weight: 700; }
+
+.draft-actions { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.2rem; }
+.draft-actions .student-button { display: inline-flex; align-items: center; gap: 0.35rem; text-decoration: none; }
+
+/* The status word is a pill here, so it reads as a state rather than as part of
+   the sentence it used to sit inside. */
+.chat-drafts .draft-status {
+  display: inline-flex; align-items: center;
+  padding: 0.1rem 0.5rem; border-radius: 999px;
+  font-size: 0.7rem; font-weight: 700; letter-spacing: 0.01em;
+  color: var(--s-soft); background: var(--s-unmet-soft);
+}
 
 /* Chat-first is the paid tier; the badge says so without shouting. */
 .sidebar nav a .nav-label { white-space: nowrap; }
@@ -977,10 +1047,13 @@
   color: var(--s-met); background: var(--s-met-soft);
 }
 
+/* Each state carries its own tint as well as its own word, so the pill is
+   never colour alone — and "unsuccessful" stays grey, never red. */
 .draft-status { font-weight: 700; }
-.draft-status.submitted { color: var(--s-accent); }
-.draft-status.offer { color: var(--s-met); }
-.draft-status.unsuccessful { color: var(--s-soft); }
+.chat-drafts .draft-status.draft { color: var(--s-close); background: var(--s-close-soft); }
+.chat-drafts .draft-status.submitted { color: var(--s-accent); background: var(--s-accent-soft); }
+.chat-drafts .draft-status.offer { color: var(--s-met); background: var(--s-met-soft); }
+.chat-drafts .draft-status.unsuccessful { color: var(--s-soft); background: var(--s-unmet-soft); }
 
 .pack-stage { display: flex; align-items: center; gap: 0.5rem; font-size: 0.86rem; color: var(--s-soft); margin-top: 0.35rem; }
 .pack-stage select {
@@ -995,14 +1068,14 @@
   display: grid; grid-template-columns: auto minmax(0, 1fr);
   gap: 0 1rem; align-items: start;
   padding: 1.1rem 1.2rem;
-  border: 1px solid var(--s-line); border-radius: 12px; background: var(--s-surface);
+  border: 1px solid var(--s-line); border-radius: var(--sc-radius-panel); background: var(--s-surface);
 }
 .profile-identity .avatar { box-shadow: 0 0 0 3px var(--s-surface), 0 0 0 4px var(--s-line); }
 .profile-identity > div { display: grid; gap: 0.4rem; justify-items: start; min-width: 0; }
 .profile-name input {
   width: 100%; padding: 0; border: 0; background: transparent;
   color: var(--s-ink); font-family: var(--s-display);
-  font-size: 1.4rem; font-weight: 600; letter-spacing: -0.035em;
+  font-size: 1.4rem; font-weight: 600; letter-spacing: -0.025em;
 }
 .profile-name input::placeholder { color: var(--s-faint); }
 .profile-identity .student-link { display: inline-flex; align-items: center; gap: 0.3rem; }
@@ -1019,9 +1092,9 @@
   display: block; width: 100%; object-fit: cover;
   background: var(--s-unmet-soft);
 }
-.rail-photo { height: 96px; border-radius: 9px; }
-.card-photo { height: 116px; border-radius: 10px; margin-bottom: 0.25rem; }
-.course-banner { height: clamp(140px, 26vw, 220px); border-radius: 14px; }
+.rail-photo { height: 96px; border-radius: var(--sc-radius-small); }
+.card-photo { height: 116px; border-radius: var(--sc-radius-small); margin-bottom: 0.25rem; }
+.course-banner { height: clamp(140px, 26vw, 220px); border-radius: var(--sc-radius-input); }
 .placeholder { opacity: 0.9; }
 
 .course-card { overflow: hidden; }
@@ -1030,7 +1103,7 @@
 .chat-statement {
   display: grid; gap: 0.75rem;
   padding: 0.95rem 1.05rem;
-  border: 1px solid var(--s-line); border-radius: 12px; background: var(--s-surface);
+  border: 1px solid var(--s-line); border-radius: var(--sc-radius-panel); background: var(--s-surface);
 }
 .chat-statement h4 {
   margin: 0 0 0.15rem; font-family: var(--s-display);
@@ -1047,7 +1120,12 @@
 .chat-docs li { grid-template-columns: 24px minmax(0, 1fr) auto; }
 .chat-doc-file {
   display: block; margin-top: 0.1rem;
-  font-family: var(--s-mono); font-size: 0.73rem; font-weight: 400; color: var(--s-accent);
+  font-family: var(--s-mono); font-size: 0.73rem; font-weight: 400; color: var(--s-accent); font-variant-numeric: tabular-nums; }
+.chat-doc-file { display: inline-flex; align-items: center; gap: 0.3rem; }
+.chat-doc-file i {
+  font-style: normal; font-size: 0.66rem; font-weight: 700;
+  padding: 0 0.3rem; border-radius: 999px;
+  color: var(--s-accent); background: var(--s-accent-soft);
 }
 .chat-doc-attach {
   display: grid; place-items: center; width: 30px; height: 30px;
@@ -1104,7 +1182,7 @@
 .student-gallery .match-score strong { font-size: 1.15rem; }
 
 .student-gallery .profile-strip { margin: 0 clamp(1.2rem, 2.6vw, 2rem) 0.9rem; }
-.student-gallery .gallery-resultline h2 { font-family: 'Sora', sans-serif; font-size: 1.05rem; }
+.student-gallery .gallery-resultline h2 { font-family: var(--sc-font); font-size: 1.05rem; }
 .student-gallery .plan-strip p { margin: 0; }
 .student-gallery .plan-strip strong { display: block; }
 
@@ -1113,7 +1191,7 @@
 .application-cards { list-style: none; margin: 0; padding: 0; display: grid; gap: 1rem; }
 .application-card {
   overflow: hidden;
-  border: 1px solid var(--s-line); border-radius: 14px; background: var(--s-surface);
+  border: 1px solid var(--s-line); border-radius: var(--sc-radius-input); background: var(--s-surface);
 }
 .application-banner {
   display: block; width: 100%; height: 120px; object-fit: cover;
@@ -1221,7 +1299,7 @@
 .filter-pop.is-sheet footer button {
   width: 100%; padding: 0.85rem;
   color: #fff; font: inherit; font-weight: 700; font-size: 0.92rem;
-  border: 0; border-radius: 11px; background: var(--s-accent); cursor: pointer;
+  border: 0; border-radius: var(--sc-radius-small); background: var(--s-accent); cursor: pointer;
 }
 .filter-backdrop { animation: fade-in 0.18s ease; }
 
@@ -1248,7 +1326,7 @@
   color: var(--s-ink);
   background: color-mix(in srgb, var(--s-surface) 62%, transparent);
   border: 1px solid color-mix(in srgb, var(--s-accent) 16%, var(--s-line));
-  border-radius: 20px;
+  border-radius: var(--sc-radius-card);
   -webkit-backdrop-filter: blur(22px) saturate(1.3);
   backdrop-filter: blur(22px) saturate(1.3);
   box-shadow:
@@ -1287,7 +1365,7 @@
 /* The search field itself: a lighter pane of the same glass. */
 .student-gallery .ask-bar {
   border-color: color-mix(in srgb, var(--s-accent) 22%, var(--s-line));
-  border-radius: 14px;
+  border-radius: var(--sc-radius-input);
   background: color-mix(in srgb, var(--s-surface) 78%, transparent);
   -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
 }
@@ -1314,7 +1392,7 @@
 /* Country tabs as glass pills that lift into the results below. */
 .student-gallery .country-rail button {
   color: var(--s-soft);
-  border-radius: 12px 12px 0 0;
+  border-radius: var(--sc-radius-panel) var(--sc-radius-panel) 0 0;
   background: color-mix(in srgb, var(--s-surface) 40%, transparent);
   transition: background .16s ease, color .16s ease;
 }
@@ -1402,7 +1480,7 @@
 .app-toolbar .money-lead { margin: 0; }
 .view-switch {
   display: inline-flex; flex: none; padding: 3px; gap: 2px;
-  border: 1px solid var(--s-line); border-radius: 10px; background: var(--s-paper);
+  border: 1px solid var(--s-line); border-radius: var(--sc-radius-small); background: var(--s-paper);
 }
 .view-switch button {
   display: inline-flex; align-items: center; gap: 0.35rem;
@@ -1413,7 +1491,7 @@
 }
 .view-switch button:hover { color: var(--s-ink); }
 .view-switch button[aria-pressed='true'] {
-  background: var(--s-card); color: var(--s-ink);
+  background: var(--s-surface); color: var(--s-ink);
   box-shadow: 0 1px 3px rgb(0 0 0 / 0.12); font-weight: 600;
 }
 
@@ -1427,7 +1505,7 @@
 .board-column {
   display: flex; flex-direction: column; gap: 0.5rem;
   min-width: 0; padding: 0.6rem; scroll-snap-align: start;
-  border: 1px solid var(--s-line); border-radius: 14px; background: var(--s-paper);
+  border: 1px solid var(--s-line); border-radius: var(--sc-radius-input); background: var(--s-paper);
   transition: background 0.18s ease, border-color 0.18s ease;
 }
 .board-column.over { border-color: var(--s-accent); background: var(--s-accent-soft); }
@@ -1435,7 +1513,7 @@
 .board-column h2 { font-family: var(--s-display); font-size: 0.82rem; font-weight: 600; margin: 0; }
 .board-column > header span {
   min-width: 22px; padding: 0 0.35rem; text-align: center;
-  border-radius: 999px; background: var(--s-card); color: var(--s-faint);
+  border-radius: 999px; background: var(--s-surface); color: var(--s-faint);
   font-size: 0.73rem; line-height: 20px;
 }
 .board-column > ul { display: grid; gap: 0.5rem; list-style: none; margin: 0; padding: 0; }
@@ -1443,7 +1521,7 @@
 
 .board-card {
   display: grid; gap: 0.5rem; padding: 0.65rem;
-  border: 1px solid var(--s-line); border-radius: 11px; background: var(--s-card);
+  border: 1px solid var(--s-line); border-radius: var(--sc-radius-small); background: var(--s-surface);
   cursor: grab; transition: box-shadow 0.18s ease, transform 0.18s ease, opacity 0.18s ease;
 }
 .board-card:hover { box-shadow: 0 4px 14px rgb(0 0 0 / 0.1); transform: translateY(-1px); }
@@ -1478,7 +1556,7 @@
   animation: version-in 0.18s ease;
 }
 .version-list li { display: flex; align-items: baseline; justify-content: space-between; gap: 0.8rem; }
-.version-list span { font-family: var(--s-mono); font-size: 0.75rem; color: var(--s-soft); }
+.version-list span { font-family: var(--s-mono); font-size: 0.75rem; color: var(--s-soft); font-variant-numeric: tabular-nums; }
 .version-list time { color: var(--s-faint); font-size: 0.72rem; white-space: nowrap; }
 @keyframes version-in { from { opacity: 0; transform: translateY(-3px); } }
 
@@ -1490,7 +1568,7 @@
 .preview-sheet {
   position: relative; display: grid; grid-template-rows: auto minmax(0, 1fr) auto;
   width: min(640px, 100%); max-height: min(76vh, 640px);
-  border: 1px solid var(--s-line); border-radius: 16px; background: var(--s-card);
+  border: 1px solid var(--s-line); border-radius: var(--sc-radius-control); background: var(--s-surface);
   box-shadow: 0 24px 60px rgb(0 0 0 / 0.3); animation: preview-in 0.2s ease;
 }
 @keyframes preview-in { from { opacity: 0; transform: translateY(10px) scale(0.985); } }
@@ -1529,3 +1607,513 @@
   .app-toolbar { align-items: flex-start; }
   .preview-sheet { max-height: 84vh; }
 }
+
+/* Brand governance says Inter for the interface (guidelines p.03). The console
+   gallery keeps IBM Plex Mono for its figures — there it is a deliberate
+   scanning aid and the operator gallery is intentionally untouched — but the
+   student-facing copy of those same components reads as Inter. */
+.student-gallery .figures .figure,
+.student-gallery .gallery-resultline .figure {
+  font-family: var(--sc-font);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+
+/* ================================================================ radar */
+
+.radar { display: grid; gap: 1rem; position: relative; }
+/* Dropping a file is the gesture people try first, so the whole page is the
+   target and says so while something is being dragged over it. */
+.radar.dropping .radar-panel {
+  border-color: var(--s-accent); border-style: dashed;
+  background: color-mix(in srgb, var(--s-accent) 5%, var(--s-surface));
+}
+.radar.dropping .radar-input { border-color: var(--s-accent); }
+.radar-drop {
+  display: flex; align-items: center; gap: 0.4rem; margin: 0;
+  color: var(--s-faint); font-size: 0.82rem;
+}
+
+/* The three steps are numbered because the middle one is easy to mistake for a
+   loading screen, and it is the opposite: it is the only point at which the
+   reader can still change what leaves their device. */
+.radar-steps {
+  display: flex; flex-wrap: wrap; gap: 0.4rem; list-style: none; margin: 0; padding: 0;
+  counter-reset: step;
+}
+.radar-steps li {
+  display: inline-flex; align-items: center; gap: 0.45rem;
+  padding: 0.35rem 0.75rem 0.35rem 0.4rem;
+  border: 1px solid var(--s-line); border-radius: 999px;
+  color: var(--s-faint); font-size: 0.8rem;
+}
+.radar-steps li span {
+  display: grid; place-items: center; width: 20px; height: 20px;
+  border-radius: 999px; background: var(--s-paper); color: var(--s-soft);
+  font-size: 0.72rem; font-weight: 700;
+}
+.radar-steps li.now { color: var(--s-ink); border-color: var(--s-accent); font-weight: 600; }
+.radar-steps li.now span { color: var(--s-on-accent); background: var(--s-accent); }
+.radar-steps li.done { color: var(--s-met); border-color: color-mix(in srgb, var(--s-met) 40%, transparent); }
+.radar-steps li.done span { color: var(--s-on-accent); background: var(--s-met); }
+
+.radar-panel {
+  display: grid; gap: 0.9rem; padding: 1.15rem;
+  border: 1px solid var(--s-line); border-radius: var(--sc-radius-card); background: var(--s-surface);
+}
+.radar-head { display: grid; gap: 0.75rem; }
+.radar-head h2 { font-size: 1.1rem; margin: 0 0 0.25rem; }
+.radar-head p { margin: 0; color: var(--s-soft); font-size: 0.9rem; line-height: 1.6; }
+
+/* The privacy promise is the feature, so it is stated at the point of upload
+   rather than buried in a footer. */
+.radar-privacy {
+  display: flex; align-items: flex-start; gap: 0.55rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid color-mix(in srgb, var(--s-met) 32%, transparent);
+  border-radius: var(--sc-radius-control);
+  background: var(--s-met-soft);
+  color: var(--s-ink) !important; font-size: 0.86rem !important; line-height: 1.55 !important;
+}
+.radar-privacy svg { flex: none; margin-top: 2px; color: var(--s-met); }
+
+.radar-input {
+  width: 100%; padding: 0.85rem 0.95rem; resize: vertical;
+  border: 1px solid var(--s-line); border-radius: var(--sc-radius-input);
+  background: var(--s-paper); color: var(--s-ink); font: inherit; font-size: 0.95rem; line-height: 1.6;
+}
+.radar-input:focus { border-color: var(--s-accent); outline: none; box-shadow: 0 0 0 3px var(--s-accent-soft); }
+
+.radar-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+.radar-actions .student-button { display: inline-flex; align-items: center; gap: 0.4rem; }
+.radar-actions .student-button.primary { margin-left: auto; }
+.radar-count { color: var(--s-faint); font-size: 0.82rem; }
+.radar-note {
+  margin: 0; padding: 0.6rem 0.75rem;
+  border-left: 3px solid var(--s-close); border-radius: 0 var(--sc-radius-small) var(--sc-radius-small) 0;
+  background: var(--s-close-soft); color: var(--s-ink); font-size: 0.86rem; line-height: 1.55;
+}
+
+/* ---- the fingerprint --------------------------------------------------- */
+
+.print-groups { display: grid; gap: 0.8rem; margin: 0; }
+.print-groups > div { display: grid; gap: 0.35rem; }
+.print-groups dt { color: var(--s-faint); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.02em; text-transform: uppercase; }
+.print-groups dd { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0; }
+.print-plain { color: var(--s-soft); font-size: 0.9rem; }
+
+.print-term {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  min-height: 32px; padding: 0 0.6rem;
+  border: 1px solid var(--s-accent); border-radius: 999px;
+  color: var(--s-accent-ink); background: var(--s-accent-soft);
+  font: inherit; font-size: 0.83rem; cursor: pointer;
+  transition: opacity var(--sc-fast) var(--sc-ease), background var(--sc-fast) var(--sc-ease);
+}
+.print-term:hover { background: color-mix(in srgb, var(--s-accent) 18%, transparent); }
+/* A struck term stays visible so the reader can see what they excluded and put
+   it back — removing it from the list entirely would hide the decision. */
+.print-term.off {
+  border-color: var(--s-line); color: var(--s-faint); background: transparent;
+  text-decoration: line-through;
+}
+
+/* ---- results ----------------------------------------------------------- */
+
+.radar-summary {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; flex-wrap: wrap;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--s-line); border-radius: var(--sc-radius-panel); background: var(--s-surface);
+}
+.radar-searched { margin: 0; font-size: 0.9rem; line-height: 1.6; }
+.radar-searched .student-link { margin-left: 0.4rem; }
+.radar-deadline {
+  display: inline-flex; align-items: center; gap: 0.35rem; margin: 0.35rem 0 0;
+  color: var(--s-close); font-size: 0.84rem; font-weight: 600;
+}
+
+.radar-adjacent {
+  display: grid; gap: 0.45rem; padding: 0.9rem 1rem;
+  border: 1px dashed var(--s-line); border-radius: var(--sc-radius-panel); background: var(--s-paper);
+}
+.radar-adjacent h3 { display: flex; align-items: center; gap: 0.4rem; margin: 0; font-size: 0.95rem; }
+.radar-adjacent p { margin: 0; color: var(--s-soft); font-size: 0.85rem; line-height: 1.55; }
+.radar-adjacent ul { display: flex; flex-wrap: wrap; gap: 0.35rem; list-style: none; margin: 0.2rem 0 0; padding: 0; }
+.radar-adjacent li {
+  padding: 0.2rem 0.6rem; border-radius: 999px;
+  background: var(--s-surface); border: 1px solid var(--s-line);
+  font-size: 0.8rem; color: var(--s-soft);
+}
+
+.radar-tabs { display: flex; gap: 0.3rem; overflow-x: auto; padding-bottom: 0.2rem; }
+.radar-tabs button {
+  display: inline-flex; align-items: center; gap: 0.4rem; white-space: nowrap;
+  min-height: 40px; padding: 0 0.8rem;
+  border: 1px solid var(--s-line); border-radius: 999px;
+  background: var(--s-surface); color: var(--s-soft); font: inherit; font-size: 0.86rem; cursor: pointer;
+}
+.radar-tabs button:hover { color: var(--s-ink); }
+.radar-tabs button[aria-selected='true'] {
+  color: var(--s-on-accent); border-color: var(--s-accent); background: var(--s-accent); font-weight: 600;
+}
+.radar-tabs b {
+  padding: 0 0.35rem; border-radius: 999px;
+  background: color-mix(in srgb, currentColor 16%, transparent);
+  font-size: 0.75rem; font-variant-numeric: tabular-nums;
+}
+
+/* Two up once there is room. A single column of wide cards on a large screen
+   wastes the space that made the screen large. */
+.radar-results { display: grid; gap: 0.7rem; grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 900px) {
+  .radar-results { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* ---- a match ----------------------------------------------------------- */
+
+.match-card {
+  position: relative; display: flex; flex-direction: column; gap: 0.65rem; padding: 1rem;
+  border: 1px solid var(--s-line); border-radius: var(--sc-radius-card); background: var(--s-surface);
+  animation: draft-in 0.28s var(--sc-ease) both;
+  transition: border-color var(--sc-fast) var(--sc-ease), box-shadow var(--sc-fast) var(--sc-ease), transform var(--sc-fast) var(--sc-ease);
+}
+.match-card:hover { border-color: color-mix(in srgb, var(--s-accent) 45%, var(--s-line)); box-shadow: var(--sc-lift); transform: translateY(-2px); }
+/* Cards arrive in sequence rather than all at once, which reads as a result
+   coming in rather than a page repainting. */
+.radar-results .match-card:nth-child(2) { animation-delay: 0.05s; }
+.radar-results .match-card:nth-child(3) { animation-delay: 0.1s; }
+.radar-results .match-card:nth-child(4) { animation-delay: 0.15s; }
+.radar-results .match-card:nth-child(n+5) { animation-delay: 0.2s; }
+
+.match-card.person { padding-top: 2.6rem; }
+/* The one fact that decides whether writing to this person is worth it. */
+.card-standing {
+  position: absolute; top: 0.85rem; right: 0.9rem;
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  padding: 0.18rem 0.55rem; border-radius: 999px;
+  font-size: 0.73rem; font-weight: 600;
+  color: var(--s-soft); background: var(--s-unmet-soft);
+}
+.card-standing.supervise, .card-standing.funded { color: var(--s-met); background: var(--s-met-soft); }
+.card-standing.hiring { color: var(--s-accent-ink); background: var(--s-accent-soft); }
+.card-standing.collab { color: var(--s-close); background: var(--s-close-soft); }
+
+.match-portrait {
+  display: grid; place-items: center; width: 58px; height: 58px; flex: none;
+  border-radius: 50%; overflow: hidden; background: var(--s-accent-soft);
+  box-shadow: 0 0 0 3px var(--s-surface), 0 0 0 4px var(--s-line);
+}
+.match-portrait img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.topic-pills { display: flex; flex-wrap: wrap; gap: 0.3rem; list-style: none; margin: 0; padding: 0; }
+.topic-pills li {
+  padding: 0.15rem 0.55rem; border-radius: 999px;
+  color: var(--s-accent-ink); background: var(--s-accent-soft); font-size: 0.75rem;
+}
+.topic-pills li.more { color: var(--s-soft); background: var(--s-unmet-soft); }
+.match-card > header { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 0.75rem; align-items: start; }
+.match-avatar, .match-icon {
+  width: 52px; height: 52px; border-radius: 50%; object-fit: cover; flex: none;
+}
+.match-icon {
+  display: grid; place-items: center; border-radius: var(--sc-radius-control);
+  color: var(--s-accent); background: var(--s-accent-soft);
+}
+.match-avatar.placeholder { background: var(--s-accent-soft); }
+.match-title { min-width: 0; display: grid; gap: 0.15rem; }
+.match-title h3 { display: flex; align-items: center; gap: 0.35rem; margin: 0; font-size: 1rem; font-weight: 600; }
+.match-title h3 a { color: inherit; text-decoration: none; }
+.match-title h3 a:hover { color: var(--s-accent); text-decoration: underline; }
+.match-title p { margin: 0; color: var(--s-soft); font-size: 0.85rem; line-height: 1.45; }
+.match-where { display: flex; align-items: center; gap: 0.3rem; color: var(--s-faint) !important; font-size: 0.8rem !important; }
+.verified { color: var(--s-accent); flex: none; }
+.match-bio { margin: 0; font-size: 0.9rem; line-height: 1.6; }
+
+/* The fit ring. The number is written inside it, so the ring is a second
+   encoding of the same fact rather than the only one — colour and shape alone
+   never carry meaning here. */
+.fit-ring {
+  flex: none; display: grid; place-items: center; width: 58px; height: 58px;
+  border-radius: 50%; text-align: center;
+  background: conic-gradient(var(--s-met) calc(var(--drawn, var(--fit)) * 1%), var(--s-unmet-soft) 0);
+  animation: fit-draw 0.7s var(--sc-ease) both;
+}
+@property --drawn { syntax: '<number>'; inherits: false; initial-value: 0; }
+@keyframes fit-draw { from { --drawn: 0; } to { --drawn: var(--fit); } }
+.fit-ring::before {
+  content: ''; grid-area: 1 / 1; width: 46px; height: 46px;
+  border-radius: 50%; background: var(--s-surface);
+}
+.fit-ring b, .fit-ring small { grid-area: 1 / 1; z-index: 1; }
+.fit-ring b { font-size: 0.86rem; font-weight: 700; font-variant-numeric: tabular-nums; transform: translateY(-5px); }
+.fit-ring small { color: var(--s-faint); font-size: 0.6rem; transform: translateY(9px); }
+
+.match-badges { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.badge {
+  display: inline-flex; align-items: center; padding: 0.15rem 0.55rem;
+  border-radius: 999px; font-size: 0.75rem; font-weight: 600;
+  color: var(--s-soft); background: var(--s-unmet-soft);
+}
+.badge.supervise { color: var(--s-met); background: var(--s-met-soft); }
+.badge.hiring { color: var(--s-accent-ink); background: var(--s-accent-soft); }
+.badge.funded { color: var(--s-met); background: var(--s-met-soft); }
+.badge.collab { color: var(--s-close); background: var(--s-close-soft); }
+.badge.urgent { color: var(--s-close); background: var(--s-close-soft); }
+
+/* The reasons are the point of the whole feature, so they are laid out as a
+   list to be read rather than as a tooltip to be discovered. */
+.why { display: grid; gap: 0.4rem; list-style: none; margin: 0; padding: 0.7rem 0.8rem;
+  border-radius: var(--sc-radius-control); background: var(--s-paper); }
+.why li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0.15rem 0.5rem; font-size: 0.85rem; line-height: 1.5; }
+.why li svg { grid-row: 1 / span 2; align-self: start; margin-top: 3px; color: var(--s-accent); }
+.why b { color: var(--s-faint); font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
+.why span { color: var(--s-ink); }
+
+.match-evidence summary {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  color: var(--s-accent); font-size: 0.84rem; cursor: pointer; list-style: none;
+}
+.match-evidence summary::-webkit-details-marker { display: none; }
+.match-evidence ul { display: grid; gap: 0.4rem; list-style: none; margin: 0.5rem 0 0; padding: 0 0 0 0.8rem; border-left: 2px solid var(--s-line); }
+.match-evidence li { display: grid; gap: 0.1rem; }
+.match-evidence li span { font-size: 0.86rem; line-height: 1.45; }
+.match-evidence li small { color: var(--s-faint); font-size: 0.76rem; }
+
+/* Cards in a row share a height, and the actions sit on the baseline rather
+   than wherever the text happened to end — a row of buttons at four different
+   heights reads as four unrelated things. */
+.match-actions { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: auto; padding-top: 0.15rem; }
+.match-actions .student-button { display: inline-flex; align-items: center; gap: 0.35rem; text-decoration: none; }
+
+/* ---- researcher profile ------------------------------------------------ */
+
+.researcher { display: grid; gap: 1rem; }
+.researcher-head {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 1rem; align-items: start;
+  padding: 1.15rem; border: 1px solid var(--s-line); border-radius: var(--sc-radius-card); background: var(--s-surface);
+}
+.researcher-avatar {
+  display: grid; place-items: center; width: 96px; height: 96px; flex: none;
+  border-radius: 50%; overflow: hidden; background: var(--s-accent-soft);
+  box-shadow: 0 0 0 3px var(--s-surface), 0 0 0 4px var(--s-line);
+}
+.researcher-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.researcher-identity { min-width: 0; display: grid; gap: 0.2rem; }
+.researcher-identity h1 { display: flex; align-items: center; gap: 0.4rem; font-size: 1.35rem; }
+.researcher-identity > p { margin: 0; color: var(--s-soft); font-size: 0.92rem; }
+.researcher-org { font-weight: 600; color: var(--s-ink) !important; }
+.researcher-meta { display: flex; flex-wrap: wrap; gap: 0.9rem; margin-top: 0.2rem !important; font-size: 0.83rem !important; }
+.researcher-meta span, .researcher-meta a { display: inline-flex; align-items: center; gap: 0.3rem; color: var(--s-faint); }
+.researcher-meta a { color: var(--s-accent); }
+.researcher-topics { display: flex; flex-wrap: wrap; gap: 0.3rem; list-style: none; margin: 0.45rem 0 0; padding: 0; }
+.researcher-topics li {
+  padding: 0.15rem 0.55rem; border-radius: 999px;
+  color: var(--s-accent-ink); background: var(--s-accent-soft); font-size: 0.78rem;
+}
+.researcher-actions { display: grid; gap: 0.45rem; justify-items: end; }
+
+.researcher-tabs { display: flex; gap: 0.25rem; overflow-x: auto; border-bottom: 1px solid var(--s-line); }
+.researcher-tabs button {
+  display: inline-flex; align-items: center; gap: 0.35rem; white-space: nowrap;
+  min-height: 42px; padding: 0 0.85rem; margin-bottom: -1px;
+  border: 0; border-bottom: 2px solid transparent; background: none;
+  color: var(--s-soft); font: inherit; font-size: 0.9rem; cursor: pointer;
+}
+.researcher-tabs button:hover { color: var(--s-ink); }
+.researcher-tabs button[aria-selected='true'] { color: var(--s-accent); border-bottom-color: var(--s-accent); font-weight: 600; }
+.researcher-tabs b { padding: 0 0.3rem; border-radius: 999px; background: var(--s-accent-soft); color: var(--s-accent-ink); font-size: 0.72rem; }
+
+.researcher-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 300px); gap: 1rem; align-items: start; }
+.researcher-main { display: grid; gap: 0.8rem; min-width: 0; }
+.researcher-about { font-size: 0.95rem; line-height: 1.65; }
+.researcher-lab { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin: 0; font-size: 0.9rem; }
+
+.at-a-glance {
+  position: sticky; top: 1rem; display: grid; gap: 0.5rem; padding: 1rem;
+  border: 1px solid var(--s-line); border-radius: var(--sc-radius-card); background: var(--s-surface);
+}
+.at-a-glance h2 { font-size: 0.95rem; margin: 0; }
+.at-a-glance ul { display: grid; gap: 0.45rem; list-style: none; margin: 0; padding: 0; }
+.at-a-glance li { display: flex; align-items: center; gap: 0.5rem; font-size: 0.86rem; line-height: 1.4; color: var(--s-soft); }
+.at-a-glance li svg { flex: none; color: var(--s-faint); }
+.at-a-glance li.yes { color: var(--s-ink); }
+.at-a-glance li.yes svg { color: var(--s-met); }
+.at-a-glance li.no { color: var(--s-faint); }
+
+.pub-list { display: grid; gap: 0.7rem; list-style: none; margin: 0; padding: 0; }
+.pub-list > li { display: grid; gap: 0.2rem; padding-bottom: 0.7rem; border-bottom: 1px solid var(--s-line); }
+.pub-list > li:last-child { border-bottom: 0; padding-bottom: 0; }
+.pub-list strong { font-size: 0.92rem; line-height: 1.4; }
+.pub-list > li > span { color: var(--s-faint); font-size: 0.8rem; }
+.pub-topics { display: flex; flex-wrap: wrap; gap: 0.25rem; list-style: none; margin: 0.15rem 0 0; padding: 0; }
+.pub-topics li { padding: 0.1rem 0.45rem; border-radius: 999px; background: var(--s-paper); color: var(--s-soft); font-size: 0.72rem; }
+
+@media (max-width: 900px) {
+  .researcher-body { grid-template-columns: minmax(0, 1fr); }
+  .at-a-glance { position: static; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .match-card, .fit-ring { animation: none; }
+  .match-card:hover { transform: none; }
+}
+
+@media (max-width: 640px) {
+  .match-card.person { padding-top: 2.5rem; }
+  .researcher-head { grid-template-columns: auto minmax(0, 1fr); }
+  .researcher-avatar { width: 64px; height: 64px; }
+  .researcher-actions { grid-column: 1 / -1; justify-items: start; }
+  /* The ring stays beside the name rather than dropping onto its own row: at
+     46px all three columns still fit inside 390px, and a row of its own cost
+     about 80px of height on every card. */
+  .match-card > header { gap: 0.6rem; }
+  .match-portrait { width: 48px; height: 48px; }
+  .fit-ring { width: 46px; height: 46px; }
+  .fit-ring::before { width: 36px; height: 36px; }
+  .fit-ring b { font-size: 0.72rem; transform: translateY(-4px); }
+  .fit-ring small { font-size: 0.54rem; transform: translateY(7px); }
+  .why li { grid-template-columns: minmax(0, 1fr); gap: 0.1rem; }
+  .radar-actions .student-button.primary { margin-left: 0; width: 100%; justify-content: center; }
+}
+
+/* ============================================================ people */
+
+.people { display: grid; gap: 0.9rem; }
+.people-head { display: grid; gap: 0.5rem; }
+.people-head p { margin: 0; color: var(--s-soft); font-size: 0.92rem; line-height: 1.6; }
+.people-lead { max-width: 56ch; }
+.people-hint {
+  display: flex; align-items: center; gap: 0.3rem; flex-wrap: wrap;
+  padding: 0.55rem 0.75rem;
+  border-radius: var(--sc-radius-control);
+  background: var(--s-accent-soft); color: var(--s-ink) !important; font-size: 0.85rem !important;
+}
+.people-hint .student-link { color: var(--s-accent-ink); }
+
+.people-search { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.people-search-field {
+  flex: 1 1 260px; min-width: 0; display: flex; align-items: center; gap: 0.5rem;
+  padding: 0 0.75rem; min-height: 46px;
+  border: 1px solid var(--s-line); border-radius: var(--sc-radius-input); background: var(--s-surface);
+  transition: border-color var(--sc-fast) var(--sc-ease), box-shadow var(--sc-fast) var(--sc-ease);
+}
+.people-search-field:focus-within { border-color: var(--s-accent); box-shadow: 0 0 0 3px var(--s-accent-soft); }
+.people-search-field svg { flex: none; color: var(--s-faint); }
+.people-search-field input {
+  flex: 1; min-width: 0; border: 0; background: none; color: var(--s-ink);
+  font: inherit; font-size: 0.95rem; outline: none;
+}
+.people-clear {
+  display: grid; place-items: center; width: 26px; height: 26px; flex: none;
+  border: 0; border-radius: 999px; background: var(--s-paper); color: var(--s-soft); cursor: pointer;
+}
+.people-clear:hover { color: var(--s-ink); }
+.people-search .student-button { display: inline-flex; align-items: center; gap: 0.35rem; }
+
+.people-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
+.filter-chip {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  min-height: 36px; padding: 0 0.7rem;
+  border: 1px solid var(--s-line); border-radius: 999px;
+  background: var(--s-surface); color: var(--s-soft);
+  font: inherit; font-size: 0.84rem; cursor: pointer;
+  transition: border-color var(--sc-fast) var(--sc-ease), background var(--sc-fast) var(--sc-ease), color var(--sc-fast) var(--sc-ease);
+}
+.filter-chip:hover { color: var(--s-ink); border-color: var(--s-accent); }
+.filter-chip.on {
+  color: var(--s-on-accent); border-color: var(--s-accent); background: var(--s-accent); font-weight: 600;
+}
+/* The count rides inside the chip, so "how many would this leave" is answered
+   before the filter is applied rather than after. */
+.filter-chip b {
+  padding: 0 0.32rem; border-radius: 999px;
+  background: color-mix(in srgb, currentColor 16%, transparent);
+  font-size: 0.74rem; font-variant-numeric: tabular-nums;
+}
+/* Tinting a badge with its own text colour leaves the two a few per cent apart,
+   which is unreadable however dark the hue. Selected chips give the badge the
+   surface colour to sit on instead. */
+.filter-chip.on b, .radar-tabs button[aria-selected='true'] b {
+  color: var(--s-accent-ink); background: var(--s-surface);
+}
+
+.people-sort { display: inline-flex; align-items: center; gap: 0.4rem; color: var(--s-faint); font-size: 0.82rem; }
+.people-sort select {
+  min-height: 36px; padding: 0 0.5rem;
+  border: 1px solid var(--s-line); border-radius: var(--sc-radius-small);
+  background: var(--s-surface); color: var(--s-ink); font: inherit; font-size: 0.84rem;
+}
+
+.topic-picker {
+  display: grid; gap: 0.5rem; padding: 0.85rem;
+  border: 1px dashed var(--s-line); border-radius: var(--sc-radius-panel); background: var(--s-paper);
+  animation: version-in 0.2s var(--sc-ease);
+}
+.topic-picker p { margin: 0; color: var(--s-soft); font-size: 0.84rem; }
+.topic-picker > div { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+
+/* A heading by markup so the page does not jump from h1 to the h3 on each
+   card, but sized as the quiet count line it reads as. */
+.people-count {
+  display: flex; align-items: center; gap: 0.4rem; margin: 0.2rem 0 0;
+  color: var(--s-soft); font-size: 0.9rem; font-weight: 400; letter-spacing: 0;
+}
+.people-count b { color: var(--s-ink); font-variant-numeric: tabular-nums; }
+
+@media (max-width: 640px) {
+  .people-sort { width: 100%; }
+  .people-sort select { flex: 1; }
+}
+
+/* ------------------------------------------------------------ funding */
+
+/* What closes within the month, said before the list rather than discovered
+   somewhere down it. */
+.funding-urgent {
+  display: flex; align-items: flex-start; gap: 0.5rem; margin: 0;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid color-mix(in srgb, var(--s-close) 32%, transparent);
+  border-radius: var(--sc-radius-control);
+  background: var(--s-close-soft); color: var(--s-ink);
+  font-size: 0.88rem; line-height: 1.55;
+}
+.funding-urgent svg { flex: none; margin-top: 1px; color: var(--s-close); }
+
+/* Browsing has no percentage, so the overlap is stated in words instead. */
+.call-matched {
+  display: flex; align-items: flex-start; gap: 0.4rem; margin: 0;
+  padding: 0.55rem 0.7rem; border-radius: var(--sc-radius-control);
+  background: var(--s-accent-soft); color: var(--s-ink);
+  font-size: 0.84rem; line-height: 1.5;
+}
+.call-matched svg { flex: none; margin-top: 2px; color: var(--s-accent); }
+.people-hint svg { flex: none; color: var(--s-accent); }
+
+/* ------------------------------------------------ the radar, in the chat */
+
+.chat-terms {
+  display: grid; gap: 0.55rem; padding: 0.8rem 0.9rem;
+  border: 1px solid var(--s-line); border-radius: var(--sc-radius-panel); background: var(--s-surface);
+}
+.chat-terms ul { display: flex; flex-wrap: wrap; gap: 0.3rem; list-style: none; margin: 0; padding: 0; }
+.chat-terms li {
+  padding: 0.18rem 0.6rem; border-radius: 999px;
+  border: 1px solid var(--s-accent);
+  color: var(--s-accent-ink); background: var(--s-accent-soft); font-size: 0.8rem;
+}
+.chat-terms p {
+  display: flex; align-items: flex-start; gap: 0.35rem; margin: 0;
+  color: var(--s-soft); font-size: 0.82rem; line-height: 1.5;
+}
+.chat-terms p svg { flex: none; margin-top: 2px; color: var(--s-met); }
+
+/* Match cards are much taller than a course tile, so the rail they sit in
+   needs its own width or every card is squeezed to a column of wrapped words. */
+.chat-rail.wide > li { width: min(340px, 82vw); }
+.chat-rail.wide .match-card { height: 100%; }
+.chat-catalogue .student-link { display: inline-block; margin-top: 0.4rem; font-size: 0.84rem; }
+
+/* ------------------------------------------------------------ saved */
+
+.saved-page { display: grid; gap: 0.9rem; }
+.save-button.on { color: var(--s-accent); border-color: var(--s-accent); background: var(--s-accent-soft); }
+.save-button { display: inline-flex; align-items: center; gap: 0.35rem; }

@@ -15,6 +15,7 @@ import { MatchScore } from './MatchPanel'
 import { matchCourse, type RequirementCheck } from './match'
 import { hasAnything, type StudentProfile } from './profile'
 import { isSaved, savedAt, toggleSaved, useSavedEntries } from './saved'
+import { Loading } from '../brand'
 
 type FigureKey = 'fees' | 'durations' | 'intake_months'
 
@@ -41,7 +42,7 @@ export function CoursePage({ id, courses, loading, profile }: {
 
   const course = courses.find((item) => item.id === id)
 
-  if (loading) return <p className="find-count">Loading course…</p>
+  if (loading) return <Loading>Opening this course…</Loading>
   if (!course) {
     return <div className="student-empty">
       <h2>That course is not published</h2>

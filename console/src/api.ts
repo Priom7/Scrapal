@@ -380,8 +380,223 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return response.json()
 }
 
+
+/* ---------------------------------------------------------------- research */
+
+export type Researcher = {
+  id: string
+  name: string
+  title: string
+  institution: string
+  city: string
+  country_code: string
+  /** A photograph. Network-dependent, so the UI always pairs it with a
+      fallback — this app has to work offline. */
+  photo_url: string
+  /** Initials on a brand ground, inlined as a data URI. Always available. */
+  avatar_url: string
+  website_url: string
+  orcid: string
+  verified: boolean
+  discipline: string
+  topics: string[]
+  bio: string
+  publication_count: number
+  h_index: number
+  years_active: number
+  open_to_supervise: boolean
+  hiring_phd: boolean
+  has_funding: boolean
+  open_to_collaborate: boolean
+}
+
+export type Publication = {
+  id: string
+  researcher_id: string
+  title: string
+  year: number
+  venue: string
+  citations: number
+  doi: string
+  topics: string[]
+}
+
+export type FundingCall = {
+  id: string
+  name: string
+  funder: string
+  kind: 'phd' | 'fellowship' | 'grant' | 'scholarship'
+  country_code: string
+  topics: string[]
+  fully_funded: boolean
+  amount: number
+  currency: string
+  deadline: string
+  url: string
+  summary: string
+}
+
+export type PhdPosition = {
+  id: string
+  title: string
+  supervisor_id: string
+  institution: string
+  country_code: string
+  topics: string[]
+  fully_funded: boolean
+  stipend: number
+  currency: string
+  deadline: string
+  url: string
+}
+
+export type Lab = {
+  id: string
+  name: string
+  institution: string
+  lead_id: string
+  topics: string[]
+  recruiting: boolean
+}
+
+/** Why something was returned. A score on its own is not an answer: the reader
+    has to be able to check the reasoning, so every match names the overlap it
+    was found on. */
+export type MatchReason = { label: string; detail: string }
+
+export type ResearcherMatch = {
+  researcher: Researcher
+  score: number
+  reasons: MatchReason[]
+  publications: Publication[]
+  position: PhdPosition | null
+}
+
+export type FundingMatch = { call: FundingCall; score: number; reasons: MatchReason[] }
+export type PositionMatch = {
+  position: PhdPosition
+  supervisor: Researcher
+  score: number
+  reasons: MatchReason[]
+}
+export type LabMatch = { lab: Lab; lead: Researcher; score: number; reasons: MatchReason[] }
+
+/**
+ * What the Radar is allowed to search on.
+ *
+ * There is deliberately no field here for the uploaded document. Someone may
+ * paste an unpublished proposal or a patentable idea, and sending that to an
+ * external scholarly search would disclose it. Only terms derived on the
+ * device travel, so the absence of a `text` field is the privacy guarantee —
+ * enforced by the compiler rather than by a comment asking people to be careful.
+ */
+export type RadarQuery = {
+  topics: string[]
+  methods: string[]
+  applications: string[]
+  discipline: string | null
+  keywords: string[]
+}
+
+export type ResearcherSort = 'standing' | 'publications' | 'experience' | 'name'
+
+export type ResearcherFilters = {
+  /** Only these people, for a saved list. */
+  ids?: string[]
+  q?: string
+  topic?: string
+  sort?: ResearcherSort
+  open_to_supervise?: boolean
+  hiring_phd?: boolean
+  has_funding?: boolean
+}
+
+/** Counts come back with the results so a filter can say how many it would
+    leave before it is applied. */
+export type ResearcherFacets = {
+  topics: { value: string; count: number }[]
+  open_to_supervise: number
+  hiring_phd: number
+  has_funding: number
+}
+
+export type ResearcherPage = { items: Researcher[]; total: number; facets: ResearcherFacets }
+
+export type FundingSort = 'deadline' | 'amount' | 'name'
+
+export type FundingFilters = {
+  /** Only these calls, for a saved list. */
+  ids?: string[]
+  q?: string
+  kind?: FundingCall['kind']
+  country?: string
+  topic?: string
+  sort?: FundingSort
+  fully_funded?: boolean
+  open_only?: boolean
+}
+
+export type FundingFacets = {
+  kinds: { value: string; count: number }[]
+  countries: { value: string; count: number }[]
+  topics: { value: string; count: number }[]
+  fully_funded: number
+  open_only: number
+}
+
+export type FundingPage = { items: FundingCall[]; total: number; facets: FundingFacets }
+
+export type RadarResults = {
+  /** Echoed back so the reader can see exactly what was searched for. */
+  searched: string[]
+  researchers: ResearcherMatch[]
+  funding: FundingMatch[]
+  positions: PositionMatch[]
+  labs: LabMatch[]
+  adjacent: string[]
+  /** The soonest deadline across everything returned, or null if none. */
+  next_deadline: string | null
+}
+
 export const api = {
   collections: () => request<Collection[]>('/v1/collections'),
+  /** Only the fingerprint travels. See RadarQuery for why there is no text. */
+  radarMatch: (query: RadarQuery) => request<RadarResults>(
+    '/v1/research/match',
+    { method: 'POST', body: JSON.stringify(query) },
+  ),
+  funding: (params?: FundingFilters) => {
+    const search = new URLSearchParams()
+    if (params?.ids) search.set('ids', params.ids.join(','))
+    if (params?.q) search.set('q', params.q)
+    if (params?.kind) search.set('kind', params.kind)
+    if (params?.country) search.set('country', params.country)
+    if (params?.topic) search.set('topic', params.topic)
+    if (params?.sort) search.set('sort', params.sort)
+    if (params?.fully_funded) search.set('fully_funded', '1')
+    if (params?.open_only) search.set('open_only', '1')
+    const query = search.toString()
+    return request<FundingPage>(`/v1/research/funding${query ? `?${query}` : ''}`)
+  },
+  researchers: (params?: ResearcherFilters) => {
+    const search = new URLSearchParams()
+    if (params?.ids) search.set('ids', params.ids.join(','))
+    if (params?.q) search.set('q', params.q)
+    if (params?.topic) search.set('topic', params.topic)
+    if (params?.sort) search.set('sort', params.sort)
+    if (params?.open_to_supervise) search.set('open_to_supervise', '1')
+    if (params?.hiring_phd) search.set('hiring_phd', '1')
+    if (params?.has_funding) search.set('has_funding', '1')
+    const query = search.toString()
+    return request<ResearcherPage>(`/v1/research/researchers${query ? `?${query}` : ''}`)
+  },
+  researcher: (id: string) => request<{
+    researcher: Researcher
+    publications: Publication[]
+    positions: PhdPosition[]
+    labs: Lab[]
+  }>(`/v1/research/researchers/${encodeURIComponent(id)}`),
+
   institutions: () => request<Institution[]>('/v1/admin/course-intelligence/institutions'),
   galleryInstitutions: (collectionId?: string) => request<GalleryInstitution[]>(
     `/v1/admin/course-gallery/institutions${collectionId ? `?collection_id=${collectionId}` : ''}`,

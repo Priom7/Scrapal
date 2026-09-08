@@ -9,6 +9,7 @@ export type StepId =
   | 'budget' | 'intake' | 'results' | 'costs' | 'open'
   | 'apply' | 'why' | 'experience' | 'goal' | 'pack'
   | 'asking' | 'drafts' | 'documents' | 'details' | 'referee'
+  | 'research' | 'radarTerms'
 
 export type Chip = {
   label: string
@@ -25,6 +26,11 @@ export type Card =
   | { kind: 'statement'; courseId: string }
   | { kind: 'costs'; courseId: string }
   | { kind: 'application'; courseId: string }
+  /* The Radar, in the thread. The terms travel on the card itself so the
+     engine stays a pure state machine and the card owns its own fetching —
+     the same split every other card here uses. */
+  | { kind: 'radar-terms'; terms: string[]; discipline: string | null }
+  | { kind: 'radar-matches'; terms: string[]; discipline: string | null; focus: 'people' | 'funding' }
 
 export type Message = {
   id: string
@@ -45,6 +51,12 @@ export type PlannerState = {
   applyingTo: string | null
   /** Answers in the student's own words, for the personal statement. */
   answers: Record<string, string>
+  /** Terms from the student's research, once they have been shown and agreed.
+      Only ever the fingerprint — the writing itself never leaves the thread. */
+  research: { terms: string[]; discipline: string | null } | null
+  /** Which half of the Radar they asked for, so the confirm step knows what to
+      show once they say yes. */
+  researchFocus: 'people' | 'funding'
   /** Where to return after an aside. A question mid-application must not lose
       the student's place. */
   resumeStack: StepId[]

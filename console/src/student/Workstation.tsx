@@ -7,6 +7,7 @@ import { fundingPosition } from './funding'
 import { matchCourse } from './match'
 import { hasAnything, hasFunding, type StudentProfile } from './profile'
 import { useSaved } from './saved'
+import { Loading } from '../brand'
 
 /** The workstation home. Panels are a list so a later section — applications,
     documents, a planner — is an entry here rather than a restructure. */
@@ -37,7 +38,7 @@ export function Workstation({ courses, loading, profile }: {
           <h2>Courses you saved</h2>
         </header>
         {loading
-          ? <p className="ws-quiet">Loading…</p>
+          ? <Loading>Pulling your workspace together…</Loading>
           : mine.length === 0
             ? <>
                 <p className="ws-quiet">Nothing saved yet. Save a course and it becomes the start of a plan.</p>

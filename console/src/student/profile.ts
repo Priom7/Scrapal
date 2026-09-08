@@ -51,9 +51,30 @@ const KEY = 'scrapal.student.profile'
 export function loadProfile(): StudentProfile {
   try {
     const raw = globalThis.localStorage?.getItem(KEY)
-    return raw ? { ...EMPTY_PROFILE, ...(JSON.parse(raw) as Partial<StudentProfile>) } : EMPTY_PROFILE
+    const stored = raw ? { ...EMPTY_PROFILE, ...(JSON.parse(raw) as Partial<StudentProfile>) } : EMPTY_PROFILE
+    // Everyone starts with a picture rather than their initials. It is chosen
+    // once and written back, so it does not change on every reload — a face
+    // that keeps becoming a different face is worse than no face.
+    if (stored.avatarUrl) return stored
+    const seeded = { ...stored, avatarUrl: defaultAvatar(avatarSeed()) }
+    saveProfile(seeded)
+    return seeded
   } catch {
     return EMPTY_PROFILE
+  }
+}
+
+/** A stable seed for this browser, so the chosen face survives a reload. */
+function avatarSeed(): string {
+  const key = 'scrapal.student.avatar-seed'
+  try {
+    const existing = globalThis.localStorage?.getItem(key)
+    if (existing) return existing
+    const seed = `${Date.now()}-${Math.random()}`
+    globalThis.localStorage?.setItem(key, seed)
+    return seed
+  } catch {
+    return 'scrapal'
   }
 }
 

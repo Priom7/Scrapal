@@ -5,6 +5,8 @@
 // tested by playing it through.
 import { EMPTY_PROFILE, type StudentProfile } from '../profile'
 import { listApplications, readApplication, setAnswer, setReferee, setStatus, startApplication } from '../apply/store'
+import { fingerprint, isEmpty } from '../radar/fingerprint'
+import { loadTerms, saveTerms } from '../radar/savedTerms'
 import { isSkip, shortlist, stepById, type StepResult } from './script'
 import type { Chip, Message, PlannerState, StepContext } from './types'
 
@@ -42,6 +44,7 @@ function id(prefix: string): string {
 export function initialState(profile: StudentProfile = EMPTY_PROFILE): PlannerState {
   return {
     profile, subject: null, step: 'greet', applyingTo: null,
+    research: null, researchFocus: 'people',
     answers: {}, resumeStack: [], done: [], messages: [],
   }
 }
@@ -168,6 +171,45 @@ function speak(state: PlannerState, context: StepContext): Message[] {
     ]
   }
 
+  if (state.step === 'research') {
+    const wanted = state.researchFocus === 'funding' ? 'funding' : 'researchers'
+    return [{
+      id: id('m'),
+      from: 'scrapal',
+      text: `Paste a few sentences about your research — an abstract, a proposal, or just what you `
+        + `work on. I read it here on your device, pull out the topics, and show you those topics `
+        + `before anything is searched. Then I will find ${wanted} that match.`,
+      chips: [{ label: 'Not now', value: 'back to', tone: 'skip' }],
+    }]
+  }
+
+  if (state.step === 'radarTerms') {
+    const research = state.research
+    if (!research) return [{ id: id('m'), from: 'scrapal', text: 'Tell me about your research first.' }]
+    return [
+      {
+        id: id('m'),
+        from: 'scrapal',
+        text: 'This is everything that would leave your device. Your sentences stay here.',
+      },
+      {
+        id: id('m'),
+        from: 'scrapal',
+        card: { kind: 'radar-terms', terms: research.terms, discipline: research.discipline },
+      },
+      {
+        id: id('m'),
+        from: 'scrapal',
+        text: 'Shall I search on those?',
+        chips: [
+          { label: 'Yes, search', value: 'search my research' },
+          { label: 'Find funding instead', value: 'funding for my research' },
+          { label: 'Let me rewrite it', value: 'my research is' },
+        ],
+      },
+    ]
+  }
+
   if (state.step === 'drafts') {
     return [
       { id: id('m'), from: 'scrapal', text: 'Here is what you have on the go. Pick one up wherever you left it.' },
@@ -254,19 +296,25 @@ export function resume(saved: PlannerState, since: string, context: StepContext)
   // said.
   const withoutOldGreetings = saved.messages.filter((message) => message.kind !== 'resume')
 
-  return {
-    ...saved,
-    messages: [...withoutOldGreetings, {
-      id: id('m'),
-      from: 'scrapal',
-      kind: 'resume',
-      text: `Welcome back. We last spoke ${since}.${where ? ` ${where}` : ''}`,
-      // With drafts open the list itself is the answer to "where was I", so it
-      // comes with the greeting rather than one tap behind it.
-      card: drafts.length ? { kind: 'drafts' } : undefined,
-      chips,
-    }],
+  // A bubble renders either speech or a card, never both, so the greeting and
+  // the draft list have to be two messages — putting a card on the greeting
+  // silently threw the greeting away. Both carry kind 'resume' so the next
+  // visit clears both; tagging only the greeting would leave a draft list
+  // stacking up on every reload.
+  const greeting: Message = {
+    id: id('m'),
+    from: 'scrapal',
+    kind: 'resume',
+    text: `Welcome back. We last spoke ${since}.${where ? ` ${where}` : ''}`,
+    chips,
   }
+  // With drafts open the list itself is the answer to "where was I", so it
+  // comes with the greeting rather than one tap behind it.
+  const list: Message[] = drafts.length
+    ? [{ id: id('m'), from: 'scrapal', kind: 'resume', card: { kind: 'drafts' } }]
+    : []
+
+  return { ...saved, messages: [...withoutOldGreetings, greeting, ...list] }
 }
 
 function advance(state: PlannerState, context: StepContext, nextStep: PlannerState['step']): PlannerState {
@@ -333,6 +381,108 @@ export function answer(
         messages: [...withSaid.messages, { id: id('m'), from: 'scrapal', text: words[status] }],
       }
     }
+  }
+
+  // The Radar, asked for in the student's own words.
+  const wantsPeople = says('find researcher', 'find me researcher', 'who works on', 'find a supervisor',
+    'find supervisor', 'potential supervisor', 'who could supervise', 'research radar', 'people like me')
+  const wantsMoney = says('funding for my research', 'research funding', 'find me funding',
+    'funded phd', 'studentship', 'grants for', 'fellowship')
+  if (wantsPeople || wantsMoney) {
+    const focus = wantsMoney ? 'funding' as const : 'people' as const
+    const remembered = withSaid.research ?? loadTerms()
+    // Already know what they work on: no reason to ask again.
+    if (remembered && 'terms' in remembered && remembered.terms.length) {
+      const ready: PlannerState = {
+        ...withSaid,
+        research: { terms: remembered.terms, discipline: remembered.discipline },
+        researchFocus: focus,
+      }
+      return {
+        ...ready,
+        messages: [...ready.messages,
+          {
+            id: id('m'),
+            from: 'scrapal',
+            text: `Using the ${remembered.terms.length} terms you agreed last time.`,
+          },
+          {
+            id: id('m'),
+            from: 'scrapal',
+            card: { kind: 'radar-matches', terms: remembered.terms, discipline: remembered.discipline, focus },
+          },
+          {
+            id: id('m'),
+            from: 'scrapal',
+            text: focus === 'funding'
+              ? 'Deadlines move, so check the funder\u2019s own page before you plan around one.'
+              : 'Open a profile to see whether they are supervising, and what they have published.',
+            chips: [
+              { label: focus === 'funding' ? 'Show me researchers too' : 'And the funding', value: focus === 'funding' ? 'find researchers' : 'funding for my research' },
+              { label: 'Use different research', value: 'my research is' },
+            ],
+          },
+        ],
+      }
+    }
+    const asking: PlannerState = { ...withSaid, researchFocus: focus, step: 'research' }
+    return { ...asking, messages: [...asking.messages, ...speak(asking, { ...ctx, state: asking })] }
+  }
+
+  // Starting over with a different piece of work.
+  if (says('my research is', 'different research', 'rewrite it')) {
+    const asking: PlannerState = { ...withSaid, research: null, step: 'research' }
+    return { ...asking, messages: [...asking.messages, ...speak(asking, { ...ctx, state: asking })] }
+  }
+
+  // The confirmation, once the terms have been shown.
+  if (says('search my research') && withSaid.research) {
+    const focus = withSaid.researchFocus
+    saveTerms(withSaid.research.terms, withSaid.research.discipline)
+    return {
+      ...withSaid,
+      step: 'open',
+      messages: [...withSaid.messages,
+        {
+          id: id('m'),
+          from: 'scrapal',
+          card: { kind: 'radar-matches', terms: withSaid.research.terms, discipline: withSaid.research.discipline, focus },
+        },
+        {
+          id: id('m'),
+          from: 'scrapal',
+          text: 'Anything here worth chasing?',
+          chips: [
+            { label: focus === 'funding' ? 'Show me researchers too' : 'And the funding', value: focus === 'funding' ? 'find researchers' : 'funding for my research' },
+            { label: 'Back to my courses', value: 'show me courses' },
+          ],
+        },
+      ],
+    }
+  }
+
+  // Whatever they paste while being asked about their work is the work itself.
+  if (withSaid.step === 'research') {
+    const print = fingerprint(text)
+    if (isEmpty(print)) {
+      return {
+        ...withSaid,
+        messages: [...withSaid.messages, {
+          id: id('m'),
+          from: 'scrapal',
+          text: 'I could not pick out anything I recognise there. Name the methods you use and the '
+            + 'problem you are working on — I will not guess, because a guess would send the wrong '
+            + 'terms out on your behalf.',
+          chips: [{ label: 'Not now', value: 'back to', tone: 'skip' }],
+        }],
+      }
+    }
+    const read: PlannerState = {
+      ...withSaid,
+      research: { terms: print.keywords, discipline: print.discipline },
+      step: 'radarTerms',
+    }
+    return { ...read, messages: [...read.messages, ...speak(read, { ...ctx, state: read })] }
   }
 
   if (says('my documents', 'what do i need', 'what documents', 'tick off')) {
