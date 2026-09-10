@@ -434,6 +434,9 @@ function Documents({ application, course, docs }: {
             ref={(element) => { fileInputs.current[doc.id] = element }}
             type="file"
             className="sr-only"
+            // Driven by the Attach/Replace button above; see RadarPage.
+            tabIndex={-1}
+            aria-hidden="true"
             onChange={(event) => {
               const file = event.target.files?.[0]
               if (!file) return

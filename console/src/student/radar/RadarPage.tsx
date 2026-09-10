@@ -152,6 +152,12 @@ export function RadarPage() {
       type="file"
       accept=".txt,.md,.markdown,text/plain,text/markdown"
       className="sr-only"
+      // "Attach a text file" is the control; this input is only what that
+      // button clicks. sr-only still leaves it focusable and unnamed, so it is
+      // taken out of the tab order and the accessibility tree together —
+      // aria-hidden alone on a focusable element would be its own violation.
+      tabIndex={-1}
+      aria-hidden="true"
       onChange={(event) => {
         const file = event.target.files?.[0]
         if (file) readFile(file)
