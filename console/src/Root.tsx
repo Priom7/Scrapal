@@ -4,21 +4,26 @@
 // are for different people.
 import type { ReactNode } from 'react'
 import { NotFound, Splash } from './brand'
+import { RouteAnnouncer } from './RouteAnnouncer'
 import { navigate, useLocation } from './router'
 import { StudentApp } from './student/StudentApp'
 
 export function Root({ console: consoleApp }: { console: ReactNode }) {
   const path = useLocation().split('?')[0]
 
+  // Mounted above the branch so it survives moving between the two products,
+  // and so a route change is announced in both.
+  const announcer = <RouteAnnouncer />
+
   if (path.startsWith('/student')) {
-    return <><Splash />{<StudentApp />}</>
+    return <><Splash />{announcer}<StudentApp /></>
   }
   // The console is a single-page tool at the root; anything else is a stale or
   // mistyped link and should say so plainly rather than silently showing the
   // wrong product.
   if (path !== '/' && path !== '') {
-    return <NotFound onHome={() => navigate('/')} />
+    return <>{announcer}<NotFound onHome={() => navigate('/')} /></>
   }
 
-  return <><Splash />{consoleApp}</>
+  return <><Splash />{announcer}{consoleApp}</>
 }
