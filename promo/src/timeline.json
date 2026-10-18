@@ -1,0 +1,53 @@
+{
+  "bpm": 120,
+  "fps": 60,
+  "width": 1920,
+  "height": 1080,
+  "beatsPerBar": 4,
+  "scenes": [
+    {
+      "id": "chaos",
+      "bars": 5
+    },
+    {
+      "id": "brand",
+      "bars": 5
+    },
+    {
+      "id": "plan",
+      "bars": 7
+    },
+    {
+      "id": "match",
+      "bars": 5
+    },
+    {
+      "id": "evidence",
+      "bars": 5
+    },
+    {
+      "id": "money",
+      "bars": 5
+    },
+    {
+      "id": "check",
+      "bars": 5
+    },
+    {
+      "id": "apply",
+      "bars": 6
+    },
+    {
+      "id": "radar",
+      "bars": 6
+    },
+    {
+      "id": "montage",
+      "bars": 3
+    },
+    {
+      "id": "outro",
+      "bars": 4
+    }
+  ]
+}

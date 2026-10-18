@@ -1,0 +1,42 @@
+{
+  "voice": "af_heart",
+  "speed": 0.9,
+  "language": "en-us",
+  "note": "The operator film follows one number — the tuition fee Amara sees in the student film — from a university's page to a cited answer. Same format as src/vo/script.json.",
+  "lines": [
+    { "id": "opening.sentence", "scene": "opening", "at": 0.5, "text": "Every answer a student trusts begins as a sentence on someone else’s website." },
+    { "id": "opening.move", "scene": "opening", "at": 6.0, "text": "Pages move." },
+    { "id": "opening.change", "scene": "opening", "at": 7.5, "text": "Fees change." },
+    { "id": "opening.tell", "scene": "opening", "at": 9.0, "text": "Nobody tells you." },
+
+    { "id": "brand.one", "scene": "brand", "at": 0.9, "text": "Scrapal is the engine that turns those pages into knowledge you can prove." },
+
+    { "id": "sources.follow", "scene": "sources", "at": 0.4, "text": "Let’s follow one number, from a university’s website to a student’s screen." },
+    { "id": "sources.point", "scene": "sources", "at": 5.0, "text": "Point Scrapal at the site, and it samples the pages and proposes a crawl plan." },
+    { "id": "sources.approve", "scene": "sources", "at": 10.4, "text": "Nothing is fetched until you approve it." },
+
+    { "id": "run.trail", "scene": "run", "at": 0.5, "text": "Every crawl leaves a trail: what was found, fetched, extracted and saved." },
+    { "id": "run.real", "scene": "run", "at": 5.6, "text": "Counted from real events, not estimates." },
+
+    { "id": "extract.facts", "scene": "extract", "at": 0.5, "text": "Each course page becomes typed facts: fees, intakes, entry requirements." },
+    { "id": "extract.tied", "scene": "extract", "at": 6.2, "text": "And every value stays tied to the exact sentence it was read from." },
+
+    { "id": "review.person", "scene": "review", "at": 0.5, "text": "Nothing reaches students until a person approves it." },
+    { "id": "review.diff", "scene": "review", "at": 4.1, "text": "When a fee changes, you see exactly what moved. Publish it, or undo." },
+
+    { "id": "agent.suggest", "scene": "agent", "at": 0.5, "text": "The agent can spot problems and suggest fixes." },
+    { "id": "agent.alone", "scene": "agent", "at": 3.8, "text": "But it never acts alone. Every action waits for a human decision, with the risk spelled out." },
+
+    { "id": "ask.receipts", "scene": "ask", "at": 0.5, "text": "Ask a question, and the answer comes with receipts." },
+    { "id": "ask.cited", "scene": "ask", "at": 3.9, "text": "Every claim is cited. Anything without a source is held back." },
+    { "id": "ask.student", "scene": "ask", "at": 8.4, "text": "And that’s the answer a student sees." },
+
+    { "id": "watch.where", "scene": "watch", "at": 0.5, "text": "When something breaks, you see exactly where: the stage, the page, the worker." },
+    { "id": "watch.local", "scene": "watch", "at": 5.5, "text": "And it all runs on local models, so student data never has to leave your deployment." },
+
+    { "id": "montage.one", "scene": "montage", "at": 0.4, "text": "From crawl to answer. One source of truth." },
+
+    { "id": "outro.name", "scene": "outro", "at": 1.9, "text": "Scrapal." },
+    { "id": "outro.tagline", "scene": "outro", "at": 3.0, "text": "Knowledge opens doors." }
+  ]
+}

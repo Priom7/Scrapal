@@ -1,0 +1,4 @@
+# Local, offline text-to-speech for the promo voiceover (Kokoro-82M, Apache-2.0).
+# Pinned to releases at least two weeks old when this was written (2026-10-18).
+kokoro-onnx==0.6.1
+onnxruntime==1.30.0

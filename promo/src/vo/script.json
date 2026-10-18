@@ -1,0 +1,42 @@
+{
+  "voice": "af_heart",
+  "speed": 0.9,
+  "language": "en-us",
+  "note": "One entry per sentence, so each line can be placed on the frame its picture lands. `at` is seconds from the start of the line's scene; `tts/generate.py` writes each line's length to durations.json and the film checks that no two lines overlap. `say` overrides the spoken text where spelling and speech differ.",
+  "lines": [
+    { "id": "chaos.tabs", "scene": "chaos", "at": 0.5, "text": "Choosing where to study abroad starts with a hundred open tabs." },
+    { "id": "chaos.fees", "scene": "chaos", "at": 4.5, "text": "Fees that don’t match." },
+    { "id": "chaos.deadlines", "scene": "chaos", "at": 6.0, "text": "Deadlines that move." },
+    { "id": "chaos.advice", "scene": "chaos", "at": 7.5, "text": "Advice you can’t check." },
+
+    { "id": "brand.one", "scene": "brand", "at": 0.9, "text": "Scrapal brings it all into one place, and shows you where every answer came from." },
+
+    { "id": "plan.meet", "scene": "plan", "at": 0.6, "text": "Meet Amara. She wants a master’s in data science." },
+    { "id": "plan.asks", "scene": "plan", "at": 4.3, "text": "Scrapal asks one question at a time, and her plan fills in as she answers." },
+    { "id": "plan.shortlist", "scene": "plan", "at": 9.6, "text": "In seconds, she has a shortlist." },
+
+    { "id": "match.grades", "scene": "match", "at": 0.5, "text": "Each course is checked against her real grades." },
+    { "id": "match.missing", "scene": "match", "at": 3.5, "text": "No mystery score. Just what she meets, and exactly what’s missing." },
+
+    { "id": "evidence.source", "scene": "evidence", "at": 0.9, "text": "Every fee and deadline links back to the university’s own page." },
+    { "id": "evidence.silence", "scene": "evidence", "at": 5.6, "text": "And when there’s no source, Scrapal says so." },
+
+    { "id": "money.cost", "scene": "money", "at": 0.5, "text": "Then, the real cost, for the whole degree." },
+    { "id": "money.gap", "scene": "money", "at": 3.4, "text": "Amara is £7,800 short, and two scholarships could close the gap.", "say": "Amara is seven thousand eight hundred pounds short, and two scholarships could close the gap." },
+
+    { "id": "check.agent", "scene": "check", "at": 0.4, "text": "Her agent quoted £12,000.", "say": "Her agent quoted twelve thousand pounds." },
+    { "id": "check.published", "scene": "check", "at": 3.0, "text": "Scrapal checks what the university actually published, and flags it when a page changes." },
+
+    { "id": "apply.pack", "scene": "apply", "at": 0.5, "text": "When she’s ready, her application pack is too." },
+    { "id": "apply.docs", "scene": "apply", "at": 3.6, "text": "Every document each university asks for, and a personal statement in her own words. Never invented." },
+
+    { "id": "radar.phd", "scene": "radar", "at": 0.4, "text": "Planning a PhD?" },
+    { "id": "radar.device", "scene": "radar", "at": 2.4, "text": "Your research stays on your device, and only its topics are searched." },
+    { "id": "radar.match", "scene": "radar", "at": 7.0, "text": "Scrapal finds the supervisors, labs and funding that fit." },
+
+    { "id": "montage.one", "scene": "montage", "at": 0.4, "text": "One place, for the whole journey." },
+
+    { "id": "outro.name", "scene": "outro", "at": 1.9, "text": "Scrapal." },
+    { "id": "outro.tagline", "scene": "outro", "at": 3.0, "text": "Knowledge opens doors." }
+  ]
+}

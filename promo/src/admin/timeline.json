@@ -1,0 +1,54 @@
+{
+  "bpm": 120,
+  "fps": 60,
+  "width": 1920,
+  "height": 1080,
+  "beatsPerBar": 4,
+  "note": "The operator film. Shares frame rate, size and tempo with src/timeline.json.",
+  "scenes": [
+    {
+      "id": "opening",
+      "bars": 6
+    },
+    {
+      "id": "brand",
+      "bars": 5
+    },
+    {
+      "id": "sources",
+      "bars": 7
+    },
+    {
+      "id": "run",
+      "bars": 5
+    },
+    {
+      "id": "extract",
+      "bars": 6
+    },
+    {
+      "id": "review",
+      "bars": 5
+    },
+    {
+      "id": "agent",
+      "bars": 5
+    },
+    {
+      "id": "ask",
+      "bars": 6
+    },
+    {
+      "id": "watch",
+      "bars": 6
+    },
+    {
+      "id": "montage",
+      "bars": 3
+    },
+    {
+      "id": "outro",
+      "bars": 4
+    }
+  ]
+}
