@@ -1,0 +1,36 @@
+{
+  "name": "scrapal-promo",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Scrapal promo video, built with Remotion on the brand system v1.1",
+  "type": "module",
+  "scripts": {
+    "studio": "remotion studio",
+    "audio": "node scripts/soundtrack.mjs && node scripts/soundtrack.mjs --film=admin",
+    "typecheck": "tsc --noEmit",
+    "render": "remotion render ScrapalPromo out/scrapal-promo.mp4",
+    "render:draft": "remotion render ScrapalPromo out/scrapal-promo-draft.mp4 --scale=0.5 --crf=26",
+    "still": "remotion still ScrapalPromo out/still.png",
+    "render:audio": "SCRAPAL_AUDIO_ONLY=1 remotion render ScrapalPromo out/audio.wav --codec=wav",
+    "remux": "remotion ffmpeg -y -v error -i out/scrapal-promo.mp4 -i out/audio.wav -map 0:v -map 1:a -c:v copy -c:a aac -b:a 320k out/scrapal-promo.remux.mp4 && mv out/scrapal-promo.remux.mp4 out/scrapal-promo.mp4",
+    "voice": "tts/.venv/bin/python tts/generate.py",
+    "subtitles": "node scripts/subtitles.mjs && node scripts/subtitles.mjs --film=admin",
+    "render:admin": "remotion render ScrapalAdmin out/scrapal-admin.mp4",
+    "render:admin:audio": "SCRAPAL_AUDIO_ONLY=1 remotion render ScrapalAdmin out/audio-admin.wav --codec=wav",
+    "remux:admin": "remotion ffmpeg -y -v error -i out/scrapal-admin.mp4 -i out/audio-admin.wav -map 0:v -map 1:a -c:v copy -c:a aac -b:a 320k out/scrapal-admin.remux.mp4 && mv out/scrapal-admin.remux.mp4 out/scrapal-admin.mp4",
+    "voice:admin": "tts/.venv/bin/python tts/generate.py --film=admin"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.531",
+    "@remotion/fonts": "4.0.531",
+    "@remotion/paths": "4.0.531",
+    "lucide-react": "0.468.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "remotion": "4.0.531"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "typescript": "5.7.3"
+  }
+}

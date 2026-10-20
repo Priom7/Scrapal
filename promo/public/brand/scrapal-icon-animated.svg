@@ -1,0 +1,337 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="360"
+   height="360"
+   viewBox="34 18 292 330"
+   role="img"
+   aria-labelledby="title desc" style="background:transparent"
+   version="1.1"
+   id="svg29"
+   sodipodi:docname="scrapal_logo.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview29"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1" />
+  <title id="title">Scrapal animated icon</title>
+  <desc
+     id="desc">Animated Scrapal logo matched to the supplied visual reference. The lower green thread retains its original rounded geometry and is optically spaced below the knowledge cube.</desc>
+  <defs
+     id="defs6">
+    <linearGradient
+       id="threadBlue"
+       x1="50"
+       y1="70"
+       x2="275"
+       y2="185"
+       gradientUnits="userSpaceOnUse">
+      <stop
+         offset="0"
+         stop-color="#465CFF"
+         id="stop1" />
+      <stop
+         offset="1"
+         stop-color="#3FA7E8"
+         id="stop2" />
+    </linearGradient>
+    <linearGradient
+       id="threadMint"
+       x1="115"
+       y1="185"
+       x2="285"
+       y2="295"
+       gradientUnits="userSpaceOnUse">
+      <stop
+         offset="0"
+         stop-color="#34A8D8"
+         id="stop3" />
+      <stop
+         offset="1"
+         stop-color="#42CFA0"
+         id="stop4" />
+    </linearGradient>
+    <linearGradient
+       id="threadLower"
+       x1="60"
+       y1="300"
+       x2="285"
+       y2="235"
+       gradientUnits="userSpaceOnUse">
+      <stop
+         offset="0"
+         stop-color="#20C998"
+         id="stop5" />
+      <stop
+         offset="1"
+         stop-color="#42CFA0"
+         id="stop6" />
+    </linearGradient>
+    <filter
+       id="soft"
+       x="-20%"
+       y="-20%"
+       width="140%"
+       height="140%">
+      <feGaussianBlur
+         stdDeviation="0.35"
+         id="feGaussianBlur6" />
+    </filter>
+  
+    <style><![CDATA[
+      #circle6, #circle7, #circle8, #circle9, #circle10, #circle11,
+      #circle12, #circle13, #circle14, #circle15, #circle16, #circle17,
+      #circle18, #circle19, #circle20, #circle21, #circle26,
+      #g22, #g24, #g25, #path26, #g29 {
+        transform-box: fill-box;
+        transform-origin: center;
+      }
+      #circle6  { animation: scrapalPulse 2.1s ease-in-out 0.00s infinite; }
+      #circle7  { animation: scrapalPulse 2.1s ease-in-out 0.12s infinite; }
+      #circle8  { animation: scrapalPulse 2.1s ease-in-out 0.24s infinite; }
+      #circle9  { animation: scrapalPulse 2.1s ease-in-out 0.48s infinite; }
+      #circle10 { animation: scrapalPulse 2.1s ease-in-out 0.70s infinite; }
+      #circle11 { animation: scrapalPulse 2.1s ease-in-out 0.92s infinite; }
+      #circle12 { animation: scrapalBlink 1.35s ease-in-out 0.00s infinite; }
+      #circle13 { animation: scrapalBlink 1.35s ease-in-out 0.16s infinite; }
+      #circle14 { animation: scrapalBlink 1.35s ease-in-out 0.32s infinite; }
+      #circle15 { animation: scrapalBlink 1.35s ease-in-out 0.52s infinite; }
+      #circle16 { animation: scrapalBlink 1.35s ease-in-out 0.64s infinite; }
+      #circle17 { animation: scrapalBlink 1.35s ease-in-out 0.76s infinite; }
+      #circle18 { animation: scrapalBlink 1.35s ease-in-out 0.88s infinite; }
+      #circle19 { animation: scrapalBlink 1.35s ease-in-out 1.00s infinite; }
+      #circle20 { animation: scrapalBlink 1.35s ease-in-out 1.12s infinite; }
+      #circle21 { animation: scrapalBlink 1.35s ease-in-out 1.24s infinite; }
+      #g22      { animation: iconBreath 2.8s ease-in-out 0.0s infinite; }
+      #g24      { animation: iconBreath 2.8s ease-in-out 0.35s infinite; }
+      #g25      { animation: iconBreath 2.8s ease-in-out 0.70s infinite; }
+      #path26   { animation: sparkPulse 1.8s ease-in-out 0.75s infinite; }
+      #g29      { animation: iconBreath 2.8s ease-in-out 1.05s infinite; }
+      #text29   { animation: wordmarkBreath 4.2s ease-in-out infinite; }
+      @keyframes scrapalPulse {
+        0%,100% { opacity:.72; transform:scale(.96); }
+        50%     { opacity:1; transform:scale(1.06); }
+      }
+      @keyframes scrapalBlink {
+        0%,100% { opacity:.38; }
+        45%     { opacity:1; }
+      }
+      @keyframes iconBreath {
+        0%,100% { opacity:.72; }
+        50%     { opacity:1; }
+      }
+      @keyframes sparkPulse {
+        0%,100% { opacity:.55; transform:scale(.86) rotate(0deg); }
+        50%     { opacity:1; transform:scale(1.16) rotate(18deg); }
+      }
+      @keyframes wordmarkBreath {
+        0%,100% { opacity:.94; }
+        50%     { opacity:1; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        * { animation: none !important; }
+      }
+    ]]></style>
+  </defs>
+  <!-- Threadline S mark -->
+  <g
+     fill="none"
+     stroke-linecap="round"
+     stroke-linejoin="round"
+     id="g11">
+    <!-- upper outer thread -->
+    <path
+       d="M70 136 C70 89 101 57 148 57 H246"
+       stroke="url(#threadBlue)"
+       stroke-width="11"
+       id="path6" />
+    <path
+       id="circle6"
+       style="fill:#465cff"
+       d="M 85,136 A 15,15 0 0 1 70,151 15,15 0 0 1 55,136 15,15 0 0 1 70,121 15,15 0 0 1 85,136 Z" />
+    <path
+       id="circle7"
+       style="fill:#465cff"
+       d="M 266,57 A 18,18 0 0 1 248,75 18,18 0 0 1 230,57 18,18 0 0 1 248,39 18,18 0 0 1 266,57 Z" />
+    <!-- middle blue thread -->
+    <path
+       d="M126 136 H188 C231 136 260 158 270 195"
+       stroke="url(#threadBlue)"
+       stroke-width="11"
+       id="path7" />
+    <path
+       id="circle8"
+       style="fill:#4e91f2"
+       d="m 134,136 a 8,8 0 0 1 -8,8 8,8 0 0 1 -8,-8 8,8 0 0 1 8,-8 8,8 0 0 1 8,8 z" />
+    <!-- mint middle thread -->
+    <path
+       d="M126 210 H190 C236 210 267 235 279 269"
+       stroke="url(#threadMint)"
+       stroke-width="11"
+       id="path8" />
+    <path
+       id="circle9"
+       style="fill:#35b4c7"
+       d="m 208,210 a 18,18 0 0 1 -18,18 18,18 0 0 1 -18,-18 18,18 0 0 1 18,-18 18,18 0 0 1 18,18 z" />
+    <path
+       id="circle10"
+       style="fill:#42cfa0"
+       d="m 293,269 a 14,14 0 0 1 -14,14 14,14 0 0 1 -14,-14 14,14 0 0 1 14,-14 14,14 0 0 1 14,14 z" />
+    <!-- lower outer thread -->
+    <path
+       d="M87 324 H178 C231 324 266 300 279 261"
+       stroke="url(#threadLower)"
+       stroke-width="11"
+       id="path10" />
+    <path
+       id="circle11"
+       style="fill:#20c998"
+       d="m 105,324 a 18,18 0 0 1 -18,18 18,18 0 0 1 -18,-18 18,18 0 0 1 18,-18 18,18 0 0 1 18,18 z" />
+  </g>
+  <!-- pipeline dots -->
+  <g
+     fill="#4B70F6"
+     id="g13">
+    <path
+       id="circle12"
+       d="M 96.5,136 A 4.5,4.5 0 0 1 92,140.5 4.5,4.5 0 0 1 87.5,136 4.5,4.5 0 0 1 92,131.5 4.5,4.5 0 0 1 96.5,136 Z" />
+    <path
+       id="circle13"
+       d="m 111.5,136 a 4.5,4.5 0 0 1 -4.5,4.5 4.5,4.5 0 0 1 -4.5,-4.5 4.5,4.5 0 0 1 4.5,-4.5 4.5,4.5 0 0 1 4.5,4.5 z" />
+  </g>
+  <path
+     id="circle14"
+     style="fill:#e4a72c"
+     d="m 124,210 a 7,7 0 0 1 -7,7 7,7 0 0 1 -7,-7 7,7 0 0 1 7,-7 7,7 0 0 1 7,7 z" />
+  <g
+     fill="#42CFA0"
+     id="g21">
+    <path
+       id="circle15"
+       d="m 124,270 a 7,7 0 0 1 -7,7 7,7 0 0 1 -7,-7 7,7 0 0 1 7,-7 7,7 0 0 1 7,7 z" />
+    <path
+       id="circle16"
+       d="m 140,270 a 4,4 0 0 1 -4,4 4,4 0 0 1 -4,-4 4,4 0 0 1 4,-4 4,4 0 0 1 4,4 z" />
+    <path
+       id="circle17"
+       d="m 155,270 a 4,4 0 0 1 -4,4 4,4 0 0 1 -4,-4 4,4 0 0 1 4,-4 4,4 0 0 1 4,4 z" />
+    <path
+       id="circle18"
+       d="m 170,270 a 4,4 0 0 1 -4,4 4,4 0 0 1 -4,-4 4,4 0 0 1 4,-4 4,4 0 0 1 4,4 z" />
+    <path
+       id="circle19"
+       d="m 228,270 a 4,4 0 0 1 -4,4 4,4 0 0 1 -4,-4 4,4 0 0 1 4,-4 4,4 0 0 1 4,4 z" />
+    <path
+       id="circle20"
+       d="m 243,270 a 4,4 0 0 1 -4,4 4,4 0 0 1 -4,-4 4,4 0 0 1 4,-4 4,4 0 0 1 4,4 z" />
+    <path
+       id="circle21"
+       d="m 258,270 a 4,4 0 0 1 -4,4 4,4 0 0 1 -4,-4 4,4 0 0 1 4,-4 4,4 0 0 1 4,4 z" />
+  </g>
+  <!-- Globe -->
+  <g
+     transform="translate(118 98)"
+     fill="none"
+     stroke="#465CFF"
+     stroke-width="3"
+     stroke-linecap="round"
+     id="g22">
+    <path
+       id="circle22"
+       d="M 15,0 A 15,15 0 0 1 0,15 15,15 0 0 1 -15,0 15,15 0 0 1 0,-15 15,15 0 0 1 15,0 Z" />
+    <path
+       d="M-15 0H15M0-15V15M-10-11C-4-5-4 5-10 11M10-11C4-5 4 5 10 11M-13-7H13M-13 7H13"
+       id="path22" />
+  </g>
+  <!-- Document -->
+  <g
+     transform="translate(104 154)"
+     fill="none"
+     stroke="#4A84F0"
+     stroke-width="3.2"
+     stroke-linejoin="round"
+     stroke-linecap="round"
+     id="g24">
+    <path
+       d="M0 0H17L25 8V31H0Z"
+       id="path23" />
+    <path
+       d="M17 0V8H25M6 16H19M6 22H19M6 27H15"
+       id="path24" />
+  </g>
+  <!-- Search -->
+  <g
+     transform="translate(107 231)"
+     fill="none"
+     stroke="#E4A72C"
+     stroke-width="4"
+     stroke-linecap="round"
+     id="g25">
+    <path
+       id="circle24"
+       d="M 20,10 A 10,10 0 0 1 10,20 10,10 0 0 1 0,10 10,10 0 0 1 10,0 10,10 0 0 1 20,10 Z" />
+    <path
+       d="M18 18L28 28"
+       id="path25" />
+  </g>
+  <!-- Spark -->
+  <path
+     d="M193 253 C196 263 201 268 211 271 C201 274 196 279 193 289 C190 279 185 274 175 271 C185 268 190 263 193 253Z"
+     fill="#26C8A2"
+     id="path26" />
+  <path
+     id="circle26"
+     style="fill:#42cfa0"
+     d="m 218,270 a 4,4 0 0 1 -4,4 4,4 0 0 1 -4,-4 4,4 0 0 1 4,-4 4,4 0 0 1 4,4 z" />
+  <!-- Knowledge cube -->
+  <g
+     transform="translate(105 286)"
+     fill="none"
+     stroke="#2FCBA3"
+     stroke-width="3"
+     stroke-linejoin="round"
+     stroke-linecap="round"
+     id="g29">
+    <path
+       d="M12 0L25 7L12 14L-1 7Z"
+       id="path27" />
+    <path
+       d="M-1 7V22L12 29L25 22V7M12 14V29"
+       id="path28" />
+    <path
+       d="M4 11L12 15L20 11"
+       opacity=".75"
+       id="path29" />
+  </g>
+
+  <!-- Animated data-flow particles. Original logo geometry is untouched. -->
+  <g aria-hidden="true" pointer-events="none">
+    <circle r="4.4" fill="#FFFFFF" opacity="0.96">
+      <animateMotion dur="2.6s" repeatCount="indefinite" rotate="auto">
+        <mpath href="#path6" />
+      </animateMotion>
+    </circle>
+    <circle r="4.2" fill="#FFFFFF" opacity="0.92">
+      <animateMotion dur="2.6s" begin="0.65s" repeatCount="indefinite" rotate="auto">
+        <mpath href="#path7" />
+      </animateMotion>
+    </circle>
+    <circle r="4.2" fill="#FFFFFF" opacity="0.92">
+      <animateMotion dur="2.6s" begin="1.30s" repeatCount="indefinite" rotate="auto">
+        <mpath href="#path8" />
+      </animateMotion>
+    </circle>
+    <circle r="4.2" fill="#FFFFFF" opacity="0.94">
+      <animateMotion dur="2.6s" begin="1.95s" repeatCount="indefinite" rotate="auto">
+        <mpath href="#path10" />
+      </animateMotion>
+    </circle>
+  </g>
+</svg>
